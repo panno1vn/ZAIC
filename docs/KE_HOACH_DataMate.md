@@ -46,11 +46,11 @@ datamate/
 │   ├── metrics/     # [D1] registry + các hàm tính
 │   ├── codegen/     # [D2]
 │   ├── rules/       # [R] đọc rulebook, so sánh luật               ← leader
-│   ├── validate/    # [V]                                          ← leader
+│   ├── verify/      # [V]                                          ← leader
 │   ├── decide/      # [E]                                          ← leader
 │   ├── formatter/   # [F]
 │   ├── llm/         # client chung: bản giả lập + bản chạy model thật ← leader (khung)
-│   ├── io/          # ghi submission, log, đồng hồ chặn            ← leader
+│   ├── output/      # ghi submission, log, đồng hồ chặn            ← leader
 │   ├── pipeline.py  # nối mọi khối                                 ← leader
 │   └── predict.py   # lệnh chạy chính
 ├── eval/            # scorer, chạy đánh giá, bảng cửa hàng → ngành  ← leader

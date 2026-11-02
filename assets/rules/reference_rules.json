@@ -1,0 +1,910 @@
+{
+ "§0.p_hom_nay_cua_moi_cau_la": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Hôm nay** của mỗi câu là trường `as_of_date` trong `questions.jsonl`. Mọi cách nói tương đối tính theo ngày này. File có thể có bản ghi ngày sau hôm nay: với câu hỏi theo hôm nay, những bản ghi đó coi như chưa xảy ra. Riêng trạng thái huỷ, trả hàng của đơn lấy theo trạng thái ghi trên đơn, kể cả khi phiếu trả ghi ngày sau hôm nay."
+   }
+  ]
+ },
+ "§0.p_moi_dap_an_chuan_tinh_theo": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Mọi đáp án chuẩn tính theo các luật dưới đây. Câu hỏi nói khác thì làm theo câu hỏi; không nói thì áp luật mặc định ở đây."
+   }
+  ]
+ },
+ "§1.ban_duoc_bao_nhieu_tien_thu_ve_bao_nhieu_tien": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "là **doanh thu** theo mục này, không phải tiền khách đã trả"
+   }
+  ]
+ },
+ "§1.bao_cao_tien_mat_theo_ca": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "chỉ ghi **tiền mặt**, theo **giờ thu tiền**, gồm cả tiền khách trả nợ. Doanh thu, số đơn tính từ đơn hàng theo ngày, giờ đặt như trên, không tính từ báo cáo ca"
+   }
+  ]
+ },
+ "§1.chenh_lech_hon_kem_tang_giam_bao_nhieu_so_khong_": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "**kỳ hỏi − kỳ so**: ít hơn ra số âm, giữ đơn vị của số đo"
+   }
+  ]
+ },
+ "§1.doanh_thu_mot_don": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "tổng **thành tiền các dòng hàng** (đã trừ giảm giá trên từng dòng). **Không** trừ giảm giá trên cả đơn (khuyến mãi theo tổng tiền đơn, voucher shop), **không** cộng thuế VAT, **không** gồm phí giao hàng. **Tiền hàng**, **tiền bán** của đơn bán cùng nghĩa với doanh thu"
+   }
+  ]
+ },
+ "§1.doanh_thu_theo_hinh_thuc_thanh_toan": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "theo hình thức **ghi trên đơn**, không theo lần trả nợ về sau: đơn ghi nợ không tính vào tiền mặt hay chuyển khoản. Đơn **COD** là hình thức riêng, không tính vào tiền mặt"
+   }
+  ]
+ },
+ "§1.doanh_thu_theo_nhom_khach": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "nhóm theo cột nhóm khách. Đơn không ghi khách (khách vãng lai) **không thuộc nhóm nào**, kể cả nhóm `lẻ`. Tỉ trọng của nhóm chia cho doanh thu **cả shop** cùng kỳ, tính cả đơn vãng lai"
+   }
+  ]
+ },
+ "§1.don_bi_huy": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "đơn có trạng thái huỷ. Đơn trả hàng **không** phải đơn huỷ"
+   }
+  ]
+ },
+ "§1.don_thuoc_ky_nao": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "theo **ngày đặt**, không theo ngày giao hay ngày thu tiền"
+   },
+   {
+    "source": "public_test",
+    "text": "theo **ngày đặt**, không theo ngày giao hay ngày thu tiền. Đơn trả hàng sau kỳ, kể cả trả sau hôm nay, vẫn bị loại khỏi doanh thu kỳ đặt"
+   }
+  ]
+ },
+ "§1.don_tinh_vao_doanh_thu": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "đơn **không huỷ** và **không trả hàng**. Đơn có trả hàng, **kể cả chỉ trả một phần**, là đơn trả hàng: bỏ **cả đơn**. Đơn đang giao vẫn tính"
+   }
+  ]
+ },
+ "§1.phan_tram_thay_doi_tang_truong": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "so với **kỳ trước**; giảm thì ra **số âm**"
+   }
+  ]
+ },
+ "§1.so_don": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "chỉ tính đơn không huỷ, không trả; cả khi đếm số đơn có một mặt hàng, số đơn của một khách. **Khách đã mua** trong kỳ là khách có ít nhất một đơn như vậy trong kỳ"
+   }
+  ]
+ },
+ "§1.ti_le_don_huy_trong_ky": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "phần trăm đơn huỷ trong **mọi đơn đặt trong kỳ** (theo ngày đặt, **mọi trạng thái**: cả đơn huỷ, đơn trả, đơn đang giao). Làm tròn 2 chữ số thập phân."
+   }
+  ]
+ },
+ "§10.don_vi_co_ban_don_vi_lon": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "mỗi mặt hàng có một **đơn vị cơ bản** (đơn vị nhỏ nhất shop đếm) và có thể có **đơn vị lớn**. Hệ số quy đổi khác nhau theo shop và theo mặt hàng, luôn đọc ở bảng quy đổi hoặc README của shop; đơn vị không có dòng quy đổi nào là đơn vị cơ bản, hệ số 1"
+   }
+  ]
+ },
+ "§2.ca_sang_ca_chieu": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "theo giờ tạo đơn: ca sáng 06:00–13:59, ca chiều 14:00–21:59. So ca chiều với ca sáng: mốc là **ca sáng**"
+   }
+  ]
+ },
+ "§2.den_het_ngay_x_tinh_den_hom_nay": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "hỏi số còn lại (còn nợ, còn tồn, còn hàng…): **tình trạng lúc hết ngày đó**, tính mọi phát sinh **từ đầu dữ liệu** đến hết ngày đó; không phải kỳ **tháng này**"
+   },
+   {
+    "source": "public_test",
+    "text": "hỏi số còn lại (còn nợ, còn tồn, còn hàng, chưa giao…): **tình trạng lúc hết ngày đó**, tính mọi phát sinh **từ đầu dữ liệu** đến hết ngày đó; không phải kỳ **tháng này**"
+   }
+  ]
+ },
+ "§2.n_ngay_gan_nhat": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "N ngày liền nhau **kể cả hôm nay**, ngày cuối là hôm nay"
+   }
+  ]
+ },
+ "§2.ngay_x_hom_nay_hom_qua": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "hỏi số phát sinh (doanh thu, số đơn, giá bán…): chỉ **trong** ngày đó"
+   }
+  ]
+ },
+ "§2.qua_n_hon_n_tren_n_duoi_n": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "**không** gồm N. **Từ N trở lên** thì gồm N"
+   }
+  ]
+ },
+ "§2.tet_nam_y_dip_tet_mua_tet": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "từ ngày dương của **23 tháng Chạp** (năm âm Y − 1) đến **hết** ngày dương của **mùng 10 tháng Giêng** (năm âm Y). **So với trước Tết** = cùng số ngày ngay trước 23 tháng Chạp. Tra lịch âm trong `calendar.csv` cùng thư mục."
+   }
+  ]
+ },
+ "§2.thang_m_quy_q_khong_ghi_nam": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "của **năm nay** nếu không sau hôm nay; sau hôm nay thì của **năm trước**. Quý theo dương lịch, mỗi quý 3 tháng tính từ tháng 1"
+   }
+  ]
+ },
+ "§2.thang_m_y": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "cả tháng, từ ngày 1 đến hết ngày cuối tháng"
+   }
+  ]
+ },
+ "§2.thang_nay": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "từ ngày 1 đến **hết hôm nay**. So với tháng trước thì lấy **cùng số ngày** của tháng trước: từ ngày 1 đến hết ngày trùng số với hôm nay; tháng trước không có ngày đó thì đến hết tháng trước"
+   }
+  ]
+ },
+ "§2.trung_binh_moi_ngay_thu_x_cua_ky": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "chia cho **số ngày thứ X** trong kỳ, kể cả ngày không có đơn, phiếu"
+   }
+  ]
+ },
+ "§2.tu_dau_nam_tu_dau_nam_toi_nay": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "từ 01/01 của năm nay đến **hết hôm nay**"
+   }
+  ]
+ },
+ "§2.tu_x_den_y_nhom_x_y": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "gồm cả X và Y"
+   }
+  ]
+ },
+ "§2.tuan": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "bắt đầu **thứ Hai**. **Tuần này**: từ thứ Hai của tuần chứa hôm nay đến hết hôm nay. **Tuần trước, tuần rồi**: **cả** tuần liền trước, thứ Hai đến Chủ nhật"
+   }
+  ]
+ },
+ "§3.ban_chay": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "theo **số lượng quy về đơn vị cơ bản**, không theo số dòng hay số tiền; bỏ đơn huỷ, trả. Mặt hàng khác đơn vị cơ bản vẫn xếp chung theo số đó. **Bán nhiều nhất**, **bán được nhiều nhất**, **hot nhất** cùng nghĩa với **bán chạy nhất**"
+   }
+  ]
+ },
+ "§3.ban_duoc_bao_nhieu_don_vi": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "cộng số lượng quy về đơn vị cơ bản của các mặt hàng **có đơn vị cơ bản là <đơn vị>**, kể cả dòng bán theo đơn vị lớn; mặt hàng có đơn vị cơ bản khác không tính"
+   }
+  ]
+ },
+ "§3.gia_tri_trung_binh_mot_don": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "làm tròn về đồng, nửa đồng làm tròn lên"
+   }
+  ]
+ },
+ "§3.gio_cao_diem": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "khung **một giờ tròn** theo giờ tạo đơn (từ h giờ đến trước h + 1 giờ) có nhiều đơn nhất trong kỳ. Đáp án là **giờ bắt đầu khung**, type `number`"
+   }
+  ]
+ },
+ "§3.hang_loi_nhat": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "theo **tổng lãi gộp** của mặt hàng (§5)"
+   }
+  ]
+ },
+ "§3.khach_hay_doi_y_nhat": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "khách có **nhiều đơn huỷ nhất** trong kỳ"
+   }
+  ]
+ },
+ "§3.khach_sop_nhat": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "khách có **giá trị trung bình một đơn** cao nhất trong kỳ, chỉ xét khách có **từ 3 đơn trở lên** trong kỳ"
+   }
+  ]
+ },
+ "§3.khach_trung_thanh_nhat": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "khách (xác định như dòng Xác định khách) có **nhiều ngày có mua nhất** trong kỳ"
+   }
+  ]
+ },
+ "§3.mat_hang": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "**Món**, hàng, sản phẩm cùng nghĩa với mặt hàng. Dòng **Phí phục vụ** không phải mặt hàng: không xếp hạng, không đếm. Vẫn tính vào doanh thu, kể cả mẫu số tỉ trọng nhóm hàng"
+   }
+  ]
+ },
+ "§3.mat_hang_duoc_ua_chuong_nhat": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "mặt hàng có mặt trong **nhiều đơn nhất** trong kỳ"
+   }
+  ]
+ },
+ "§3.ngay_dat_khach_nhat": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "ngày có **nhiều đơn nhất** trong kỳ"
+   }
+  ]
+ },
+ "§3.nhan_vien_ban_gioi_nhat": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "theo **doanh thu** (§1) của nhân viên trong kỳ, không theo số đơn"
+   }
+  ]
+ },
+ "§3.nhan_vien_tho_cham_chi_nhat": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "người có **nhiều ngày làm việc nhất** trong kỳ; ngày làm việc là ngày có ít nhất một đơn, kể cả phiếu bảo hành, do người đó bán hoặc làm"
+   }
+  ]
+ },
+ "§3.nhom_hang": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "theo cột nhóm hàng, đúng tên nhóm câu hỏi nêu; không gộp nhóm khác tên dù tên gần nhau"
+   }
+  ]
+ },
+ "§3.xac_dinh_khach": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Shop có mã khách: mỗi **mã khách** là một khách, hai mã trùng tên là hai khách; đơn không ghi mã (**khách lẻ**) không phải khách, không đếm và không xếp hạng. Shop không có mã khách: xác định khách theo **tên ghi trên đơn**: hai tên **chỉ khác cách viết** là cùng một khách, hai tên **khác chữ hoặc khác số** là hai khách; đơn **khách lẻ** không tính. Khách mua **nhiều tiền** nhất xếp theo doanh thu (§1)."
+   }
+  ]
+ },
+ "§4.don_cod_don_ban_qua_san_tmdt": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "**không phải khách nợ**, kể cả khi chưa thu được tiền; bỏ khỏi công nợ và tuổi nợ"
+   }
+  ]
+ },
+ "§4.don_duoc_tinh_vao_no": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "đơn không huỷ; **đơn trả hàng vẫn tính** nếu còn nợ"
+   }
+  ]
+ },
+ "§4.no_mot_don_tai_ngay_x": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "phần chưa trả của **tổng đơn** (số khách phải trả cả đơn: đã trừ giảm giá trên cả đơn, **gồm phí giao**), tính các khoản trả đến hết ngày X. Còn nợ = cộng các đơn **còn nợ > 0**"
+   }
+  ]
+ },
+ "§4.no_them_tra_no_thu_no_trong_ky": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "chỉ đơn **ghi nợ**, không huỷ. **Nợ thêm**: phần tổng đơn chưa trả ngay trong ngày mua, của đơn đặt trong kỳ. **Trả nợ / thu nợ**: các khoản trả **sau ngày mua** có ngày trả trong kỳ, của mọi đơn ghi nợ (kể cả đơn kỳ trước, đơn trả hàng). Tiền trả cùng ngày mua là trả lúc mua. Hoàn tiền trả hàng không trừ"
+   }
+  ]
+ },
+ "§4.no_theo_khach": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "xác định khách như §3. Đơn **khách lẻ** vẫn tính vào **tổng nợ**, nhưng không có dòng trong bảng nợ theo khách"
+   }
+  ]
+ },
+ "§4.tuoi_no": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "số ngày tính từ **ngày đặt**, không từ hạn thanh toán. Đơn đặt hôm nay có tuổi nợ **0** ngày, đơn đặt hôm qua **1** ngày"
+   }
+  ]
+ },
+ "§5.gia_ban_x_ngay_d": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "đơn giá ghi trên dòng bán X của các đơn đặt ngày D, cho **một đơn vị cơ bản**, **trước** chiết khấu dòng; tính cả dòng của đơn huỷ, đơn trả"
+   }
+  ]
+ },
+ "§5.gia_nhap_binh_quan_mot_mat_hang_trong_thang": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "bình quân **theo số lượng nhập**, **không** phải trung bình cộng các mức giá nhập; theo đơn vị nhập, các phiếu có ngày phiếu trong tháng, bỏ phiếu huỷ"
+   }
+  ]
+ },
+ "§5.gia_tri_hang_ton_kho": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "tồn **hết hôm nay** của từng mặt hàng nhân **giá vốn một đơn vị cơ bản ghi trong danh mục hàng**; chỉ tính hàng còn tồn"
+   }
+  ]
+ },
+ "§5.gia_von": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "bình quân gia quyền theo lô nhập, tại thời điểm bán; không theo FIFO, không theo giá nhập lần cuối"
+   }
+  ]
+ },
+ "§5.hieu_ung_tang_gia": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "lần tăng giá = ngày D giá mới cao hơn giá liền trước (theo bảng giá); tăng lên cùng một giá nhiều lần thì lấy lần đầu. So số lượng (đơn vị cơ bản) **N ngày kể từ D** (tính cả D) với **N ngày ngay trước D**; cả hai khoảng bỏ đơn huỷ và đơn trả"
+   }
+  ]
+ },
+ "§5.lai_gop": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "doanh thu (§1) trừ giá vốn của hàng đã bán. Giá vốn của mỗi dòng bán bằng số lượng nhân với **giá vốn ghi trên dòng bán** (cho **một đơn vị bán**, cùng đơn vị với đơn giá). Không tự tính lại giá vốn từ phiếu nhập hay từ lô"
+   }
+  ]
+ },
+ "§5.lai_rong_mot_thang": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "lãi gộp của tháng trừ **mọi khoản** ghi trong sổ chi phí của tháng đó, kể cả sửa chữa, thay thiết bị"
+   }
+  ]
+ },
+ "§5.mat_hang_het_hang_cuoi_ngay": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "mặt hàng **mua về để bán** (không tính món pha chế, chế biến tại chỗ) mà lúc **hết ngày** đó tồn kho bằng 0; hết giữa ngày nhưng nhập thêm trước cuối ngày thì không tính"
+   }
+  ]
+ },
+ "§5.mat_hang_khong_ban_duoc_trong_ky_e": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "mặt hàng cửa hàng **đã từng bán trước kỳ** (có trong đơn §1, không tính đơn huỷ, đơn trả) nhưng trong kỳ không có đơn nào (§1) mua mặt hàng đó"
+   }
+  ]
+ },
+ "§5.nha_cung_cap_chinh": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "nhà cung cấp có **nhiều phiếu nhập nhất** trong kỳ, bỏ phiếu huỷ. Khác nhà cung cấp nhập nhiều tiền nhất"
+   }
+  ]
+ },
+ "§5.nhap_tru_ban_chenh_nhap_va_ban": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "phần **bán** là số lượng của đơn tính vào doanh thu (§1), quy về cùng đơn vị với phần nhập"
+   }
+  ]
+ },
+ "§5.tien_nhap_hang_trong_ky": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "tổng tiền các phiếu nhập có **ngày phiếu** trong kỳ, bỏ phiếu huỷ. Phiếu, dòng ghi **nhập đầu kỳ** là phiếu nhập như mọi phiếu khác: có ngày phiếu trong kỳ thì tính. Nhà cung cấp nhập nhiều nhất = nhà cung cấp có tiền nhập cao nhất"
+   }
+  ]
+ },
+ "§5.ton_theo_don_vi_lon": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "list 2 số `[số đơn vị lớn nguyên, số đơn vị cơ bản lẻ]`; không có phần lẻ thì số thứ hai là 0. Hàng nhiều cấp: phần lẻ vẫn tính bằng đơn vị cơ bản, không đổi sang đơn vị ở giữa"
+   }
+  ]
+ },
+ "§6.ca_phe.size_m_size_l": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "món có tên kết thúc bằng `(M)` hoặc `(L)`, **không phân biệt hoa thường**"
+   }
+  ]
+ },
+ "§6.ca_phe.topping_ghi_chung_o_voi_mon": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "món và topping là **hai** mặt hàng bán: số lượng, tiền của topping tính vào mặt hàng topping (cùng mặt hàng với topping ghi dòng riêng), không tính vào món"
+   }
+  ]
+ },
+ "§6.cua_hang_dien_thoai.bao_hanh": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "**Tỉ lệ bảo hành** của một quý bằng số **lượt** bảo hành có ngày nhận trong quý, chia cho số máy bán trong quý (bỏ đơn huỷ, đơn trả). Lượt bảo hành của máy bán từ quý trước vẫn tính."
+   }
+  ]
+ },
+ "§6.cua_hang_dien_thoai.dong_may_hang": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "**dòng máy** = phần tên hàng đứng trước dung lượng `…GB`; tên không có phần `…GB` thì dòng máy là cả tên (`Nokia 105 4G`: `4G` là mạng, không phải dung lượng). **Hãng** = chữ đầu tên hàng; máy `iPhone` là hãng Apple. Máy khách mang tới đổi không phải máy bán"
+   }
+  ]
+ },
+ "§6.cua_hang_dien_thoai.thu_may_cu": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "**Khách phải trả** là tiền của đơn sau bớt và sau trừ máy cũ, gồm cả phần còn nợ. Tiền thu máy cũ **không** trừ vào doanh thu. Tổng khách phải trả, tiền thu máy cũ của một kỳ chỉ tính đơn không huỷ, không trả (§1)"
+   }
+  ]
+ },
+ "§6.cua_hang_dien_thoai.tra_gop": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "Đơn trả góp là đơn **ghi nợ** (§4): phần góp chưa trả là tiền khách còn nợ, tiền góp mỗi kỳ là tiền khách trả nợ (tính vào thu nợ). Tiền góp không tính vào doanh thu, vì doanh thu đã tính đủ giá máy vào ngày mua; tiền trả trước không phải tiền góp. Câu hỏi khách nợ, mua chịu, trả nợ, thu nợ gồm cả đơn trả góp, dù shop ghi sổ góp riêng với sổ nợ. Kỳ góp có hạn **trước** ngày hỏi mà chưa góp đủ là **quá hạn**; kỳ có hạn đúng ngày hỏi thì chưa quá hạn."
+   }
+  ]
+ },
+ "§6.me_va_be.khach_thanh_vien_moi_trong_thang": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "số khách có **Ngày đăng ký** trong tháng đó, kể cả khách chưa mua lần nào"
+   }
+  ]
+ },
+ "§6.me_va_be.so_sua_size_bim": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "lấy theo cột Số / Size của danh mục: hàng để trống cột Số / Size thì không xếp vào số, size nào, dù tên hàng có số. Phần trăm của một size hay một hãng chia cho tổng số bịch mọi hàng **bỉm tã** cùng kỳ"
+   }
+  ]
+ },
+ "§6.me_va_be.tien_giam_voucher_tien_giam_nho_dung_diem_phi_sh": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "trả **số dương**; cộng theo **ngày của hoá đơn**; chỉ tính hoá đơn không huỷ, không trả"
+   }
+  ]
+ },
+ "§6.nha_thuoc.doanh_thu_theo_hoat_chat": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "doanh thu (§1) các thuốc có hoạt chất ghi **đúng như vậy** trong danh mục thuốc. Thuốc phối hợp nhiều hoạt chất là **một loại riêng**, không tính vào từng hoạt chất trong đó"
+   }
+  ]
+ },
+ "§6.nha_thuoc.hang_het_han_trong_n_ngay_toi": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "tính tại hôm nay D: lô còn tồn có hạn dùng từ D đến hết ngày D + N. **Tiền vốn** là giá trị phần **còn tồn** của lô, theo giá nhập của chính lô đó quy về đơn vị cơ bản, không theo giá vốn bình quân"
+   }
+  ]
+ },
+ "§6.nha_thuoc.lo_gan_het_han_nhat_cua_mot_thuoc": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "trong các lô còn tồn chưa quá hạn tại hôm nay, lô có hạn sớm nhất"
+   }
+  ]
+ },
+ "§6.nha_thuoc.thuoc_ke_don": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "**Thuốc kê đơn** = sản phẩm ghi kê đơn trong danh mục thuốc; mọi sản phẩm còn lại là **hàng không kê đơn**. Tỉ lệ kê đơn tính theo doanh thu"
+   }
+  ]
+ },
+ "§6.p_luat_rieng_cua_tung_nganh_dung": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Luật riêng của từng ngành, dùng cùng với luật chung ở các mục trên. Khi luật ngành khác luật chung, theo **luật ngành**."
+   }
+  ]
+ },
+ "§6.sua_xe.bao_hanh": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "**Tỉ lệ bảo hành** bằng số phiếu bảo hành có ngày trong kỳ, chia cho số phiếu có thu tiền trong cùng kỳ; phiếu bảo hành của xe sửa từ kỳ trước vẫn tính"
+   }
+  ]
+ },
+ "§6.sua_xe.dong_xe_bien_so": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "Tên dòng xe chỉ khác hoa/thường hoặc ghi tắt là cùng một dòng. **Số chiếc xe** mang tới = số biển số khác nhau, tính cả xe chỉ tới bảo hành"
+   }
+  ]
+ },
+ "§6.sua_xe.khach_quen_xe_toi_nhieu_lan": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "xác định xe theo **biển số**. Chỉ đếm phiếu **có thu tiền**: phiếu bảo hành không tính là một lần tới. **Xe khách quen** = xe có từ 2 phiếu có thu tiền trong kỳ. Câu hỏi **xe nào** thì trả lời bằng biển số"
+   }
+  ]
+ },
+ "§6.sua_xe.luot_xe_phieu": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "mỗi dòng sổ sửa xe là **một lượt xe** (một phiếu), kể cả phiếu bảo hành; một xe tới hai lần là hai lượt. **Số phiếu, số lượt xe** của tiệm hay của một thợ tính cả phiếu bảo hành. Tiền trung bình một phiếu chia cho số phiếu **có thu tiền** (không tính phiếu bảo hành)"
+   }
+  ]
+ },
+ "§6.sua_xe.tho_lam_nhieu_nhat": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "theo **số lượt xe**, kể cả phiếu bảo hành thợ đó làm"
+   }
+  ]
+ },
+ "§6.sua_xe.viec_ghi_trong_o_lam_gi": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "lượt xe có làm một việc = phiếu có việc đó, tính một lượt. `Nhớt` ghi trơn là nhớt máy, không phải nhớt láp; `ruột` ghi trơn là thay ruột mới, không phải vá. **Sửa điện** không gồm thay bóng đèn, thay ắc quy. **Phiếu bảo hành** **không** tính là lượt làm việc đó"
+   }
+  ]
+ },
+ "§6.vat_lieu_xay_dung.giao_nhieu_dot": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "**Số đợt giao trong tháng X** = số đợt có ngày giao trong tháng X; **mỗi đợt của mỗi đơn tính một đợt**, kể cả đợt của đơn sau đó trả hàng"
+   },
+   {
+    "source": "public_test",
+    "text": "tính đến hết hôm nay. **Số đợt giao trong tháng X** = số đợt có ngày giao trong tháng X; **mỗi đợt của mỗi đơn tính một đợt**, kể cả đợt của đơn sau đó trả hàng. Đợt đã chở vẫn tính dù đơn sau đó trả hàng"
+   }
+  ]
+ },
+ "§7.p_cau_khong_tra_loi_duoc_khi": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Câu **không trả lời được** khi dữ liệu phát hành không đủ để trả lời. Đáp án chỉ lấy từ dữ liệu phát hành, không lấy từ hiểu biết bên ngoài. Nộp `{\"type\": \"unanswerable\", \"reason\": \"…\"}`."
+   }
+  ]
+ },
+ "§7.p_khong_co_du_lieu_khac_voi": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Không có dữ liệu khác với bằng 0: kỳ nằm **hoàn toàn** ngoài khoảng ngày có dữ liệu của shop, hoặc shop không ghi loại thông tin câu hỏi cần, thì không trả lời được, không phải 0."
+   }
+  ]
+ },
+ "§7.p_ky_chi_co_mot_phan_nam": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Kỳ chỉ có một phần nằm trong khoảng ngày có dữ liệu thì tính trên phần có dữ liệu."
+   }
+  ]
+ },
+ "§7.p_thong_tin_file_khong_ghi_thi": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Thông tin file không ghi thì không suy ra từ cột khác, trừ khi rulebook ghi cách lấy."
+   }
+  ]
+ },
+ "§7.p_truong_reason_khong_bat_buoc_va": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Trường `reason` không bắt buộc và không chấm tự động. Nếu có, `reason` phải là chuỗi; dòng có `reason` không phải chuỗi không đọc được và tính như bỏ trống."
+   }
+  ]
+ },
+ "§8.bang_khong_ghi_theo_don": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "mỗi dòng là một lần ghi; hai dòng giống nhau trong cùng file vẫn tính cả hai"
+   }
+  ]
+ },
+ "§8.hai_dong_cua_cung_mot_don_giong_nhau_o_moi_o": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "lỗi xuất file, tính một lần. Hai dòng giống nhau của hai đơn khác nhau là hai lần bán, tính cả hai"
+   }
+  ]
+ },
+ "§8.ngay_khong_ghi_nam": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "năm của sheet chứa dòng đó"
+   }
+  ]
+ },
+ "§8.o_de_trong_o_cac_dong_sau_cua_cung_mot_nhom_dong": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "giống ô đó ở dòng đầu nhóm: khách, ghi chú, trạng thái của đơn áp cho mọi dòng của đơn. Không phải thiếu dữ liệu, không có nghĩa là khách lẻ hay đơn hoàn thành"
+   }
+  ]
+ },
+ "§8.so_khong_co_cot_trang_thai": {
+  "versions": [
+   {
+    "source": "public_test",
+    "text": "trạng thái đơn ghi ở cột Ghi chú. Ghi chú không nhắc trạng thái là đơn hoàn thành"
+   }
+  ]
+ },
+ "§8.ten_goi_nhan": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "các tên cùng chỉ một thứ, trong file hay trong câu hỏi, là cùng một thứ. File có mã thì theo mã"
+   }
+  ]
+ },
+ "§8.trang_thai_don": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "mỗi đơn có đúng một trong bốn trạng thái: **hoàn thành**, **huỷ**, **trả hàng**, **đang giao**"
+   }
+  ]
+ },
+ "§9.boolean": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "`true` / `false` | `true` | `\"có\"`, `1`"
+   }
+  ]
+ },
+ "§9.date": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "`\"YYYY-MM-DD\"`; câu hỏi theo tháng: `\"YYYY-MM\"` | `\"2026-08-15\"`, `\"2025-09\"` | `\"15/08/2026\"`, `\"tháng 9/2025\"`"
+   }
+  ]
+ },
+ "§9.list": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "mảng JSON, có thứ tự; một phần tử vẫn là mảng | `[\"Cà phê sữa\"]`, `[3, 10]` | `\"Cà phê sữa, Bạc xỉu\"`, `\"3 thùng 10 chai\"`"
+   }
+  ]
+ },
+ "§9.number": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "JSON number, không đơn vị, không dấu phân cách nghìn. Tiền là số nguyên VND | `4820000`, `18.6` | `\"4,82 triệu\"`, `\"4.820.000\"`, `\"4820K\"`, `\"4820000\"`"
+   }
+  ]
+ },
+ "§9.p_bang_moi_dong_mot_doi_tuong": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Bảng:** mỗi dòng một đối tượng; cột **đầu** là tên đối tượng, các cột **sau** là số đo theo **đúng thứ tự câu hỏi nêu**. Cột so theo tên; tên không khớp thì so theo vị trí, nên ghi đúng thứ tự cột. Thứ tự các dòng không ảnh hưởng kết quả chấm."
+   }
+  ]
+ },
+ "§9.p_bang_nhau_hai_doi_tuong_bang": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Bằng nhau:** hai đối tượng bằng nhau ở tiêu chí câu hỏi thì xếp theo mã tăng dần (không có mã thì theo tên). Câu hỏi một đối tượng lấy đối tượng đứng đầu theo thứ tự đó."
+   }
+  ]
+ },
+ "§9.p_chuoi_khong_phan_biet_hoa_thuong": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Chuỗi:** không phân biệt hoa thường, khoảng trắng, dấu câu. Nhận **mọi cách viết** tên có trong file của shop, hoặc **mã**. Tên khách chép kèm số điện thoại như trong file cũng được nhận. Ngoài các cách viết đó, dấu tiếng Việt phải đúng."
+   }
+  ]
+ },
+ "§9.p_danh_sach_dung_ca_tap_va": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Danh sách:** đúng cả tập và thứ tự. Top k xếp theo tiêu chí câu hỏi, giảm dần. Câu \"liệt kê\": có số đo thì số đo giảm dần, cùng số đo thì theo **mã** tăng dần; liệt kê hàng theo hạn dùng thì hạn sớm nhất của mặt hàng trước, cùng hạn thì theo mã; còn lại (chỉ lọc theo điều kiện, không có số đo) theo mã tăng dần."
+   }
+  ]
+ },
+ "§9.p_dung_format_roi_moi_so_gia": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Đúng format rồi mới so giá trị:"
+   }
+  ]
+ },
+ "§9.p_lam_tron_tien_ra_so_le": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Làm tròn:** tiền ra số lẻ làm tròn về đồng; trung bình của một khoản tiền cũng là tiền, làm tròn về đồng. Phần trăm và số trung bình khác làm tròn 2 chữ số thập phân, trừ khi một luật khác trong rulebook ghi khác."
+   }
+  ]
+ },
+ "§9.p_moi_dong_submission_jsonl_id_type": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Mỗi dòng `submission.jsonl`: `{\"id\": \"...\", \"type\": \"...\", \"answer\": ...}`. Đúng **+1**, sai **−1**, bỏ trống (`{\"type\": \"abstain\"}` hoặc không có dòng) **0**."
+   }
+  ]
+ },
+ "§9.p_moi_type_co_mot_format_duy": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Mỗi type có một format duy nhất; sai format là sai.** Đáp án chỉ ghi **giá trị**: số không kèm chữ đơn vị hay ký hiệu %; tên lấy nguyên từ dữ liệu, không kèm tên cột hay nhãn nhóm. Câu hỏi nhiều số thì ghi list theo đúng thứ tự câu hỏi nêu."
+   }
+  ]
+ },
+ "§9.p_so_phan_tram_khop_tuyet_doi": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "Số, phần trăm:** khớp tuyệt đối. Tiền đúng từng đồng, số đếm đúng từng đơn vị, phần trăm đúng 2 chữ số thập phân. Chỉ bỏ qua sai số dấu phẩy động."
+   }
+  ]
+ },
+ "§9.percent": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "JSON number là **số phần trăm**: 12,4 % ghi `12.4`, không kèm ký hiệu % | `12.4` | `\"12,4%\"`, `0.124`"
+   }
+  ]
+ },
+ "§9.string": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "tên như trong dữ liệu, đủ dấu tiếng Việt | `\"Sting dâu 330ml\"` | `\"Sting dầu 330ml\"` (sai dấu, file không có cách viết này), `[\"Sting dâu 330ml\"]`"
+   }
+  ]
+ },
+ "§9.table": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "`{\"columns\": [...], \"rows\": [[...], ...]}`, ô số là JSON number | `{\"columns\": [\"khach_hang\", \"so_tien_no\"], \"rows\": [[\"Chị Lan\", 3200000]]}` | ô `\"3.200.000đ\"`"
+   }
+  ]
+ },
+ "§9.unanswerable": {
+  "versions": [
+   {
+    "source": "train",
+    "text": "`{\"type\": \"unanswerable\", \"reason\": \"...\"}` |  | "
+   }
+  ]
+ }
+}

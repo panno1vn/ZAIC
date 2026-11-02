@@ -1,0 +1,843 @@
+{
+  "$defs": {
+    "Compare": {
+      "description": "What the asked figure is compared with: another period, or the same period under other filters.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "previous",
+            "previous_same_days",
+            "same_period_last_year",
+            "before_tet",
+            "before_days_from",
+            "period",
+            "filter"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "period": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PeriodExpr"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "filters": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Filter"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Filters"
+        },
+        "output": {
+          "default": "pct_change",
+          "enum": [
+            "pct_change",
+            "diff",
+            "which_more"
+          ],
+          "title": "Output",
+          "type": "string"
+        },
+        "n": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Compare",
+      "type": "object"
+    },
+    "Filter": {
+      "properties": {
+        "field": {
+          "enum": [
+            "product",
+            "product_group",
+            "category",
+            "product_line",
+            "brand",
+            "size",
+            "stage",
+            "unit",
+            "active_ingredient",
+            "prescription",
+            "customer",
+            "customer_group",
+            "channel",
+            "payment_method",
+            "employee",
+            "supplier",
+            "shift",
+            "weekday",
+            "order_status",
+            "order_value",
+            "debt_age_days",
+            "expiry_within_days",
+            "service",
+            "vehicle_model",
+            "plate",
+            "is_warranty",
+            "other"
+          ],
+          "title": "Field",
+          "type": "string"
+        },
+        "op": {
+          "default": "eq",
+          "enum": [
+            "eq",
+            "ne",
+            "in",
+            "not_in",
+            "gte",
+            "gt",
+            "lte",
+            "lt",
+            "contains"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Value"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "field",
+        "value"
+      ],
+      "title": "Filter",
+      "type": "object"
+    },
+    "ListSpec": {
+      "description": "Objects to list by a condition: hàng ế, hàng hết hàng cuối ngày, hàng hết hạn trong N ngày…",
+      "properties": {
+        "entity": {
+          "enum": [
+            "product",
+            "customer",
+            "lot",
+            "vehicle",
+            "order"
+          ],
+          "title": "Entity",
+          "type": "string"
+        },
+        "condition": {
+          "enum": [
+            "unsold_in_period",
+            "out_of_stock_end_of_day",
+            "expiring_within",
+            "in_stock",
+            "sold_in_period",
+            "debtor",
+            "overdue_installment",
+            "returning_vehicle"
+          ],
+          "title": "Condition",
+          "type": "string"
+        },
+        "n": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N"
+        }
+      },
+      "required": [
+        "entity",
+        "condition"
+      ],
+      "title": "ListSpec",
+      "type": "object"
+    },
+    "Measure": {
+      "properties": {
+        "metric": {
+          "enum": [
+            "revenue",
+            "order_count",
+            "cancel_count",
+            "cancel_rate",
+            "avg_order_value",
+            "quantity",
+            "customer_count",
+            "new_customer_count",
+            "days_with_purchase",
+            "order_presence",
+            "work_days",
+            "purchase_amount",
+            "purchase_avg_cost",
+            "receipt_count",
+            "purchase_minus_sales",
+            "stock_qty",
+            "stock_value",
+            "nearest_expiry",
+            "expiring_value",
+            "debt_total",
+            "debtor_count",
+            "debt_amount",
+            "debt_added",
+            "debt_paid",
+            "cash_collected",
+            "amount_due_total",
+            "overdue_installment_count",
+            "overdue_amount",
+            "unit_price",
+            "gross_profit",
+            "net_profit",
+            "delivery_count",
+            "voucher_discount",
+            "points_discount",
+            "shipping_fee_total",
+            "ticket_count",
+            "avg_ticket_value",
+            "vehicle_count",
+            "warranty_count",
+            "warranty_rate",
+            "trade_in_amount",
+            "other"
+          ],
+          "title": "Metric",
+          "type": "string"
+        },
+        "filters": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Filter"
+          },
+          "title": "Filters",
+          "type": "array"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "aggregate": {
+          "default": "total",
+          "enum": [
+            "total",
+            "avg_per_day",
+            "avg_per_weekday"
+          ],
+          "title": "Aggregate",
+          "type": "string"
+        },
+        "unit_split": {
+          "default": false,
+          "title": "Unit Split",
+          "type": "boolean"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "metric"
+      ],
+      "title": "Measure",
+      "type": "object"
+    },
+    "PeriodExpr": {
+      "description": "Symbolic period. Which fields are needed depends on `kind` (checked below).",
+      "properties": {
+        "kind": {
+          "enum": [
+            "day",
+            "today",
+            "yesterday",
+            "this_week",
+            "last_week",
+            "this_month",
+            "last_month",
+            "month",
+            "quarter",
+            "year",
+            "ytd",
+            "last_n_days",
+            "next_n_days",
+            "range",
+            "months",
+            "until",
+            "days_from",
+            "tet",
+            "all"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "year": {
+          "anyOf": [
+            {
+              "maximum": 2100,
+              "minimum": 2000,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Year"
+        },
+        "month": {
+          "anyOf": [
+            {
+              "maximum": 12,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Month"
+        },
+        "quarter": {
+          "anyOf": [
+            {
+              "maximum": 4,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quarter"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "anchor_price": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Anchor Price"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        },
+        "n": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N"
+        },
+        "months": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Months"
+        },
+        "lunar_year": {
+          "anyOf": [
+            {
+              "maximum": 2100,
+              "minimum": 2000,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lunar Year"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "PeriodExpr",
+      "type": "object"
+    },
+    "Rank": {
+      "properties": {
+        "entity": {
+          "enum": [
+            "product",
+            "product_group",
+            "product_line",
+            "brand",
+            "customer",
+            "employee",
+            "supplier",
+            "vehicle",
+            "day",
+            "month",
+            "hour",
+            "weekday",
+            "lot"
+          ],
+          "title": "Entity",
+          "type": "string"
+        },
+        "by": {
+          "enum": [
+            "revenue",
+            "order_count",
+            "cancel_count",
+            "cancel_rate",
+            "avg_order_value",
+            "quantity",
+            "customer_count",
+            "new_customer_count",
+            "days_with_purchase",
+            "order_presence",
+            "work_days",
+            "purchase_amount",
+            "purchase_avg_cost",
+            "receipt_count",
+            "purchase_minus_sales",
+            "stock_qty",
+            "stock_value",
+            "nearest_expiry",
+            "expiring_value",
+            "debt_total",
+            "debtor_count",
+            "debt_amount",
+            "debt_added",
+            "debt_paid",
+            "cash_collected",
+            "amount_due_total",
+            "overdue_installment_count",
+            "overdue_amount",
+            "unit_price",
+            "gross_profit",
+            "net_profit",
+            "delivery_count",
+            "voucher_discount",
+            "points_discount",
+            "shipping_fee_total",
+            "ticket_count",
+            "avg_ticket_value",
+            "vehicle_count",
+            "warranty_count",
+            "warranty_rate",
+            "trade_in_amount",
+            "other"
+          ],
+          "title": "By",
+          "type": "string"
+        },
+        "k": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 1,
+          "title": "K"
+        },
+        "order": {
+          "default": "desc",
+          "enum": [
+            "desc",
+            "asc"
+          ],
+          "title": "Order",
+          "type": "string"
+        },
+        "min_orders": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Orders"
+        },
+        "with_values": {
+          "default": false,
+          "title": "With Values",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "entity",
+        "by"
+      ],
+      "title": "Rank",
+      "type": "object"
+    },
+    "Threshold": {
+      "description": "Count objects whose metric passes a bound: orders with revenue ≥ X, customers with ≥ N orders…",
+      "properties": {
+        "entity": {
+          "enum": [
+            "order",
+            "day",
+            "product",
+            "customer",
+            "employee",
+            "vehicle"
+          ],
+          "title": "Entity",
+          "type": "string"
+        },
+        "metric": {
+          "enum": [
+            "revenue",
+            "order_count",
+            "cancel_count",
+            "cancel_rate",
+            "avg_order_value",
+            "quantity",
+            "customer_count",
+            "new_customer_count",
+            "days_with_purchase",
+            "order_presence",
+            "work_days",
+            "purchase_amount",
+            "purchase_avg_cost",
+            "receipt_count",
+            "purchase_minus_sales",
+            "stock_qty",
+            "stock_value",
+            "nearest_expiry",
+            "expiring_value",
+            "debt_total",
+            "debtor_count",
+            "debt_amount",
+            "debt_added",
+            "debt_paid",
+            "cash_collected",
+            "amount_due_total",
+            "overdue_installment_count",
+            "overdue_amount",
+            "unit_price",
+            "gross_profit",
+            "net_profit",
+            "delivery_count",
+            "voucher_discount",
+            "points_discount",
+            "shipping_fee_total",
+            "ticket_count",
+            "avg_ticket_value",
+            "vehicle_count",
+            "warranty_count",
+            "warranty_rate",
+            "trade_in_amount",
+            "other"
+          ],
+          "title": "Metric",
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            "gte",
+            "gt",
+            "lte",
+            "lt",
+            "eq"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "as_share": {
+          "default": false,
+          "title": "As Share",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "entity",
+        "metric",
+        "op",
+        "value"
+      ],
+      "title": "Threshold",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "intent": {
+      "enum": [
+        "value",
+        "compare",
+        "share",
+        "rank",
+        "count_where",
+        "trend",
+        "series",
+        "list_items",
+        "out_of_scope"
+      ],
+      "title": "Intent",
+      "type": "string"
+    },
+    "measures": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Measure"
+      },
+      "title": "Measures",
+      "type": "array"
+    },
+    "period": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PeriodExpr"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "compare": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Compare"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "rank": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Rank"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "threshold": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Threshold"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "list_spec": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ListSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "share_of": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Measure"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "answer_type": {
+      "anyOf": [
+        {
+          "enum": [
+            "number",
+            "percent",
+            "date",
+            "boolean",
+            "string",
+            "list",
+            "table"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "unanswerable",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Answer Type"
+    },
+    "out_of_scope_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Out Of Scope Reason"
+    },
+    "notes": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "intent"
+  ],
+  "title": "QueryPlan",
+  "type": "object"
+}

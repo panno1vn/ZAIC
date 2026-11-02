@@ -1,0 +1,8 @@
+# Linux line endings for every text file: shell scripts with CRLF fail inside the Docker image
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.pdf binary
+*.xlsx binary
+*.sqlite binary
+*.zip binary

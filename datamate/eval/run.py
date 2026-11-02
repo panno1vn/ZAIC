@@ -54,12 +54,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--split", default="train", help="split có answers.jsonl (mặc định: train)")
     ap.add_argument("--data-root", default="data", help="thư mục chứa các split (mặc định: data)")
     ap.add_argument("--save", help="ghi kết quả từng câu ra file JSONL")
+    ap.add_argument("--business", nargs="+", help="chỉ chấm câu của các cửa hàng này")
     args = ap.parse_args(argv)
 
     split_dir = Path(args.data_root) / args.split
     refs, _ = read_jsonl(split_dir / "answers.jsonl")
     questions, _ = read_jsonl(split_dir / "questions.jsonl")
     business_of = {q["id"]: q["business_id"] for q in questions}
+    if args.business:
+        refs = [r for r in refs if business_of.get(r["id"]) in set(args.business)]
     if args.gold:
         pred, read_warnings = refs, []
     else:

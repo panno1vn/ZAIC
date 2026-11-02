@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ID_PATTERN = re.compile(r"\b(?:biz|dev)_\d{3}\b|\bq_[0-9a-f]{12}\b")
 SCANNED = [ROOT / "datamate", ROOT / "configs"]
 EXEMPT_DIRS = {ROOT / "datamate" / "eval"}  # dev-time evaluation may name train businesses
-SUFFIXES = {".py", ".json", ".yaml", ".yml", ".txt", ".md"}
+SUFFIXES = {".py", ".json", ".yaml", ".yml"}  # code and config; docs (README) may name train businesses as examples
 
 
 def test_no_ids_in_inference_code():

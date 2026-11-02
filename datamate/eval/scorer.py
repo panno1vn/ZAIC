@@ -10,17 +10,14 @@ from __future__ import annotations
 
 import json
 import math
-import re
 import unicodedata
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 from typing import Any
 
-VALUE_TYPES = ("number", "percent", "date", "boolean", "string", "list", "table")
-ALL_TYPES = VALUE_TYPES + ("unanswerable", "abstain")
+from datamate.contracts.answer import ALL_TYPES, VALUE_TYPES, format_error, is_number, valid_date  # noqa: F401
+
 POINTS = {"correct": 1, "wrong": -1, "abstain": 0}
-_DATE = re.compile(r"^(\d{4})-(\d{2})(?:-(\d{2}))?$")
 
 
 @dataclass(frozen=True)
@@ -41,54 +38,8 @@ def norm_text(s: str) -> str:
     return "".join(c for c in s if not c.isspace() and not unicodedata.category(c).startswith("P"))
 
 
-def is_number(v: Any) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
-
-
 def same_number(a: Any, b: Any) -> bool:
     return is_number(a) and is_number(b) and math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-6)
-
-
-def valid_date(s: Any) -> bool:
-    """'YYYY-MM-DD', or 'YYYY-MM' for questions asked by month."""
-    if not isinstance(s, str):
-        return False
-    m = _DATE.match(s)
-    if not m:
-        return False
-    try:
-        date(int(m[1]), int(m[2]), int(m[3] or 1))
-    except ValueError:
-        return False
-    return True
-
-
-def format_error(line: dict) -> str | None:
-    """None when the line has the single valid format of its type, else the reason (a malformed line is wrong)."""
-    t = line.get("type")
-    if t not in ALL_TYPES:
-        return f"type không hợp lệ: {t!r}"
-    if t in ("abstain", "unanswerable"):
-        return None
-    if "answer" not in line:
-        return "thiếu trường answer"
-    a = line["answer"]
-    if t in ("number", "percent"):
-        ok = is_number(a)
-    elif t == "date":
-        ok = valid_date(a)
-    elif t == "boolean":
-        ok = isinstance(a, bool)
-    elif t == "string":
-        ok = isinstance(a, str)
-    elif t == "list":
-        ok = isinstance(a, list)
-    else:  # table
-        cols = a.get("columns") if isinstance(a, dict) else None
-        rows = a.get("rows") if isinstance(a, dict) else None
-        ok = (isinstance(cols, list) and all(isinstance(c, str) for c in cols) and isinstance(rows, list)
-              and all(isinstance(r, list) and len(r) == len(cols) for r in rows))
-    return None if ok else f"answer sai format của type {t}"
 
 
 # ---------------------------------------------------------------- comparison
@@ -182,7 +133,7 @@ def score_line(pred: dict | None, ref: dict) -> Verdict:
 def read_jsonl(path: str | Path) -> tuple[list[dict], list[str]]:
     """Parsed JSON objects of a JSON Lines file, plus one warning per unreadable line."""
     rows, warnings = [], []
-    with open(path, encoding="utf-8") as fh:
+    with open(path, encoding="utf-8-sig") as fh:
         for n, line in enumerate(fh, 1):
             if not line.strip():
                 continue

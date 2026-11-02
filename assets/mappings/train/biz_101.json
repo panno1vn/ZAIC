@@ -1,0 +1,38 @@
+{
+  "industry": "tạp hóa",
+  "record_grain": "order",
+  "notes": ["Mapping tay từ README biz_101: một file phẳng, mỗi dòng một dòng hàng; quy đổi đã có ở cột 'Quy ra ĐV lẻ'."],
+  "tables": [
+    {
+      "target": "orders",
+      "sources": ["ban_hang.csv"],
+      "columns": [
+        {"target": "order_id", "source": "Mã hóa đơn"},
+        {"target": "order_time", "source": "Ngày tháng", "parse": "datetime"},
+        {"target": "status", "source": "Kết quả"},
+        {"target": "customer_key", "source": "Đối tác"},
+        {"target": "customer_name", "source": "Đối tác"},
+        {"target": "has_time", "const": false}
+      ],
+      "value_maps": {
+        "status": {"Xong": "completed", "Đã hủy": "cancelled", "Đổi trả": "returned", "Đang giao": "delivering"},
+        "customer_key": {"Khách lẻ": ""}
+      }
+    },
+    {
+      "target": "lines",
+      "sources": ["ban_hang.csv"],
+      "columns": [
+        {"target": "order_id", "source": "Mã hóa đơn"},
+        {"target": "product_key", "source": "Nội dung"},
+        {"target": "product_name", "source": "Nội dung"},
+        {"target": "is_item", "const": true},
+        {"target": "qty", "source": "so_luong", "parse": "qty"},
+        {"target": "unit", "source": "Đơn vị (tính)"},
+        {"target": "base_qty", "source": "Quy ra ĐV lẻ", "parse": "qty"},
+        {"target": "unit_price", "source": "Giá bán", "parse": "money"},
+        {"target": "line_amount", "source": "Thanh tien", "parse": "money"}
+      ]
+    }
+  ]
+}

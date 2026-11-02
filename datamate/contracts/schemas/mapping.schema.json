@@ -1,0 +1,266 @@
+{
+  "$defs": {
+    "CheckResult": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "passed"
+      ],
+      "title": "CheckResult",
+      "type": "object"
+    },
+    "ColumnMap": {
+      "properties": {
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "sources": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "parse": {
+          "default": "text",
+          "enum": [
+            "text",
+            "money",
+            "number",
+            "qty",
+            "date",
+            "datetime",
+            "bool"
+          ],
+          "title": "Parse",
+          "type": "string"
+        },
+        "transform": {
+          "anyOf": [
+            {
+              "enum": [
+                "regex_extract",
+                "split_qty_unit",
+                "year_from_sheet",
+                "note_contains",
+                "lookup",
+                "order_status_from_lines",
+                "concat",
+                "negate"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transform"
+        },
+        "args": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Args",
+          "type": "object"
+        },
+        "const": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Const"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "title": "ColumnMap",
+      "type": "object"
+    },
+    "ExtraTableSpec": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "column_notes": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Column Notes",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "sources",
+        "description"
+      ],
+      "title": "ExtraTableSpec",
+      "type": "object"
+    },
+    "TableMap": {
+      "properties": {
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/ColumnMap"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "value_maps": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "default": {},
+          "title": "Value Maps",
+          "type": "object"
+        },
+        "row_filter": {
+          "default": "",
+          "title": "Row Filter",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "sources",
+        "columns"
+      ],
+      "title": "TableMap",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "industry": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Industry"
+    },
+    "record_grain": {
+      "default": "order",
+      "enum": [
+        "order",
+        "line_is_record"
+      ],
+      "title": "Record Grain",
+      "type": "string"
+    },
+    "tables": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TableMap"
+      },
+      "title": "Tables",
+      "type": "array"
+    },
+    "extra_tables": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ExtraTableSpec"
+      },
+      "title": "Extra Tables",
+      "type": "array"
+    },
+    "checks": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CheckResult"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "confidence": {
+      "default": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "notes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    }
+  },
+  "title": "Mapping",
+  "type": "object"
+}
