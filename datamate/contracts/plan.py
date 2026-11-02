@@ -3,6 +3,8 @@
 The LLM only extracts. Periods stay symbolic here ("this_month", "month 2025-06") and are turned into dates by the
 temporal engine [C2]; names stay as written in the question (`Filter.value`) and are linked to data by [C3].
 `answer_type` may be left out: it follows from the plan's shape (`expected_answer_type`).
+v1.1 (K2, contract stress test on 99 train questions): coded filter values, list counts, count_where without
+measures, expiry windows as periods, Tết without a year, STOCK_METRICS.
 Design notes and question counts: docs/research/intents.md, docs/research/periods.md; rulebook coverage:
 docs/contracts.md.
 """
@@ -12,9 +14,15 @@ import re
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .answer import AnswerType
+from .canonical import ORDER_STATUSES
+
+
+class _Model(BaseModel):
+    """Unknown fields are errors: a misspelt "filter" for "filters" must reject the plan, not drop the filter."""
+    model_config = ConfigDict(extra="forbid")
 
 Metric = Literal[
     # bán hàng (§1, §3)
@@ -35,6 +43,10 @@ Metric = Literal[
 ]
 PERCENT_METRICS = frozenset({"cancel_rate", "warranty_rate"})
 DATE_METRICS = frozenset({"nearest_expiry"})
+# measured as the state at the end of a day (§2 "Đến hết ngày X"): [C2] resolves their period in mode stock, from the
+# start of the data, whatever kind the plan has ("tồn cuối ngày hôm nay" may come as kind today)
+STOCK_METRICS = frozenset({"debt_total", "debtor_count", "debt_amount", "stock_qty", "stock_value", "nearest_expiry",
+                           "expiring_value", "overdue_installment_count", "overdue_amount"})
 
 FilterField = Literal[
     "product", "product_group", "category", "product_line", "brand", "size", "stage", "unit",
@@ -43,6 +55,15 @@ FilterField = Literal[
     "expiry_within_days", "service", "vehicle_model", "plate", "is_warranty", "other",
 ]
 FilterOp = Literal["eq", "ne", "in", "not_in", "gte", "gt", "lte", "lt", "contains"]
+# filter fields whose value is a code, not a name for [C3] to link: the plan writes the code, so [D1] never has to
+# guess a spelling ("ca sáng", "sang", "buổi sáng")
+CODED_VALUES: dict[str, tuple] = {
+    "shift": ("morning", "afternoon"),  # ca sáng 06:00–13:59, ca chiều 14:00–21:59 (§2)
+    "weekday": ("mon", "tue", "wed", "thu", "fri", "sat", "sun"),
+    "order_status": ORDER_STATUSES,
+    "prescription": (True, False),
+    "is_warranty": (True, False),
+}
 PeriodKind = Literal[
     "day", "today", "yesterday", "this_week", "last_week", "this_month", "last_month", "month", "quarter", "year",
     "ytd", "last_n_days", "next_n_days", "range", "months", "until", "days_from", "tet", "all",
@@ -64,14 +85,28 @@ _DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _MONTH = re.compile(r"^\d{4}-\d{2}$")
 
 
-class Filter(BaseModel):
+class Filter(_Model):
     field: FilterField
     op: FilterOp = "eq"
-    value: str | float | list[str] | list[float]  # as written in the question; [C3] links it to the data
+    # names as written in the question ([C3] links them to the data); codes of CODED_VALUES; numbers for bounds
+    value: bool | str | float | list[str] | list[float] = Field(description=(
+        "Tên như viết trong câu hỏi. Riêng các trường sau ghi mã: " + "; ".join(
+            f"{k}: {', '.join(str(v).lower() for v in vs)}" for k, vs in CODED_VALUES.items())))
     note: str | None = None  # for field "other": what the filter means
 
+    @model_validator(mode="after")
+    def _coded_value(self) -> "Filter":
+        allowed = CODED_VALUES.get(self.field)
+        values = self.value if isinstance(self.value, list) else [self.value]
+        if allowed is None:
+            if any(isinstance(v, bool) for v in values):
+                raise ValueError(f"filter {self.field} không nhận true/false")
+        elif not all(type(v) is type(allowed[0]) and v in allowed for v in values):
+            raise ValueError(f"filter {self.field} chỉ nhận {list(allowed)}, nhận {self.value!r}")
+        return self
 
-class Measure(BaseModel):
+
+class Measure(_Model):
     metric: Metric
     filters: list[Filter] = []
     unit: str | None = None  # unit the question counts in: "ly", "chai", "kg"…
@@ -80,7 +115,7 @@ class Measure(BaseModel):
     note: str | None = None  # for metric "other": what is measured
 
 
-class PeriodExpr(BaseModel):
+class PeriodExpr(_Model):
     """Symbolic period. Which fields are needed depends on `kind` (checked below)."""
     kind: PeriodKind
     year: int | None = Field(None, ge=2000, le=2100)  # month / quarter / year; None = not stated (rulebook §2)
@@ -92,14 +127,13 @@ class PeriodExpr(BaseModel):
     end: str | None = None  # range end, or last month of a "months" series (YYYY-MM)
     n: int | None = Field(None, ge=1)  # last_n_days, next_n_days, days_from, months (series length)
     months: list[str] | None = None  # explicit series, YYYY-MM each
-    lunar_year: int | None = Field(None, ge=2000, le=2100)  # tet
+    lunar_year: int | None = Field(None, ge=2000, le=2100)  # tet; None = "Tết năm nay" (lunar year of today, [C2])
 
     @model_validator(mode="after")
     def _fields_for_kind(self) -> "PeriodExpr":
         k = self.kind
         need = {"day": ["date"], "until": ["date"], "days_from": ["n"], "month": ["month"], "quarter": ["quarter"],
-                "year": ["year"], "last_n_days": ["n"], "next_n_days": ["n"], "range": ["start", "end"],
-                "tet": ["lunar_year"]}.get(k, [])
+                "year": ["year"], "last_n_days": ["n"], "next_n_days": ["n"], "range": ["start", "end"]}.get(k, [])
         missing = [f for f in need if getattr(self, f) is None]
         if k == "days_from" and self.date is None and self.anchor_price is None:
             missing.append("date hoặc anchor_price")
@@ -132,7 +166,7 @@ def _valid_day(s: str) -> bool:
     return True
 
 
-class Compare(BaseModel):
+class Compare(_Model):
     """What the asked figure is compared with: another period, or the same period under other filters."""
     kind: CompareKind
     period: PeriodExpr | None = None  # kind "period": the explicit other period
@@ -149,7 +183,7 @@ class Compare(BaseModel):
         return self
 
 
-class Rank(BaseModel):
+class Rank(_Model):
     entity: RankEntity
     by: Metric  # the ranking criterion; measures[0].metric must agree when measures are given
     k: int | None = Field(1, ge=1)  # None = all (a "liệt kê" question)
@@ -158,8 +192,9 @@ class Rank(BaseModel):
     with_values: bool = False  # answer is a table: name + measured value
 
 
-class Threshold(BaseModel):
-    """Count objects whose metric passes a bound: orders with revenue ≥ X, customers with ≥ N orders…"""
+class Threshold(_Model):
+    """Count objects whose metric passes a bound: orders with revenue ≥ X, customers with ≥ N orders…
+    The plan needs no measures; when given, measures[0] is this metric with its filters."""
     entity: Literal["order", "day", "product", "customer", "employee", "vehicle"]
     metric: Metric
     op: Literal["gte", "gt", "lte", "lt", "eq"]
@@ -167,20 +202,15 @@ class Threshold(BaseModel):
     as_share: bool = False  # "bao nhiêu % khách…": share of all objects of that entity instead of a count
 
 
-class ListSpec(BaseModel):
+class ListSpec(_Model):
     """Objects to list by a condition: hàng ế, hàng hết hàng cuối ngày, hàng hết hạn trong N ngày…"""
     entity: Literal["product", "customer", "lot", "vehicle", "order"]
     condition: ListCondition
-    n: int | None = Field(None, ge=1)  # days for expiring_within
-
-    @model_validator(mode="after")
-    def _days_for_expiry(self) -> "ListSpec":
-        if self.condition == "expiring_within" and self.n is None:
-            raise ValueError("expiring_within cần n (số ngày)")
-        return self
+    n: int | None = Field(None, ge=1)  # expiring_within: N days from today; or the plan's period is the expiry window
+    count: bool = False  # "bao nhiêu mặt hàng ế": the answer is the number of objects, not the list
 
 
-class QueryPlan(BaseModel):
+class QueryPlan(_Model):
     intent: Intent
     measures: list[Measure] = []  # in the order the question asks for them
     period: PeriodExpr | None = None  # None: state as of today, or the question needs no period
@@ -198,7 +228,7 @@ class QueryPlan(BaseModel):
         i = self.intent
         if i == "out_of_scope" and not self.out_of_scope_reason:
             raise ValueError("out_of_scope cần out_of_scope_reason")
-        if i not in ("out_of_scope", "rank", "list_items") and not self.measures:
+        if i not in ("out_of_scope", "rank", "list_items", "count_where") and not self.measures:
             raise ValueError(f"intent {i} cần ít nhất một measure")
         required = {"compare": "compare", "rank": "rank", "count_where": "threshold", "list_items": "list_spec"}
         if i in required and getattr(self, required[i]) is None:
@@ -207,6 +237,12 @@ class QueryPlan(BaseModel):
             raise ValueError(f"intent {i} cần period kind months")
         if i == "rank" and self.measures and self.measures[0].metric != self.rank.by:
             raise ValueError(f"rank.by={self.rank.by} khác measures[0].metric={self.measures[0].metric}")
+        if i == "count_where" and self.measures and self.measures[0].metric != self.threshold.metric:
+            raise ValueError(f"threshold.metric={self.threshold.metric} khác measures[0].metric={self.measures[0].metric}")
+        ls = self.list_spec
+        if ls is not None and ls.condition == "expiring_within" and ls.n is None and not (
+                self.period is not None and self.period.kind in ("range", "next_n_days")):
+            raise ValueError("expiring_within cần n (số ngày) hoặc period range / next_n_days (khoảng hạn dùng)")
         expected = expected_answer_type(self)
         if self.answer_type is None:
             if expected is None:
@@ -224,7 +260,11 @@ def expected_answer_type(p: QueryPlan) -> str | None:
         return "unanswerable"
     if i == "trend":
         return "boolean"
-    if i in ("series", "list_items"):
+    if i == "list_items":
+        return "number" if p.list_spec is not None and p.list_spec.count else "list"
+    if i == "count_where" and p.threshold is not None:
+        return "percent" if p.threshold.as_share else "number"
+    if i == "series":
         return "list"
     if i == "rank" and p.rank is not None:
         r = p.rank
@@ -242,8 +282,6 @@ def expected_answer_type(p: QueryPlan) -> str | None:
         return None  # what is measured is free text: the LLM must state the answer type
     if i == "share":
         return "percent"
-    if i == "count_where" and p.threshold is not None:
-        return "percent" if p.threshold.as_share else "number"
     if i == "compare" and p.compare is not None:
         if p.compare.output == "pct_change":
             return "percent"
@@ -257,14 +295,14 @@ def expected_answer_type(p: QueryPlan) -> str | None:
     return "number"
 
 
-class ResolvedPeriod(BaseModel):
+class ResolvedPeriod(_Model):
     start: date
     end: date  # inclusive
     mode: Literal["flow", "stock"] = "flow"  # flow: phát sinh trong kỳ; stock: tình trạng đến hết `end`
     label: str = ""
 
 
-class ResolvedPlan(BaseModel):
+class ResolvedPlan(_Model):
     """Plan after [C2] (dates) and [C3] (names linked to data values)."""
     plan: QueryPlan
     as_of: date

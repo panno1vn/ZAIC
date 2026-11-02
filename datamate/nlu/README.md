@@ -10,9 +10,11 @@
 **Việc cần làm:**
 1. Backend LLM thật trong [datamate/llm](../llm/__init__.py): chạy model local, temperature 0, **timeout cho mỗi lời gọi** (mục H12), ép output theo JSON schema `schemas/query_plan.schema.json`.
 2. Prompt gồm schema, data card và 5–8 ví dụ mẫu gần nhất (BM25 trên [assets/plans/](../../assets/plans/)). Mục K3: thử trên 30 câu train với Qwen3-8B trước.
-3. Đối chiếu với `baseline`: hai bên cùng parse được mà khác nhau thì trả `None`.
-4. Kho ví dụ đã kiểm chứng: cho LLM parse cả 3000 câu train, chỉ giữ plan chạy ra đúng đáp án.
-5. (Nếu kịp) [D2] sinh code: [codegen/](../codegen/__init__.py).
+3. Prompt phải ghi rõ các **mã** của bộ lọc (ca, thứ, trạng thái, kê đơn: `CODED_VALUES`, đã có trong mô tả của schema) và nhắc rằng trường lạ làm plan bị từ chối. Khi bật structured output, schema đã có `additionalProperties: false`.
+   - Ví dụ mẫu có thêm 99 plan viết tay của K2 ([assets/plans/k2_trial.jsonl](../../assets/plans/k2_trial.jsonl)). Các plan này mới đúng hợp đồng, **chưa kiểm chứng bằng đáp án**; chỉ đưa vào kho ví dụ sau khi chạy ra đúng đáp án (mục K1).
+4. Đối chiếu với `baseline`: hai bên cùng parse được mà khác nhau thì trả `None`.
+5. Kho ví dụ đã kiểm chứng: cho LLM parse cả 3000 câu train, chỉ giữ plan chạy ra đúng đáp án.
+6. (Nếu kịp) [D2] sinh code: [codegen/](../codegen/__init__.py).
 
 **Thế nào là xong:** tỉ lệ plan đúng trên tập train chia theo ngành (leave-one-industry-out); PA trên train không giảm khi bật LLM.
 

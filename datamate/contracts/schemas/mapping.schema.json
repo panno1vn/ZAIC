@@ -1,6 +1,7 @@
 {
   "$defs": {
     "CheckResult": {
+      "additionalProperties": false,
       "properties": {
         "name": {
           "title": "Name",
@@ -24,6 +25,7 @@
       "type": "object"
     },
     "ColumnMap": {
+      "additionalProperties": false,
       "properties": {
         "target": {
           "title": "Target",
@@ -122,6 +124,7 @@
       "type": "object"
     },
     "ExtraTableSpec": {
+      "additionalProperties": false,
       "properties": {
         "name": {
           "title": "Name",
@@ -156,6 +159,7 @@
       "type": "object"
     },
     "TableMap": {
+      "additionalProperties": false,
       "properties": {
         "target": {
           "title": "Target",
@@ -201,6 +205,7 @@
       "type": "object"
     }
   },
+  "additionalProperties": false,
   "properties": {
     "industry": {
       "anyOf": [

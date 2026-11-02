@@ -113,8 +113,8 @@ def test_p6_unexpected_crash_still_fills_every_line(tmp_path, monkeypatch):
 def test_p7_year_must_be_plausible():
     with pytest.raises(ValidationError):
         PeriodExpr(kind="month", year=25, month=4)
-    with pytest.raises(ValidationError):
-        ListSpec(entity="product", condition="expiring_within")
+    with pytest.raises(ValidationError):  # v1.1: the expiry window is n days or the plan's period, checked on the plan
+        QueryPlan.model_validate({"intent": "list_items", "list_spec": {"entity": "product", "condition": "expiring_within"}})
 
 
 def test_transform_names_match_the_literal():

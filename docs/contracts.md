@@ -1,4 +1,4 @@
-# Hợp đồng giữa các khối (bản v1 · 04/11, khóa tối 05/11)
+# Hợp đồng giữa các khối (bản v1.1 · sau K2, khóa ở buổi họp chia vai)
 
 Bản v1 sửa các lỗ hổng H1–H7 trong [HAN_CHE_VA_CAI_THIEN.md](HAN_CHE_VA_CAI_THIEN.md): thêm chỉ số và bộ lọc cho các ngành mới theo rulebook public, mốc "ngày tăng giá" không cần ghi ngày, bộ biến đổi có tên cho mapping, cách tổng hợp "trung bình mỗi ngày thứ X", khối điều kiện cho `list_items`, kiểu đáp án tự suy ra, kiểm tra định dạng ngày, thêm thông tin khách và loại giảm giá.
 
@@ -36,8 +36,39 @@ Mọi khối đã có **stub** chạy được và luôn dẫn tới bỏ trốn
    - `Filter.value` ghi đúng như trong câu hỏi; [C3] mới nối với dữ liệu.
 5. **Kỳ đã tính có `mode`**: `flow` (phát sinh trong kỳ) hoặc `stock` (tình trạng đến hết ngày X). Xem [research/periods.md](research/periods.md).
 6. **Signals mặc định bi quan**: khối nào chưa chạy thì không thể làm câu hỏi được trả lời.
-7. **Mỗi hàm tính khai báo** `requires` (cột chuẩn cần dùng) và `rules` (dòng luật dựa vào), để [V] biết câu nào thiếu dữ liệu và [R] biết luật nào bị đổi.
+7. **Mỗi hàm tính khai báo** `requires` (cột chuẩn cần dùng), `rules` (dòng luật dựa vào), `filters` (bộ lọc nó áp dụng) và, với xếp hạng, đếm, liệt kê, `entity` (đối tượng). Nhờ vậy [V] biết câu nào thiếu dữ liệu, [R] biết luật nào bị đổi, và plan có bộ lọc mà hàm không khai báo thì không bao giờ được trả lời. Khóa registry là `(intent, metric, entity)`; đăng ký trùng thì báo lỗi.
 8. **Unanswerable chưa bật**: kể cả câu bị đánh dấu ngoài phạm vi, hiện vẫn bỏ trống cho tới khi đo trên train thấy đủ chính xác.
+
+## Bản v1.1: sửa sau bài thử sức K2
+
+Viết tay plan cho 99 câu train lấy mẫu theo loại câu ([assets/plans/k2_trial.jsonl](../assets/plans/k2_trial.jsonl)). Câu nào không viết được, hoặc viết được mà sai nghĩa, là lỗ hổng. Có 6 thay đổi:
+
+1. **Trường lạ là lỗi** (`extra="forbid"` cho mọi model plan và mapping; schema có `additionalProperties: false`).
+   - Trước đây LLM gõ `"filter"` thay `"filters"` thì bộ lọc bị bỏ âm thầm, và câu "doanh thu Coca tháng 5" bị trả lời bằng doanh thu cả cửa hàng.
+2. **Bộ lọc dạng mã** (`CODED_VALUES`): những trường này ghi mã, không ghi chữ như trong câu hỏi.
+   - Trước đây plan mẫu ghi `"chiều"`, `"sáng"`; LLM có thể ghi `"ca sáng"`, `"buổi sáng"`; còn `true` bị đổi thành `1.0`.
+   - Ảnh hưởng 77 câu theo ca và 44 câu thuốc kê đơn trong train.
+
+   | Trường | Mã |
+   |---|---|
+   | `shift` | `morning` (06:00–13:59), `afternoon` (14:00–21:59) |
+   | `weekday` | `mon` … `sun` |
+   | `order_status` | `completed`, `cancelled`, `returned`, `delivering` |
+   | `prescription`, `is_warranty` | `true`, `false` |
+
+   Trường khác không nhận `true` / `false`. Danh sách mã có trong mô tả của trường `value` trong JSON schema, để LLM đọc được.
+3. **Đếm đối tượng của một danh sách**: `list_spec.count = true` thì đáp án là **số** đối tượng. Ví dụ "bao nhiêu mặt hàng bị ế" (22 câu train, đáp án đều là number).
+4. **`count_where` không cần `measures`**: đối tượng đếm là `threshold.entity`, chỉ số là `threshold.metric`. Nếu ghi `measures` thì `measures[0].metric` phải trùng `threshold.metric` (giống quy tắc của `rank`) và mang bộ lọc. Trước đây plan mẫu ghi `measures = order_count` cho câu "số đơn có doanh thu ≥ X", nghĩa không nhất quán với `rank`.
+5. **Khoảng hạn dùng ghi bằng ngày**: `expiring_within` nhận `n` (N ngày tới) **hoặc** `period` dạng `range` / `next_n_days`. Ví dụ "còn hàng có hạn dùng từ 25/05/2026 đến hết 22/09/2026": LLM không phải tự tính số ngày.
+6. **Tết không ghi năm**: `lunar_year` để trống nghĩa là "Tết năm nay" ([C2] lấy theo hôm nay).
+
+Thêm quy ước cho [C2] (G4): chỉ số trong **`STOCK_METRICS`** (còn nợ, tồn, hạn dùng…) luôn tính theo kiểu `stock` (tình trạng lúc hết ngày, từ đầu dữ liệu), kể cả khi plan ghi kỳ `today`, như câu "tồn kho cuối ngày hôm nay".
+
+Kết quả kiểm trên 99 plan:
+- Theo v1.1: hợp lệ hết và khớp kiểu đáp án train (`tests/test_contracts.py`).
+- Theo v1:
+  - 7 plan bị từ chối (cần thay đổi 4, 5, 6).
+  - 6 plan qua nhưng sai nghĩa (thay đổi 2 và 3).
 
 ## Đối chiếu rulebook public → hợp đồng (H1)
 

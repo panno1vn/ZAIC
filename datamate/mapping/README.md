@@ -2,11 +2,12 @@
 
 **Mục tiêu:** tự động map dữ liệu của **cửa hàng chưa từng thấy** về schema chuẩn. Map sai thì phải bị phát hiện, để cửa hàng đó bỏ trống thay vì trả lời sai.
 
-**Hợp đồng:** `map_business(raw, profile, rulebook, llm) -> Mapping` ([contracts/mapping.py](../contracts/mapping.py)). `build_canonical(raw, mapping) -> CanonicalDB`; `run_checks(db)` chạy 5 bước kiểm tra bắt buộc (`REQUIRED_CHECKS`); `build_card(db) -> DataCard`.
+**Hợp đồng:** `map_business(raw, profile, rulebook, llm) -> Mapping` ([contracts/mapping.py](../contracts/mapping.py)). `build_canonical(raw, mapping) -> CanonicalDB`; `run_checks(db)` chạy 6 bước kiểm tra bắt buộc (`REQUIRED_CHECKS`); `build_card(db) -> DataCard`.
 
 **Đã có (bộ khung 05/11):**
 - `build_canonical` ([build.py](build.py)): parse theo kiểu, đổi tên cột, `value_maps`, hằng số, bỏ dòng trùng trong cùng đơn (§8), mỗi đơn lấy dòng đầu, khoảng ngày theo bảng.
-- `run_checks`: 5 bước kiểm tra bắt buộc (giải quyết mục H8).
+- `run_checks`: 6 bước kiểm tra bắt buộc (giải quyết mục H8; bước 6 "cột bắt buộc đủ giá trị" thêm ở review lần 2, mục R18): một ô ngày hay ô tiền không đọc được là cả cửa hàng không đạt, vì nếu bỏ qua thì đáp án sai mà không báo lỗi. Xem `detail` của bước đó để biết cột nào, bao nhiêu ô.
+- **Chưa có kiểm tra theo nghĩa** (mục H17): map nhầm `line_amount` sang cột đơn giá vẫn qua đủ 6 bước.
 - Mapping tay của biz_101: [assets/mappings/train/biz_101.json](../../assets/mappings/train/biz_101.json).
 - `map_business` **chưa có**: hiện mọi cửa hàng đều bỏ trống.
 

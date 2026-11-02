@@ -1,6 +1,7 @@
 {
   "$defs": {
     "Compare": {
+      "additionalProperties": false,
       "description": "What the asked figure is compared with: another period, or the same period under other filters.",
       "properties": {
         "kind": {
@@ -72,6 +73,7 @@
       "type": "object"
     },
     "Filter": {
+      "additionalProperties": false,
       "properties": {
         "field": {
           "enum": [
@@ -125,6 +127,9 @@
         "value": {
           "anyOf": [
             {
+              "type": "boolean"
+            },
+            {
               "type": "string"
             },
             {
@@ -143,6 +148,7 @@
               "type": "array"
             }
           ],
+          "description": "Tên như viết trong câu hỏi. Riêng các trường sau ghi mã: shift: morning, afternoon; weekday: mon, tue, wed, thu, fri, sat, sun; order_status: completed, cancelled, returned, delivering; prescription: true, false; is_warranty: true, false",
           "title": "Value"
         },
         "note": {
@@ -166,6 +172,7 @@
       "type": "object"
     },
     "ListSpec": {
+      "additionalProperties": false,
       "description": "Objects to list by a condition: hàng ế, hàng hết hàng cuối ngày, hàng hết hạn trong N ngày…",
       "properties": {
         "entity": {
@@ -205,6 +212,11 @@
           ],
           "default": null,
           "title": "N"
+        },
+        "count": {
+          "default": false,
+          "title": "Count",
+          "type": "boolean"
         }
       },
       "required": [
@@ -215,6 +227,7 @@
       "type": "object"
     },
     "Measure": {
+      "additionalProperties": false,
       "properties": {
         "metric": {
           "enum": [
@@ -319,6 +332,7 @@
       "type": "object"
     },
     "PeriodExpr": {
+      "additionalProperties": false,
       "description": "Symbolic period. Which fields are needed depends on `kind` (checked below).",
       "properties": {
         "kind": {
@@ -486,6 +500,7 @@
       "type": "object"
     },
     "Rank": {
+      "additionalProperties": false,
       "properties": {
         "entity": {
           "enum": [
@@ -602,7 +617,8 @@
       "type": "object"
     },
     "Threshold": {
-      "description": "Count objects whose metric passes a bound: orders with revenue ≥ X, customers with ≥ N orders…",
+      "additionalProperties": false,
+      "description": "Count objects whose metric passes a bound: orders with revenue ≥ X, customers with ≥ N orders…\nThe plan needs no measures; when given, measures[0] is this metric with its filters.",
       "properties": {
         "entity": {
           "enum": [
@@ -695,6 +711,7 @@
       "type": "object"
     }
   },
+  "additionalProperties": false,
   "properties": {
     "intent": {
       "enum": [

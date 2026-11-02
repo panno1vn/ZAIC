@@ -62,6 +62,10 @@ SHAPES = [  # (pattern on the folded text without its period, plan without perio
 ]
 
 
+# "ngày nào", "cao nhất": left over after a value shape, the question asks which one, not how much
+WHICH_WORDS = {"nao", "nhat"}
+
+
 def parse(question: str) -> QueryPlan | None:
     t = fold(question)
     period, rest = _period(t)
@@ -71,6 +75,8 @@ def parse(question: str) -> QueryPlan | None:
         return None
     for pattern, plan in SHAPES:
         if re.search(pattern, rest):
+            if plan["intent"] == "value" and WHICH_WORDS & set(rest.split()):
+                return None  # a ranking this parser does not know, e.g. "doanh thu cao nhất là ngày nào"
             try:
                 return QueryPlan.model_validate({**plan, "period": period})
             except Exception:

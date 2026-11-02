@@ -25,7 +25,7 @@ data/
 |---|---|
 | Chạy agent trên một split | `python -m datamate.predict --data data/public_test --out outputs/run_public` |
 | Chạy với mapping tay của cửa hàng train và chấm luôn (chỉ để phát triển) | `python -m datamate.eval.oracle --business biz_101 --out outputs/oracle_biz101` |
-| Chạy toàn bộ test | `python -m pytest` |
+| Chạy toàn bộ test | `python -m pytest` (nhanh) · `python -m pytest -m slow` (chạy cả split public thật, ~1,5 phút; chạy trước mỗi lần nộp) |
 | So hai rulebook / dựng lại luật tham chiếu | `python -m datamate.rules diff data/train/rulebook.md data/public_test/rulebook.md` · `python -m datamate.rules build data/train/rulebook.md data/public_test/rulebook.md` |
 | Chấm một file nộp trên train | `python -m datamate.eval.run --pred outputs/submission.jsonl` |
 | Kiểm tra scorer (đáp án tự chấm, phải được PA = 1) | `python -m datamate.eval.run --gold` |

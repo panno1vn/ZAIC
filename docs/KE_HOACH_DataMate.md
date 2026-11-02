@@ -36,7 +36,7 @@ Nguyên tắc:
 
 ```
 datamate/
-├── configs/default.yaml   # đường dẫn, ngân sách thời gian, ngưỡng, tên model
+├── configs/default.json   # đường dẫn, ngân sách thời gian, ngưỡng, tên model
 ├── datamate/
 │   ├── contracts/   # hợp đồng (Pydantic) + xuất JSON schema       ← leader
 │   ├── loader/      # [A] [A2]
@@ -105,6 +105,7 @@ Ngày T5 giúp leader tự tay viết bản đơn giản nhất của mọi kh�
 **Lưu ý luật thi:** mapping tay, data card, ví dụ mẫu chỉ làm cho **cửa hàng train**, không làm cho cửa hàng public test.
 
 ## 5. Các gói việc để chia vai (tối T5 05/11)
+*Không còn áp dụng từ 02/11: leader làm một mình, xem mục 9.*
 
 | Gói | Khối | Độ khó | Hợp với | Việc đầu tiên | Thế nào là xong |
 |---|---|---|---|---|---|
@@ -133,6 +134,7 @@ Xong khi: tests/test_parse_money.py qua hết; đã chạy trên 44 cửa hàng 
 ```
 
 ## 6. Sau khi chia vai (T6 06/11 → T2 16/11)
+*Không còn áp dụng từ 02/11: leader làm một mình, xem mục 9.*
 
 | Thời gian | Mục tiêu | Leader làm |
 |---|---|---|
@@ -152,14 +154,71 @@ Xong khi: tests/test_parse_money.py qua hết; đã chạy trên 44 cửa hàng 
 - Leader cập nhật mỗi ngày: PA trên train theo từng ngành, tỉ lệ câu có trả lời, độ chính xác trên câu đã trả lời, điểm public, số test đang qua.
 
 ## 7. Checklist "xương sống xong" (tối T5 05/11)
-- [ ] `predict` chạy hết bộ train và bộ public, mỗi câu đúng một dòng, file qua bước kiểm tra format.
-- [ ] Scorer đúng §9, có test; báo cáo điểm theo kiểu đáp án, cửa hàng, ngành.
-- [ ] Hợp đồng, JSON schema và 20 kế hoạch mẫu đã khóa.
-- [ ] Log mỗi câu; đồng hồ chặn đã test; một câu lỗi không làm dừng pipeline.
-- [ ] Client LLM có bản giả lập để test không cần GPU.
-- [ ] Có test tự động grep để chặn logic theo `biz_`, `dev_`, `q_` trong code chạy thật.
-- [ ] biz_101 có điểm dương bằng bộ khung đơn giản.
-- [ ] Mỗi khối có README và phiếu việc.
+*Kiểm lại ngày 02/11: đạt hết. Train 3000 và public 1000 câu đều ra đủ dòng, file qua `eval.validate`; ngân sách 0,0001 giờ thì toàn bộ 1000 câu tự bỏ trống.*
+
+- [x] `predict` chạy hết bộ train và bộ public, mỗi câu đúng một dòng, file qua bước kiểm tra format.
+- [x] Scorer đúng §9, có test; báo cáo điểm theo kiểu đáp án, cửa hàng, ngành.
+- [x] Hợp đồng (v1.1 sau K2), JSON schema và 24 kế hoạch mẫu sẵn sàng khóa; **khóa chính thức ở buổi họp chia vai**.
+- [x] Log mỗi câu; đồng hồ chặn đã test; một câu lỗi không làm dừng pipeline.
+- [x] Client LLM có bản giả lập để test không cần GPU.
+- [x] Có test tự động grep để chặn logic theo `biz_`, `dev_`, `q_` trong code chạy thật.
+- [x] biz_101 có điểm dương bằng bộ khung đơn giản.
+- [x] Mỗi khối có README và phiếu việc.
 
 ## 8. Docker
 *(Để trống — bổ sung khi BTC công bố Docker guideline.)*
+
+## 9. Kế hoạch làm một mình, 14 giờ/ngày (từ T3 03/11)
+
+*Quyết định 02/11: leader tự làm toàn bộ, mỗi ngày 14 giờ. Mục 5 và 6 (chia vai) không còn áp dụng; các phiếu việc G1–G7 vẫn dùng làm danh sách việc và tiêu chí "xong".*
+
+### Nguyên tắc xếp lịch
+1. **Việc chưa chắc làm được thì làm trước:**
+   - LLM hiểu câu hỏi có đủ tốt không (K3);
+   - mapping tự động cho cửa hàng chưa từng thấy (G2);
+   - Docker chạy được trong giới hạn của BTC.
+
+   Việc chắc làm được (tính ngày, thư viện hàm, format) xếp xen vào giữa.
+2. **Làm theo chiều sâu.** Đi hết một đường từ đầu đến cuối cho nhóm câu bán hàng (~60% câu train) rồi mới mở rộng loại câu. Từ 09/11 phải nộp public được mỗi ngày.
+3. **Mỗi ngày 3 khối:**
+   - *Sáng, 5 giờ:* việc khó hoặc chưa chắc làm được.
+   - *Chiều, 5 giờ:* việc chắc làm được, kèm test.
+   - *Tối, 4 giờ:* chạy đánh giá trên train, phân tích lỗi, cập nhật `HAN_CHE`, `TIEN_DO`, commit.
+4. **Không bao giờ để train có câu sai mà không biết vì sao.** Mỗi câu sai phải có lý do ghi trong file hạn chế, hoặc đã có cổng chặn.
+
+### Lịch
+| Ngày | Sáng: việc khó | Chiều: việc chắc làm được | Xong khi |
+|---|---|---|---|
+| **T3 03/11** | **G1 loader:** đọc xlsx (mọi sheet, engine nhanh `calamine`), dò header 1–2 dòng và dòng tiêu đề, `year_hint` từ tên sheet / file | Bỏ dòng "Cộng" (H18), kiểu tiền mới (`409tr663`), giới hạn thời gian đọc mỗi cửa hàng (H12 phần đọc file), profiling: kiểu cột, min/max | Đọc 44 cửa hàng không lỗi, không thiếu sheet; header đúng ở biz_105, biz_117, dev_004, dev_013; đọc hết train dưới 2 phút |
+| **T4 04/11** | **K3:** chạy Qwen3-8B 4-bit trên laptop (llama.cpp server, ép output theo schema v1.1), prompt = schema + data card + 6 ví dụ BM25; chọn engine cho Docker | **G2 phần 1:** cài 8 biến đổi trong `TRANSFORMS`, điền ô trống cùng đơn (§8) *trước* bước bỏ dòng trùng; mapping tay cho 3 cửa hàng khác kiểu | K3: tỉ lệ JSON hợp lệ và tỉ lệ plan đúng trên 99 plan K2 + 24 plan mẫu. 4 cửa hàng có mapping tay qua đủ 6 bước kiểm tra |
+| **T5 05/11** | **G2 phần 2:** mapping tay cho thêm 5 cửa hàng (đủ 8, có biz_123 sqlite, biz_124 nhiều nguồn); **H17** kiểm tra theo nghĩa, ngưỡng đo trên 8 mapping | **G4:** mọi kiểu kỳ và kỳ so (§2), `STOCK_METRICS`, Tết; mỗi dòng §2 một test | 8 mapping tay qua kiểm tra; mapping hỏng cố ý (đổi cột tiền, cột ngày) bị bắt; test §2 qua hết |
+| **T6 06/11** | **G6 nối thực thể:** RapidFuzz không dấu trên tên hàng, nhóm, kênh, khách, nhân viên; ngưỡng + chặn khi hai ứng viên gần bằng nhau | **G5 nhóm bán hàng:** bộ lọc, tăng trưởng / chênh lệch, tỉ trọng, huỷ, trung bình đơn, số lượng theo đơn vị, xếp hạng khách / ngày / tháng, đếm theo ngưỡng | `oracle --all` trên 8 cửa hàng: **0 câu sai**; ghi tỉ lệ trả lời |
+| **T7 07/11** | **G3:** nối LLM thật vào `parse_question`, đối chiếu với baseline, timeout mỗi lời gọi (H12); thuê GPU 1 buổi để so Qwen3-8B và Qwen3-14B | Data card ([B] `build_card`) đủ cho prompt; chọn ví dụ bằng BM25 trên kho đã kiểm chứng (K1) | Chạy hết 8 cửa hàng với LLM + mapping tay: PA không thấp hơn khi dùng baseline; chốt model |
+| **CN 08/11** | **G2 phần 3: `map_business` tự động.** Luật đồng nghĩa tên cột (rút từ 8 mapping tay) trước, LLM điền phần còn thiếu, chạy kiểm tra, sai thì cho LLM sửa 1 lần | Chấm mapping tự động so với mapping tay; bảng lỗi theo cửa hàng | Trên 8 cửa hàng: mapping tự động **ra cùng điểm** với mapping tay, hoặc bị chặn ở bước kiểm tra (không câu sai thêm) |
+| **T2 09/11** | **Tích hợp cả 30 cửa hàng train** (mapping tự động + LLM); phân tích lỗi theo ngành | **Nộp public lần đầu**; `eval.validate` trước khi nộp | Có PA train (30 cửa hàng) và điểm public; mọi câu sai có lý do |
+| **T3 10/11** | **Docker:** image theo guideline BTC (nếu chưa có thì theo mặc định CUDA 12.8), model weights, `predict.sh`, chép `assets/` (H14); chạy `--network none`, `/data:ro` | H12 đầy đủ (hạn chót truyền xuống từng khối); đo thời gian hết bộ public, nhân 1,5 | Container chạy hết public không mạng, ra file hợp lệ, dưới 1 giờ cho 1000 câu |
+| **T4 11/11** | **Loại câu v2:** công nợ (§4), nhập hàng, tồn kho, lô / hạn dùng (§5) | Giá bán ngày D, hiệu ứng tăng giá, lãi gộp / lãi ròng; test từng luật | 0 câu sai trên train ở nhóm mới |
+| **T5 12/11** | **Luật theo ngành §6** (cà phê size, nhà thuốc, vật liệu xây dựng, và 3 ngành mới của rulebook public: chỉ theo luật, không có dữ liệu train để thử) | **Bật unanswerable:** nhóm A (kỳ ngoài dữ liệu) và B (thiếu bảng/cột, khi mapping chắc chắn); đo trên 70 câu unanswerable của train | Unanswerable đúng ≥ 95% trên train, không làm sai câu trả lời được |
+| **T6 13/11** | **N4:** chạy train 2 lần (laptop và GPU thuê), so từng câu; chỉnh ngưỡng các cổng | **Khóa tính năng.** Chạy toàn bộ test; rà luật thi (không logic theo id, không mạng, giấy phép) | Lệch giữa 2 lần ≤ 0,01 PA; checklist luật thi đạt |
+| **T7 14/11** | **Nộp Docker lần 1:** build, `docker save`, nén, `sha256sum`, upload Google Drive, form "Solution Submission" | README (model, giấy phép, cách chạy), tài liệu phương pháp | Đã nộp lần 1; tải lại đúng file đã nộp và chạy thử được |
+| **CN 15/11** | Dự phòng: chỉ sửa lỗi an toàn (bỏ trống thêm, không mở tính năng) | Nộp public mỗi ngày, so với bản đã nộp Docker | |
+| **T2 16/11** | Lần 2 chỉ nộp nếu tốt hơn rõ ràng **và** đã chạy thử trên GPU giống máy chấm | Upload trước **18:00** | Đóng băng 23:59 |
+
+Sau đóng băng: 17–19/11 tải lại image đã nộp, kiểm checksum, chạy thử; 20/11 lúc 9:00 chạy private test, giữ log, nộp trước 23:59 ngày 23/11.
+
+### Khi bị chậm thì bỏ gì (theo thứ tự)
+1. [D2] sinh code: không làm (H13).
+2. Luật 3 ngành mới của rulebook public: chỉ làm phần dùng lại được hàm chung.
+3. Loại câu v2 hiếm: lãi ròng, trả góp, bảo hành.
+4. Unanswerable nhóm B. Giữ nhóm A, vì quyết định bằng code nên chắc chắn.
+
+**Không bao giờ bỏ:** cổng kiểm tra mapping, 0 câu sai trên train, Docker nộp trước 14/11.
+
+### Mốc phải dừng lại xem xét
+- **Tối 04/11 (sau K3):** nếu Qwen3-8B cho dưới 70% plan đúng thì tăng ví dụ mẫu hoặc đơn giản hoá schema trước khi đi tiếp.
+- **Tối 08/11:** nếu mapping tự động sai mà không bị chặn ở dù chỉ 1 cửa hàng, thì 09/11 dành để sửa kiểm tra (H17) trước khi tích hợp.
+- **Tối 09/11:** nếu PA train ≤ 0 thì dừng mở rộng, chỉ làm cho các cổng chặt hơn.
+
+### Việc ngoài code
+- Hỏi lại BTC mỗi ngày về Docker guideline cho tới khi có (tin nhắn đã soạn ở phiên 1).
+- Thuê GPU: 1 buổi ngày 07/11 (so 8B và 14B), 1 buổi ngày 13/11 (đo độ ổn định), 1 buổi ngày 14/11 (chạy thử image).

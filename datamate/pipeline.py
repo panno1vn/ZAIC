@@ -180,7 +180,14 @@ def run(data_dir: Path, out_dir: Path, config: RunConfig | None = None, llm: LLM
                     t1 = time.perf_counter()
                     line, record = answer_question(q, ctx, split_dir / "calendar.csv", rule_status, rulebook, llm)
                     record["elapsed_ms"] = round((time.perf_counter() - t1) * 1000)
-                    if writer.write(line):
+                    try:
+                        written = writer.write(line)
+                    except Exception:  # an answer that cannot be written costs that answer, never the rest of the run
+                        record["error"] = traceback.format_exc()
+                        line = SubmissionLine.abstain(q["id"])
+                        record["answer"] = line.to_dict()
+                        written = writer.write(line)
+                    if written:
                         summary.types[line.type] += 1
                     summary.errors += "error" in record
                     log(q["id"], record)

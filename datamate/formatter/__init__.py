@@ -5,8 +5,11 @@ Metric functions round money themselves with `money()`; the formatter enforces t
 """
 from __future__ import annotations
 
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
+
+import numpy as np
 
 from datamate.contracts import Decision, ExecResult, SubmissionLine
 
@@ -20,7 +23,13 @@ def money(x: float) -> int:
     return int(round_half_up(x, 0))
 
 
+def _plain(v: Any) -> Any:
+    """numpy / pandas scalars as Python values: np.int64 is not an int, so it would fail the format check or json."""
+    return v.item() if isinstance(v, np.generic) else v
+
+
 def _number(v: Any) -> Any:
+    v = _plain(v)
     if isinstance(v, bool) or not isinstance(v, (int, float)):
         return v
     d = round_half_up(v, 2)
@@ -28,10 +37,13 @@ def _number(v: Any) -> Any:
 
 
 def format_value(answer_type: str, v: Any) -> Any:
+    v = _plain(v)
     if answer_type == "number":
         return _number(v)
     if answer_type == "percent":
         return float(round_half_up(v, 2))
+    if answer_type == "date" and isinstance(v, date):  # date, datetime, pd.Timestamp: the day only
+        return v.strftime("%Y-%m-%d")
     if answer_type in ("date", "string"):
         return str(v)
     if answer_type == "list":

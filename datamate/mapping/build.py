@@ -18,7 +18,7 @@ DATE_COLUMNS = {"orders": "order_time", "purchases": "receipt_time", "payments":
                 "price_history": "effective_date", "expenses": "expense_date", "deliveries": "delivery_time",
                 "shift_reports": "report_date", "warranty_visits": "visit_time"}
 REQUIRED_CHECKS = ("có orders và lines", "bảng đúng schema", "trạng thái đơn đã quy đổi", "khoảng ngày hợp lý",
-                   "dòng hàng thuộc đơn có thật")
+                   "dòng hàng thuộc đơn có thật", "cột bắt buộc đủ giá trị")
 
 _PARSERS = {
     "money": parse_money, "number": parse_number, "qty": parse_number, "bool": parse_bool,
@@ -90,6 +90,21 @@ def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
     return db
 
 
+def empty_required_cells(db: CanonicalDB) -> list[str]:
+    """Required canonical columns with empty cells. An unread date drops its order from every period and an unread
+    amount zeroes its line, so the answers would be wrong without any error."""
+    out = []
+    for name, df in db.tables.items():
+        spec = TABLES.get(name)
+        if spec is None or not len(df):
+            continue
+        for c in spec.columns:
+            n = int(df[c.name].isna().sum()) if c.required and c.name in df.columns else 0
+            if n:
+                out.append(f"{name}.{c.name}: {n}/{len(df)} ô trống")
+    return out
+
+
 def run_checks(db: CanonicalDB) -> list[CheckResult]:
     """The required checks (H8): a mapping is usable only if every one of them passes."""
     has_core = db.has("orders") and db.has("lines")
@@ -99,8 +114,9 @@ def run_checks(db: CanonicalDB) -> list[CheckResult]:
     span = db.date_ranges.get("orders")
     span_ok = span is not None and date(2000, 1, 1) <= span[0] <= span[1] <= date(2100, 1, 1)
     lines_ok = has_core and set(db.tables["lines"]["order_id"].dropna()) <= set(db.tables["orders"]["order_id"])
-    results = [has_core, not problems, status_ok, span_ok, lines_ok]
-    details = ["", "; ".join(problems[:5]), "", str(span), ""]
+    empty = empty_required_cells(db)
+    results = [has_core, not problems, status_ok, span_ok, lines_ok, not empty]
+    details = ["", "; ".join(problems[:5]), "", str(span), "", "; ".join(empty[:5])]
     return [CheckResult(name=n, passed=bool(ok), detail=d) for n, ok, d in zip(REQUIRED_CHECKS, results, details)]
 
 

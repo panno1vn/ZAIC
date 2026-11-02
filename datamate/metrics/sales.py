@@ -60,7 +60,7 @@ def order_count(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
 
 
 @metric("rank", "quantity", requires=("orders.order_time", "orders.status", "lines.base_qty"),
-        rules=R_VALID + ("§3.ban_chay", "§3.mat_hang") + R_TIES)
+        rules=R_VALID + ("§3.ban_chay", "§3.mat_hang") + R_TIES, entity="product")
 def top_products(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     """Best sellers by quantity in base units (§3 "Bán chạy"); ties by product key ascending (§9)."""
     r = plan.plan.rank
@@ -82,7 +82,7 @@ def top_products(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
 
 
 @metric("rank", "revenue", requires=("orders.order_time", "orders.status", "lines.line_amount"),
-        rules=R_REVENUE + R_TIES)
+        rules=R_REVENUE + R_TIES, entity="day")
 def top_days_by_revenue(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     """Day with the highest revenue in the period; ties by the earlier date."""
     r = plan.plan.rank

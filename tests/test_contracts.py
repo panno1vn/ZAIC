@@ -113,7 +113,7 @@ def test_answer_type_is_derived_or_checked():  # H5
 
 def test_average_per_weekday_and_list_items():  # H4
     p = QueryPlan.model_validate({"intent": "value", "measures": [{"metric": "revenue", "aggregate": "avg_per_weekday",
-                                  "filters": [{"field": "weekday", "value": "thứ bảy"}]}],
+                                  "filters": [{"field": "weekday", "value": "sat"}]}],
                                   "period": {"kind": "month", "year": 2026, "month": 3}})
     assert p.answer_type == "number"
     q = QueryPlan.model_validate({"intent": "list_items", "list_spec": {"entity": "product", "condition": "unsold_in_period"},
@@ -215,3 +215,73 @@ def test_mock_llm():
     assert llm.generate_json([{"role": "user", "content": "x"}], {}) == {"a": 1}
     with pytest.raises(RuntimeError):
         llm.generate_json([], {})
+
+
+# ---------------------------------------------------------------- v1.1: K2 contract stress test
+K2 = ROOT / "assets" / "plans" / "k2_trial.jsonl"
+
+
+def test_k2_trial_plans_are_valid():
+    trial = [json.loads(l) for l in K2.read_text(encoding="utf-8").splitlines() if l.strip()]
+    assert len(trial) >= 99
+    for e in trial:
+        QueryPlan.model_validate(e["plan"])
+
+
+@pytest.mark.skipif(not ANSWERS.exists(), reason="cần data/train/answers.jsonl")
+def test_k2_trial_answer_types_match_train_answers():
+    ref = {json.loads(l)["id"]: json.loads(l)["type"] for l in ANSWERS.read_text(encoding="utf-8").splitlines()}
+    for e in (json.loads(l) for l in K2.read_text(encoding="utf-8").splitlines() if l.strip()):
+        plan = QueryPlan.model_validate(e["plan"])
+        if ref[e["id"]] == "unanswerable" and plan.intent != "out_of_scope":
+            continue  # the shop lacks the data: decided by [V]/[E] from the data, not by the plan
+        assert plan.answer_type == ref[e["id"]], e["id"]
+
+
+MAY = {"kind": "month", "year": 2025, "month": 5}
+
+
+@pytest.mark.parametrize("filt,ok", [
+    ({"field": "shift", "value": "morning"}, True), ({"field": "shift", "value": "sáng"}, False),
+    ({"field": "prescription", "value": True}, True), ({"field": "prescription", "value": 1.0}, False),
+    ({"field": "weekday", "op": "in", "value": ["sat", "sun"]}, True), ({"field": "product", "value": True}, False),
+    ({"field": "order_status", "value": "cancelled"}, True), ({"field": "order_status", "value": "huỷ"}, False),
+])
+def test_coded_filter_values(filt, ok):
+    plan = {"intent": "value", "measures": [{"metric": "revenue", "filters": [filt]}], "period": MAY}
+    if ok:
+        QueryPlan.model_validate(plan)
+    else:
+        with pytest.raises(ValidationError):
+            QueryPlan.model_validate(plan)
+
+
+def test_list_count_and_count_where_without_measures():
+    unsold = {"intent": "list_items", "period": {"kind": "range", "start": "2026-06-20", "end": "2026-06-26"},
+              "list_spec": {"entity": "product", "condition": "unsold_in_period", "count": True}}
+    assert QueryPlan.model_validate(unsold).answer_type == "number"
+    loyal = {"intent": "count_where", "period": MAY,
+             "threshold": {"entity": "customer", "metric": "order_count", "op": "gte", "value": 3}}
+    assert QueryPlan.model_validate(loyal).answer_type == "number"
+    with pytest.raises(ValidationError):  # measures[0] must be the thresholded metric
+        QueryPlan.model_validate({**loyal, "measures": [{"metric": "revenue"}]})
+
+
+def test_expiry_window_as_period_and_tet_without_year():
+    expiring = {"intent": "list_items", "list_spec": {"entity": "product", "condition": "expiring_within"}}
+    QueryPlan.model_validate({**expiring, "period": {"kind": "range", "start": "2026-05-25", "end": "2026-09-22"}})
+    QueryPlan.model_validate({**expiring, "period": {"kind": "next_n_days", "n": 120}})
+    with pytest.raises(ValidationError):
+        QueryPlan.model_validate({**expiring, "period": {"kind": "this_month"}})
+    assert PeriodExpr(kind="tet").lunar_year is None
+
+
+def test_unknown_fields_reject_the_plan_and_the_mapping():  # a typo must not drop a filter silently
+    typo = {"intent": "value", "measures": [{"metric": "revenue", "filter": [{"field": "product", "value": "Coca"}]}],
+            "period": MAY}
+    with pytest.raises(ValidationError):
+        QueryPlan.model_validate(typo)
+    with pytest.raises(ValidationError):
+        Mapping.model_validate({"tables": [], "record_grian": "order"})
+    schema = json.loads((SCHEMA_DIR / "query_plan.schema.json").read_text(encoding="utf-8"))
+    assert schema["additionalProperties"] is False

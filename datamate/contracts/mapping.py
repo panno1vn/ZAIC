@@ -4,9 +4,14 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from .canonical import TABLES
+
+
+class _Model(BaseModel):
+    """Unknown fields are errors: a misspelt "filter" for "filters" must reject the plan, not drop the filter."""
+    model_config = ConfigDict(extra="forbid")
 
 Parse = Literal["text", "money", "number", "qty", "date", "datetime", "bool"]
 
@@ -26,7 +31,7 @@ Transform = Literal["regex_extract", "split_qty_unit", "year_from_sheet", "note_
                     "order_status_from_lines", "concat", "negate"]
 
 
-class ColumnMap(BaseModel):
+class ColumnMap(_Model):
     target: str  # canonical column
     source: str | None = None  # raw column name; None when the value is a constant or derived
     sources: list[str] = []  # several raw columns (for concat)
@@ -45,7 +50,7 @@ class ColumnMap(BaseModel):
         return self
 
 
-class TableMap(BaseModel):
+class TableMap(_Model):
     target: str  # canonical table
     sources: list[str]  # raw table_ids stacked together (e.g. one sheet per month)
     columns: list[ColumnMap]
@@ -63,20 +68,20 @@ class TableMap(BaseModel):
         return self
 
 
-class ExtraTableSpec(BaseModel):
+class ExtraTableSpec(_Model):
     name: str
     sources: list[str]
     description: str
     column_notes: dict[str, str] = {}  # raw column -> meaning
 
 
-class CheckResult(BaseModel):
+class CheckResult(_Model):
     name: str
     passed: bool
     detail: str = ""
 
 
-class Mapping(BaseModel):
+class Mapping(_Model):
     industry: str | None = None  # ngành nhận diện từ README / dữ liệu, để áp luật §6
     record_grain: Literal["order", "line_is_record"] = "order"  # "line_is_record": sổ không có mã đơn (§8)
     tables: list[TableMap] = []

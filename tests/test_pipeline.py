@@ -73,6 +73,7 @@ def test_business_id_cannot_escape_the_data_folder(tmp_path):
         pipeline.business_dir(split, "../../etc")
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(not (DATA / "public_test" / "questions.jsonl").exists(), reason="cần data/")
 def test_real_public_split_gives_a_valid_file(tmp_path):
     run(DATA / "public_test", tmp_path / "out", RunConfig(write_logs=False))

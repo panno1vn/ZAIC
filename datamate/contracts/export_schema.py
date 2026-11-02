@@ -23,7 +23,7 @@ def render(name: str) -> str:
 def main() -> None:
     SCHEMA_DIR.mkdir(exist_ok=True)
     for name in MODELS:
-        (SCHEMA_DIR / f"{name}.schema.json").write_text(render(name), encoding="utf-8")
+        (SCHEMA_DIR / f"{name}.schema.json").write_text(render(name), encoding="utf-8", newline="\n")  # LF
         print("wrote", SCHEMA_DIR / f"{name}.schema.json")
 
 

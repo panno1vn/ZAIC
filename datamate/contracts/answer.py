@@ -19,6 +19,11 @@ def is_number(v: Any) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
+def is_cell(v: Any) -> bool:
+    """A list element or table cell (§9): a name or a finite number. None, NaN, bool and nested values are not."""
+    return isinstance(v, str) or is_number(v)
+
+
 def valid_date(s: Any) -> bool:
     """'YYYY-MM-DD', or 'YYYY-MM' for questions asked by month."""
     if not isinstance(s, str):
@@ -52,12 +57,12 @@ def format_error(line: dict) -> str | None:
     elif t == "string":
         ok = isinstance(a, str)
     elif t == "list":
-        ok = isinstance(a, list)
+        ok = isinstance(a, list) and all(is_cell(x) for x in a)
     else:  # table
         cols = a.get("columns") if isinstance(a, dict) else None
         rows = a.get("rows") if isinstance(a, dict) else None
         ok = (isinstance(cols, list) and all(isinstance(c, str) for c in cols) and isinstance(rows, list)
-              and all(isinstance(r, list) and len(r) == len(cols) for r in rows))
+              and all(isinstance(r, list) and len(r) == len(cols) and all(is_cell(c) for c in r) for r in rows))
     return None if ok else f"answer sai format của type {t}"
 
 

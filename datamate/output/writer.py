@@ -19,7 +19,8 @@ class SubmissionWriter:
         """Append one line; a question already written is skipped (first answer wins). True if written."""
         if line.id in self.written:
             return False
-        self._fh.write(json.dumps(line.to_dict(), ensure_ascii=False) + "\n")
+        text = json.dumps(line.to_dict(), ensure_ascii=False, allow_nan=False)  # NaN is not JSON: raise, never write it
+        self._fh.write(text + "\n")
         self._fh.flush()
         self.written.add(line.id)
         return True
