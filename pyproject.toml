@@ -1,0 +1,10 @@
+[project]
+name = "datamate"
+version = "0.1.0"
+description = "Zalo AI Challenge 2026 — DataMate: hỏi đáp tiếng Việt trên dữ liệu kinh doanh"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
