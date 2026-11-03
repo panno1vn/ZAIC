@@ -1,0 +1,179 @@
+{
+  "industry": "nhà thuốc",
+  "record_grain": "order",
+  "notes": [
+    "Mapping tay từ README biz_123: sqlite của máy POS, 17 bảng nối bằng mã. Dòng hàng không ghi tên hàng: tên tra từ san_pham theo mã.",
+    "TinhTrang đã là mã tiếng Anh; 'shipping' hiểu là đang giao: cả 16 đơn nằm ở 3 ngày cuối dữ liệu (26–28/06/2026).",
+    "Nhóm khách (lẻ / sỉ / thân thiết) tra từ khach_hang theo mã khách; đơn không có mã khách là khách vãng lai, không thuộc nhóm nào (§1).",
+    "Tồn kho: mỗi dòng the_kho là tồn sau một lần nhập / bán / trả; nhiều dòng trong một ngày thì tồn hết ngày là dòng cuối của ngày đó theo thứ tự trong bảng.",
+    "Giá vốn ghi trên dòng bán (GiaVonLucBan, một đơn vị bán); TongThanhToan là số khách phải trả cả đơn (cho công nợ, §4)."
+  ],
+  "tables": [
+    {
+      "target": "orders",
+      "sources": ["pos.sqlite::don_hang"],
+      "columns": [
+        {"target": "order_id", "source": "MaHoaDon"},
+        {"target": "order_time", "source": "ThoiGianLap", "parse": "datetime"},
+        {"target": "has_time", "const": true},
+        {"target": "status", "source": "TinhTrang"},
+        {"target": "customer_key", "source": "MaKhachHang"},
+        {"target": "customer_group", "source": "MaKhachHang", "transform": "lookup",
+         "args": {"table": "pos.sqlite::khach_hang", "key": "MaKhachHang", "value": "LoaiKhachHang", "keep_missing": false}},
+        {"target": "employee", "source": "MaNhanVien"},
+        {"target": "channel", "source": "KenhBanHang"},
+        {"target": "payment_method", "source": "PhuongThucTT"},
+        {"target": "order_discount", "source": "ChietKhau", "parse": "money"},
+        {"target": "shipping_fee", "source": "PhiVanChuyen", "parse": "money"},
+        {"target": "vat", "source": "ThueGTGT", "parse": "money"},
+        {"target": "total_due", "source": "TongThanhToan", "parse": "money"}
+      ],
+      "value_maps": {"status": {"shipping": "delivering"}}
+    },
+    {
+      "target": "lines",
+      "sources": ["pos.sqlite::chi_tiet_don"],
+      "columns": [
+        {"target": "order_id", "source": "MaHoaDon"},
+        {"target": "line_no", "source": "SoThuTu", "parse": "number"},
+        {"target": "product_key", "source": "MaHangHoa"},
+        {"target": "product_name", "source": "MaHangHoa", "transform": "lookup",
+         "args": {"table": "pos.sqlite::san_pham", "key": "MaHangHoa", "value": "TenGoi", "keep_missing": false}},
+        {"target": "is_item", "const": true},
+        {"target": "qty", "source": "SL", "parse": "qty"},
+        {"target": "unit", "source": "DonViTinh"},
+        {"target": "base_qty", "source": "SLQuyDoi", "parse": "qty"},
+        {"target": "unit_price", "source": "GiaDonVi", "parse": "money"},
+        {"target": "line_discount", "source": "ChietKhau", "parse": "money"},
+        {"target": "line_amount", "source": "TriGia", "parse": "money"},
+        {"target": "unit_cost", "source": "GiaVonLucBan", "parse": "money"}
+      ]
+    },
+    {
+      "target": "products",
+      "sources": ["pos.sqlite::san_pham"],
+      "columns": [
+        {"target": "product_key", "source": "MaHangHoa"},
+        {"target": "product_name", "source": "TenGoi"},
+        {"target": "product_group", "source": "DanhMuc"},
+        {"target": "base_unit", "source": "DonViCoSo"},
+        {"target": "unit_cost", "source": "GiaVonHang", "parse": "money"},
+        {"target": "is_prescription", "source": "MaHangHoa", "transform": "lookup", "parse": "bool",
+         "args": {"table": "pos.sqlite::thong_tin_thuoc", "key": "MaHangHoa", "value": "BanTheoDon", "keep_missing": false}},
+        {"target": "active_ingredient", "source": "MaHangHoa", "transform": "lookup",
+         "args": {"table": "pos.sqlite::thong_tin_thuoc", "key": "MaHangHoa", "value": "ThanhPhanChinh", "keep_missing": false}}
+      ]
+    },
+    {
+      "target": "unit_conversions",
+      "sources": ["pos.sqlite::don_vi_sp"],
+      "columns": [
+        {"target": "product_key", "source": "MaHangHoa"},
+        {"target": "unit", "source": "DonViTinh"},
+        {"target": "factor", "source": "HeSoQuyDoi", "parse": "number"},
+        {"target": "base_unit", "source": "MaHangHoa", "transform": "lookup",
+         "args": {"table": "pos.sqlite::san_pham", "key": "MaHangHoa", "value": "DonViCoSo", "keep_missing": false}}
+      ]
+    },
+    {
+      "target": "customers",
+      "sources": ["pos.sqlite::khach_hang"],
+      "columns": [
+        {"target": "customer_key", "source": "MaKhachHang"},
+        {"target": "customer_name", "source": "TenGoi"},
+        {"target": "customer_group", "source": "LoaiKhachHang"},
+        {"target": "phone", "source": "SoDienThoai"},
+        {"target": "address", "source": "DiaChiLienHe"},
+        {"target": "gender", "source": "NamNu"},
+        {"target": "registered_date", "source": "TaoLuc", "parse": "date"}
+      ]
+    },
+    {
+      "target": "payments",
+      "sources": ["pos.sqlite::thanh_toan"],
+      "columns": [
+        {"target": "order_id", "source": "MaHoaDon"},
+        {"target": "paid_time", "source": "NgayGioThu", "parse": "datetime"},
+        {"target": "amount", "source": "SoTienThu", "parse": "money"},
+        {"target": "method", "source": "PhuongThuc"}
+      ]
+    },
+    {
+      "target": "returns",
+      "sources": ["pos.sqlite::tra_hang"],
+      "columns": [
+        {"target": "order_id", "source": "MaHoaDon"},
+        {"target": "return_time", "source": "NgayGioTra", "parse": "datetime"},
+        {"target": "amount", "source": "TienHoanTra", "parse": "money"},
+        {"target": "reason", "source": "NguyenNhan"}
+      ]
+    },
+    {
+      "target": "purchases",
+      "sources": ["pos.sqlite::chi_tiet_nhap"],
+      "columns": [
+        {"target": "receipt_id", "source": "MaPhieuNhap"},
+        {"target": "receipt_time", "source": "MaPhieuNhap", "transform": "lookup", "parse": "datetime",
+         "args": {"table": "pos.sqlite::phieu_nhap", "key": "MaPhieuNhap", "value": "NgayNhapKho", "keep_missing": false}},
+        {"target": "supplier", "source": "MaPhieuNhap", "transform": "lookup",
+         "args": {"table": "pos.sqlite::phieu_nhap", "key": "MaPhieuNhap", "value": "MaNhaCungCap", "keep_missing": false}},
+        {"target": "product_key", "source": "MaHangHoa"},
+        {"target": "qty", "source": "SL", "parse": "qty"},
+        {"target": "unit", "source": "DonViTinh"},
+        {"target": "unit_cost", "source": "DonGiaNhap", "parse": "money"},
+        {"target": "lot_id", "source": "MaLo"},
+        {"target": "expiry_date", "source": "HanSuDung", "parse": "date"}
+      ]
+    },
+    {
+      "target": "inventory",
+      "sources": ["pos.sqlite::the_kho"],
+      "columns": [
+        {"target": "product_key", "source": "MaHangHoa"},
+        {"target": "as_of", "source": "NgayGioPhatSinh", "parse": "date"},
+        {"target": "base_qty", "source": "TonCuoi", "parse": "qty"}
+      ]
+    },
+    {
+      "target": "price_history",
+      "sources": ["pos.sqlite::lich_su_gia"],
+      "columns": [
+        {"target": "product_key", "source": "MaHangHoa"},
+        {"target": "effective_date", "source": "NgayApDung", "parse": "date"},
+        {"target": "price", "source": "GiaBanLe", "parse": "money"}
+      ]
+    },
+    {
+      "target": "lots",
+      "sources": ["pos.sqlite::lo_hang"],
+      "columns": [
+        {"target": "lot_id", "source": "MaLo"},
+        {"target": "product_key", "source": "MaHangHoa"},
+        {"target": "expiry_date", "source": "HanSuDung", "parse": "date"},
+        {"target": "base_qty_in", "source": "SLNhapQuyDoi", "parse": "qty"},
+        {"target": "unit_cost", "source": "DonGiaNhap", "parse": "money"},
+        {"target": "receipt_id", "source": "MaPhieuNhap"}
+      ]
+    },
+    {
+      "target": "lot_sales",
+      "sources": ["pos.sqlite::chi_tiet_don_lo"],
+      "columns": [
+        {"target": "order_id", "source": "MaHoaDon"},
+        {"target": "line_no", "source": "SoThuTu", "parse": "number"},
+        {"target": "lot_id", "source": "MaLo"},
+        {"target": "base_qty", "source": "SLQuyDoi", "parse": "qty"},
+        {"target": "returned_base_qty", "source": "SLTraQuyDoi", "parse": "qty"}
+      ]
+    },
+    {
+      "target": "employees",
+      "sources": ["pos.sqlite::nhan_vien"],
+      "columns": [
+        {"target": "employee_key", "source": "MaNhanVien"},
+        {"target": "employee_name", "source": "TenGoi"},
+        {"target": "start_date", "source": "NgayNhanViec", "parse": "date"}
+      ]
+    }
+  ]
+}

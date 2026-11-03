@@ -5,7 +5,16 @@
 
 **Hợp đồng:** `resolve(plan, as_of, calendar_csv, db) -> ResolvedPlan | None`. Điền `period`, `compare_period`, `series`. `mode = stock` cho kiểu `until`.
 
-**Đã có (bộ khung 05/11):** `day`, `today`, `yesterday`, `month`, `quarter`, `year`; tháng/quý không ghi năm theo §2; kỳ phát sinh bị cắt tại `as_of_date`; kỳ nằm hẳn sau hôm nay thì trả `None`. Có `compare` hoặc `months` thì trả `None`.
+**Đã có (05/11, G4 bản 1):**
+- **Mọi kiểu kỳ** của hợp đồng v1.1 và **mọi kiểu so sánh**.
+- Tết tra `calendar.csv`: Tết 2025, 2026, 2027 đều dài 17 ngày, khớp câu train "17 ngày trước Tết". `compare.n` không khớp độ dài kỳ thì bỏ trống.
+- Chỉ số trong `STOCK_METRICS` luôn tính kiểu `stock`.
+- `previous` của tháng này, hoặc của tháng đang dở, lấy cùng số ngày. Kiểu kỳ không có "kỳ trước" rõ ràng (từ đầu năm, chuỗi tháng) thì bỏ trống.
+- Test theo từng dòng §2: [tests/test_temporal.py](../../tests/test_temporal.py).
+- Trên 123 plan viết tay: tính được kỳ cho 122.
+- **Còn thiếu:** `days_from` neo theo ngày tăng giá (`anchor_price`). Phần này cần mặt hàng đã được nối tên, nên làm cùng các hàm hiệu ứng tăng giá (11/11).
+
+Các mục 1–3 dưới đây đã làm, trừ `anchor_price`.
 
 **Việc cần làm:**
 1. Các kiểu kỳ còn lại: `this_week`, `last_week` (thứ Hai–Chủ nhật), `this_month`, `last_month`, `ytd`, `last_n_days`, `next_n_days`, `range` (ngày hoặc tháng), `months` (danh sách hoặc `end` + `n`), `until` (`mode = stock`), `tet` (tra `calendar.csv`: 23 tháng Chạp → hết mùng 10 Giêng), `days_from` (có ngày, hoặc `anchor_price`: tìm ngày tăng giá trong `db.tables["price_history"]`).

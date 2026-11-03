@@ -1,0 +1,52 @@
+{
+  "industry": "tạp hóa",
+  "record_grain": "order",
+  "notes": [
+    "Mapping tay từ README biz_103: Excel xuất từ phần mềm, mỗi tháng một sheet, mỗi dòng một sản phẩm; các dòng sau của một đơn để trống mã đơn, ngày, trạng thái, khách (§8: lấy theo dòng đầu đơn).",
+    "Số lượng ghi kèm đơn vị ('3 chai') hoặc chỉ số; đơn vị ở cột riêng. Quy đổi đơn vị ở DanhSachQuyDoi.xlsx.",
+    "Trạng thái: 8 cách ghi cho 4 trạng thái; 'Đang giao dịch' hiểu là đang giao (kiểm bằng đáp án train)."
+  ],
+  "tables": [
+    {
+      "target": "orders",
+      "sources": ["DonHang_ChiTiet.xlsx::*"],
+      "columns": [
+        {"target": "order_id", "source": "Mã đơn hàng"},
+        {"target": "order_time", "source": "Ngày đặt hàng", "parse": "datetime"},
+        {"target": "status", "source": "Trạng thái đơn hàng"},
+        {"target": "customer_key", "source": "Tên khách hàng"},
+        {"target": "customer_name", "source": "Tên khách hàng"},
+        {"target": "has_time", "const": false}
+      ],
+      "value_maps": {
+        "status": {"đã lấy": "completed", "Thành công": "completed", "hủy đơn": "cancelled", "Đã hủy đơn": "cancelled",
+                   "hàng trả về": "returned", "Hoàn trả": "returned", "Đang giao dịch": "delivering"},
+        "customer_key": {"Khách lẻ": ""}
+      }
+    },
+    {
+      "target": "lines",
+      "sources": ["DonHang_ChiTiet.xlsx::*"],
+      "columns": [
+        {"target": "order_id", "source": "Mã đơn hàng"},
+        {"target": "product_key", "source": "Tên sản phẩm"},
+        {"target": "product_name", "source": "Tên sản phẩm"},
+        {"target": "is_item", "const": true},
+        {"target": "qty", "source": "Số lượng sản phẩm", "parse": "qty"},
+        {"target": "unit", "source": "Đơn vị tính"},
+        {"target": "unit_price", "source": "Giá sản phẩm", "parse": "money"},
+        {"target": "line_amount", "source": "Tổng tiền", "parse": "money"}
+      ]
+    },
+    {
+      "target": "unit_conversions",
+      "sources": ["DanhSachQuyDoi.xlsx::Sheet1"],
+      "columns": [
+        {"target": "product_key", "source": "Tên sản phẩm"},
+        {"target": "unit", "source": "Đơn vị quy đổi"},
+        {"target": "factor", "source": "Tỉ lệ quy đổi", "parse": "number"},
+        {"target": "base_unit", "source": "Đơn vị cơ bản"}
+      ]
+    }
+  ]
+}

@@ -20,7 +20,8 @@ _DATA_LIKE = re.compile(
     r"^-?[\d.,\s]+(?:đ|d|vnđ|vnd|k|tr\d*)?$"  # numbers and money: 25.000đ, 1tr440, 25k, -3
     r"|^\d{1,4}[/-]\d{1,2}(?:[/-]\d{1,4})?(?:\s.*)?$"  # dates: 01/02/2025, 1/1, 2025-02-01 06:00:25
     r"|^\d{1,2}\s*thg\s*\d{1,2}", re.I)
-_SUMMARY = re.compile(r"^(?:cong|tong cong|tong so|tong tien|tong|total|grand total|sum)\s*:?$")
+# "Cộng", "Tổng cộng", "Tổng tháng", "Total"…; only on sparse rows, so a customer "Tống Văn An" on a full row stays
+_SUMMARY = re.compile(r"^(?:cong|tong|total|grand total|sum|subtotal)\b")
 
 
 def cell_text(v) -> str:
@@ -35,7 +36,7 @@ def cell_text(v) -> str:
         return v.strftime("%Y-%m-%d") if v.time() == time(0) else v.strftime("%Y-%m-%d %H:%M:%S")
     if isinstance(v, (date, time)):
         return v.isoformat()
-    return str(v).strip()
+    return unicodedata.normalize("NFC", str(v).strip())  # one form, so "Huỷ" in a mapping matches "Huỷ" in the file
 
 
 def fold(s: str) -> str:
@@ -119,6 +120,11 @@ def to_table(grid: list[list]) -> Table:
             keep.append(r)
     if dropped:
         notes.append(f"bỏ {len(dropped)} dòng tổng: {dropped[0]}")
+    footer = []
+    while keep and len(names) >= 4 and _filled(keep[-1]) <= 1:  # "Ghi chú: tiền tính bằng đồng" under the data
+        footer.insert(0, " ".join(c for c in keep.pop() if c)[:60])
+    if footer:
+        notes.append(f"bỏ {len(footer)} dòng chú thích cuối sheet: " + " | ".join(footer))
     frame = pd.DataFrame(keep, columns=names, dtype=str) if keep else pd.DataFrame(columns=names, dtype=str)
     return Table(frame, h + 1, notes)
 

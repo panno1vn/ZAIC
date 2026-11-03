@@ -105,7 +105,7 @@ def prepare_business(root: Path, rulebook: str, llm: LLMClient | None, map_fn: M
         profile = loader.profile_business(raw)
         m = (map_fn or mapping.map_business)(raw, profile, rulebook, llm)
         db = mapping.build_canonical(raw, m)
-        m.checks = list(m.checks) + mapping.run_checks(db)  # the required checks decide Mapping.ok
+        m.checks = list(m.checks) + mapping.run_checks(db, raw.readme)  # the required checks decide Mapping.ok
         return BusinessContext(raw, profile, m, db, mapping.build_card(db))
     except Exception:
         return BusinessContext(None, None, Mapping(), CanonicalDB(), DataCard(), error=traceback.format_exc())

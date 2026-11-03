@@ -34,9 +34,10 @@ def test_two_row_header_keeps_the_names_and_notes_the_groups():
 
 
 def test_summary_rows_are_dropped_but_a_customer_named_tong_is_kept():
-    t = to_table([HEADER, ROW, ["Cộng", "", "", "", "", "280.183.667đ"], ["Tổng cộng", "", "", "", "", "1tr440"]])
+    t = to_table([HEADER, ROW, ["Cộng", "", "", "", "", "280.183.667đ"], ["Tổng cộng", "", "", "", "", "1tr440"],
+                  ["Tổng tháng", "", "", "", "", "901.896.400đ"], ["Ghi chú: số liệu ghi tay"]])
     assert len(t.frame) == 1 and t.frame.iloc[0]["Khách"] == "Tống Văn An"
-    assert any("bỏ 2 dòng tổng" in n for n in t.notes)
+    assert any("bỏ 3 dòng tổng" in n for n in t.notes) and any("chú thích cuối sheet" in n for n in t.notes)
 
 
 def test_duplicate_and_empty_column_names():
@@ -55,6 +56,7 @@ def test_year_hint(sheet, file, year):
 @pytest.mark.parametrize("raw,amount", [
     ("45,000.0000", 45000), ("1tr440", 1440000), ("409tr663", 409663000), ("1tr5", 1500000), ("-1tr440", -1440000),
     ("332,5972tr", 332597200), ("1.234,50", 1234.5), ("1,200,000", 1200000), ("55.000đ", 55000),
+    ("41,785tr", 41785000), ("1.5tr", 1500000), ("2,5k", 2500), ("25000k", 25000000),  # R25: decimal before tr / k
 ])
 def test_money_formats_seen_in_the_data(raw, amount):
     assert parse_money(raw) == amount

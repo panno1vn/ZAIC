@@ -52,7 +52,7 @@ class ColumnMap(_Model):
 
 class TableMap(_Model):
     target: str  # canonical table
-    sources: list[str]  # raw table_ids stacked together (e.g. one sheet per month)
+    sources: list[str]  # raw table_ids stacked together; glob patterns allowed: "DonHang.xlsx::*" (one sheet per month)
     columns: list[ColumnMap]
     value_maps: dict[str, dict[str, str]] = {}  # canonical column -> raw value -> canonical value (e.g. status)
     row_filter: str = ""  # rows to drop, in words (e.g. "dòng tổng cuối sheet")

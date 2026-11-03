@@ -1,6 +1,6 @@
 # Tiến độ và bối cảnh dự án (bàn giao giữa các phiên làm việc)
 
-*Cập nhật cuối: phiên 2 với Claude (review lần 2, K2, hợp đồng v1.1; 02/11). Phiên mới nên đọc file này trước, rồi tới [KE_HOACH_DataMate.md](KE_HOACH_DataMate.md) và [HAN_CHE_VA_CAI_THIEN.md](HAN_CHE_VA_CAI_THIEN.md).*
+*Cập nhật cuối: cuối phiên 2 với Claude. **Phiên mới đọc [BAN_GIAO_PHIEN_2.md](BAN_GIAO_PHIEN_2.md) trước**, rồi tới file này, mục 9–10 của [KE_HOACH_DataMate.md](KE_HOACH_DataMate.md) và [HAN_CHE_VA_CAI_THIEN.md](HAN_CHE_VA_CAI_THIEN.md).*
 
 ## 1. Bối cảnh
 - **Cuộc thi:** Zalo AI Challenge 2026, đề **DataMate**: trả lời câu hỏi tiếng Việt (không dấu, viết tắt) trên dữ liệu kinh doanh của cửa hàng nhỏ (csv / xlsx / sqlite). Nhóm đã bỏ đề LifeMate; dữ liệu LifeMate đã xóa.
@@ -80,15 +80,39 @@
   - kiểu tiền mới (R22), đoán kiểu cột khi profiling;
   - giới hạn 300 giây đọc file mỗi cửa hàng.
   - 44/44 cửa hàng đọc không lỗi. 186 test qua; test chạy cả split public gắn nhãn `slow`. biz_101 vẫn 28 đúng / 0 sai.
+- **Ngày 04/11:**
+  - **K3:** phần không cần GPU đã xong:
+    - client `llama-server` có timeout;
+    - prompt + kho 123 ví dụ BM25;
+    - `parse_question` đối chiếu với baseline;
+    - lệnh chấm `python -m datamate.eval.k3`.
+
+    Phần chạy model thật **chưa làm được**: mạng 4G, và máy chặn chạy `.exe` tải về (H20). File model đã tải dở 507 MB ở `E:\llm\models\Qwen3-8B-Q4_K_M.gguf.part`; có wifi thì tải tiếp bằng `curl -C -`.
+  - **G2 phần 1:** đủ 8 biến đổi, `sources` dạng glob, điền xuống theo §8 trước bước bỏ dòng trùng, ngày đơn = dòng sớm nhất, `base_qty` tự suy từ bảng quy đổi.
+  - **Mapping tay 4 cửa hàng:** biz_101, biz_103, biz_105, biz_117. Cả 4 qua đủ 6 bước kiểm tra; `oracle --all` ra **51 đúng / 0 sai / 345 bỏ trống**.
+  - Sửa R23 (dòng chú thích, dòng "Tổng tháng") và R24. Tổng cộng 200 test.
+- **Ngày 05/11 (có wifi):**
+  - Model Qwen3-8B Q4_K_M đã tải xong ở `E:/llm/models/` (5.027.783.488 byte, sha256 khớp bản chính chủ). llama.cpp chờ leader tự tải, vì máy chặn mình chạy `.exe` tải về.
+  - **Mapping tay đủ 8 cửa hàng**, chọn theo độ phủ: thêm biz_120, biz_123, biz_124, biz_126. `oracle --all` ra **113 đúng / 0 sai / 677 bỏ trống** trên 790 câu.
+  - **H17 xong:** thêm 4 bước kiểm tra theo nghĩa (nay 10 bước), ngưỡng đo trên 8 mapping. Phá có chủ đích 8 kiểu thì bị chặn cả 8.
+  - Sửa **R25**: `41,785tr` bị đọc gấp 1000 lần.
+  - **G4 bộ tính ngày xong** (trừ `anchor_price`): tính được kỳ cho 122/123 plan viết tay.
+  - Loader chuẩn hoá Unicode NFC. Tổng cộng 239 test.
+  - **K3 xong** (sau khi leader chạy llama-server ở cổng 8091), qua 3 lần chạy:
+    - Lần 1: plan khớp 69,9%.
+    - Lần 2: thêm schema sinh output tách theo loại câu, lên 83,7%; 0 câu bỏ sót bộ lọc.
+    - Lần 3: thêm kiểm tra bộ lọc có căn cứ.
+
+    1,8 giây/câu; chạy lại 2 lần cho plan giống hệt. Đã vượt mốc dừng 70%. Tổng cộng 247 test.
 - **Tài liệu khác:** sổ tay nhóm (artifact, riêng tư) https://claude.ai/artifact/SkCWcHheFw2NE6obQzUPxT; [KE_HOACH_DataMate.md](KE_HOACH_DataMate.md); [data_cards/README.md](data_cards/README.md) (chia 30 cửa hàng train cho thành viên A–D); [rules_notes.md](rules_notes.md).
 
 ## 4. Trạng thái hiện tại
-- 186 test qua (`python -m pytest`; thêm `-m slow` để chạy cả split public thật).
+- 247 test qua (`python -m pytest`; thêm `-m slow` để chạy cả split public thật).
 - Chạy bình thường: mọi câu bỏ trống, vì `map_business` (G2) chưa có. Chạy với mapping tay: biz_101 PA +0,70.
 - **Git:** đã commit ngày 1 (`449deaf`) và ngày 2–4 (`cc6908c`). File này và các bản sửa của review lần 2 chưa commit; leader tự commit.
 
 ## 5. Việc tiếp theo
-**Từ 02/11 leader làm một mình, 14 giờ/ngày: lịch mới ở [KE_HOACH_DataMate.md mục 9](KE_HOACH_DataMate.md). Các mục bên dưới về chia vai không còn áp dụng; 03/11 (G1 loader) đã xong; ngày tiếp theo là T4 04/11: K3 (LLM) + G2 phần 1 (biến đổi, mapping tay).**
+**Từ 02/11 leader làm một mình, 14 giờ/ngày: lịch mới ở [KE_HOACH_DataMate.md mục 9](KE_HOACH_DataMate.md). Các mục bên dưới về chia vai không còn áp dụng; 03/11 (G1) và 04/11 (G2 phần 1; K3 chỉ xong phần không cần GPU) đã xong. 05/11 (8 mapping tay, H17, G4) đã xong. K3 cũng đã xong (83,7%). Ngày tiếp theo là T6 06/11: G6 nối tên, G5 thư viện hàm nhóm bán hàng.**
 
 1. **Họp chia vai và khóa hợp đồng.** Gợi ý chia:
    - Senior: G2 + G3.

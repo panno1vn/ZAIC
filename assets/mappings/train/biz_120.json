@@ -1,0 +1,119 @@
+{
+  "industry": "nhà thuốc",
+  "record_grain": "order",
+  "notes": [
+    "Mapping tay từ README biz_120: xuất từ phần mềm nhà thuốc, 10 file nối bằng mã (hoá đơn, mã hàng, số lô, phiếu nhập); hoá đơn mỗi tháng một sheet.",
+    "Dòng hàng có sẵn 'Số lượng quy đổi' (đơn vị cơ bản); đơn vị cơ bản ở danh mục sản phẩm. Tên hàng ở dòng bán có nhiều cách viết (162 tên cho 80 mã): khoá mặt hàng là mã.",
+    "Trạng thái 7 cách ghi; 'Đang xử lý' hiểu là đang giao: cả 22 đơn nằm ở 3 ngày cuối dữ liệu (10–12/06/2026).",
+    "Thuốc kê đơn, hoạt chất ở DanhSachThuoc (tra theo mã hàng); ngày và nhà cung cấp của phiếu nhập ở DanhSachNhapHang (tra theo mã phiếu).",
+    "Tồn cuối kỳ là tồn hết ngày cuối có dữ liệu (README: 12/06/2026). Chưa map công nợ: file chỉ có 'Khách đã trả' và 'Còn nợ' tại ngày cuối."
+  ],
+  "tables": [
+    {
+      "target": "orders",
+      "sources": ["DanhSachHoaDon.xlsx::*"],
+      "columns": [
+        {"target": "order_id", "source": "Mã hóa đơn"},
+        {"target": "order_time", "source": "Thời gian tạo", "parse": "datetime"},
+        {"target": "has_time", "const": true},
+        {"target": "status", "source": "Trạng thái"},
+        {"target": "customer_key", "source": "Mã KH"},
+        {"target": "customer_name", "source": "Khách hàng"},
+        {"target": "channel", "source": "Kênh bán"},
+        {"target": "order_discount", "source": "Giảm giá", "parse": "money"}
+      ],
+      "value_maps": {
+        "status": {"Thành công": "completed", "ok": "completed", "Huỷ đơn": "cancelled", "hủy đơn": "cancelled",
+                   "Đã trả hàng": "returned", "trả hàng": "returned", "Đang xử lý": "delivering"}
+      }
+    },
+    {
+      "target": "lines",
+      "sources": ["DanhSachHoaDonChiTiet.xlsx::Sheet1"],
+      "columns": [
+        {"target": "order_id", "source": "Mã hóa đơn"},
+        {"target": "product_key", "source": "Mã hàng"},
+        {"target": "product_name", "source": "Tên hàng"},
+        {"target": "is_item", "const": true},
+        {"target": "qty", "source": "Số lượng", "parse": "qty"},
+        {"target": "base_qty", "source": "Số lượng quy đổi", "parse": "qty"},
+        {"target": "unit_price", "source": "Đơn giá", "parse": "money"},
+        {"target": "line_discount", "source": "Giảm giá", "parse": "money"},
+        {"target": "line_amount", "source": "Thành tiền", "parse": "money"}
+      ]
+    },
+    {
+      "target": "products",
+      "sources": ["DanhSachSanPham.xlsx::Sheet1"],
+      "columns": [
+        {"target": "product_key", "source": "Mã hàng"},
+        {"target": "product_name", "source": "Tên hàng"},
+        {"target": "product_group", "source": "Nhóm hàng(3 Cấp)"},
+        {"target": "base_unit", "source": "ĐVT"},
+        {"target": "unit_cost", "source": "Giá vốn", "parse": "money"},
+        {"target": "is_prescription", "source": "Mã hàng", "transform": "lookup", "parse": "bool",
+         "args": {"table": "DanhSachThuoc.xlsx::Sheet1", "key": "Mã hàng", "value": "Thuốc kê đơn", "keep_missing": false}},
+        {"target": "active_ingredient", "source": "Mã hàng", "transform": "lookup",
+         "args": {"table": "DanhSachThuoc.xlsx::Sheet1", "key": "Mã hàng", "value": "Hoạt chất", "keep_missing": false}}
+      ]
+    },
+    {
+      "target": "customers",
+      "sources": ["DanhSachKhachHang.xlsx::Sheet1"],
+      "columns": [
+        {"target": "customer_key", "source": "Mã khách hàng"},
+        {"target": "customer_name", "source": "Tên khách hàng"},
+        {"target": "phone", "source": "Điện thoại"},
+        {"target": "address", "source": "Địa chỉ"}
+      ]
+    },
+    {
+      "target": "inventory",
+      "sources": ["BaoCaoTonKho.xlsx::Sheet1"],
+      "columns": [
+        {"target": "product_key", "source": "Mã hàng"},
+        {"target": "as_of", "const": "2026-06-12", "parse": "date"},
+        {"target": "base_qty", "source": "Tồn cuối kỳ", "parse": "qty"}
+      ]
+    },
+    {
+      "target": "purchases",
+      "sources": ["DanhSachChiTietNhapHang.xlsx::Sheet1"],
+      "columns": [
+        {"target": "receipt_id", "source": "Mã nhập hàng"},
+        {"target": "receipt_time", "source": "Mã nhập hàng", "transform": "lookup", "parse": "datetime",
+         "args": {"table": "DanhSachNhapHang.xlsx::Sheet1", "key": "Mã nhập hàng", "value": "Thời gian", "keep_missing": false}},
+        {"target": "supplier", "source": "Mã nhập hàng", "transform": "lookup",
+         "args": {"table": "DanhSachNhapHang.xlsx::Sheet1", "key": "Mã nhập hàng", "value": "Mã NCC", "keep_missing": false}},
+        {"target": "product_key", "source": "Mã hàng"},
+        {"target": "qty", "source": "Số lượng", "parse": "qty"},
+        {"target": "unit", "source": "ĐVT"},
+        {"target": "unit_cost", "source": "Đơn giá", "parse": "money"},
+        {"target": "lot_id", "source": "Lô"},
+        {"target": "expiry_date", "source": "Hạn sử dụng", "parse": "date"}
+      ]
+    },
+    {
+      "target": "lots",
+      "sources": ["DanhSachLoHang.xlsx::Sheet1"],
+      "columns": [
+        {"target": "lot_id", "source": "Lô"},
+        {"target": "product_key", "source": "Mã hàng"},
+        {"target": "expiry_date", "source": "Hạn sử dụng", "parse": "date"},
+        {"target": "base_qty_in", "source": "Số lượng (ĐVT cơ bản)", "parse": "qty"},
+        {"target": "receipt_id", "source": "Mã nhập hàng"}
+      ]
+    },
+    {
+      "target": "lot_sales",
+      "sources": ["DanhSachHoaDonChiTietLo.xlsx::Sheet1"],
+      "columns": [
+        {"target": "order_id", "source": "Mã hóa đơn"},
+        {"target": "line_no", "source": "STT", "parse": "number"},
+        {"target": "lot_id", "source": "Lô"},
+        {"target": "base_qty", "source": "Số lượng (ĐVT cơ bản)", "parse": "qty"},
+        {"target": "returned_base_qty", "source": "Số lượng trả (ĐVT cơ bản)", "parse": "qty"}
+      ]
+    }
+  ]
+}

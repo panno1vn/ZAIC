@@ -1,0 +1,40 @@
+{
+  "industry": "nhà hàng",
+  "record_grain": "line_is_record",
+  "notes": [
+    "Mapping tay từ README biz_126: sổ chủ tiệm tự ghi, một sheet, mỗi dòng một món khách mua, không ghi mã đơn, không ghi tên khách: mỗi dòng là một lần ghi (§8), mã dòng _row làm mã đơn.",
+    "Dòng 'Phí phục vụ' (2653 dòng) không phải mặt hàng (§3) nhưng vẫn tính vào doanh thu.",
+    "Ngày ghi 2 kiểu ('01/01/2025', '2025-01-01'); SL lẻ là số lượng đã quy về đơn vị cơ bản. Train không có câu hỏi số đơn cho cửa hàng này."
+  ],
+  "tables": [
+    {
+      "target": "orders",
+      "sources": ["SoBanHang.xlsx::Sheet1"],
+      "columns": [
+        {"target": "order_id", "source": "_row"},
+        {"target": "order_time", "source": "Ngày tháng", "parse": "datetime"},
+        {"target": "has_time", "const": false},
+        {"target": "status", "source": "Trạng thái đơn"}
+      ],
+      "value_maps": {
+        "status": {"Đã giao": "completed", "hủy": "cancelled", "Trả hàng": "returned", "đang gửi": "delivering"}
+      }
+    },
+    {
+      "target": "lines",
+      "sources": ["SoBanHang.xlsx::Sheet1"],
+      "columns": [
+        {"target": "order_id", "source": "_row"},
+        {"target": "product_key", "source": "Ten hang"},
+        {"target": "product_name", "source": "Ten hang"},
+        {"target": "is_item", "source": "Ten hang", "transform": "note_contains",
+         "args": {"map": {"Phí phục vụ": false}, "default": true}},
+        {"target": "qty", "source": "Số lượng bán", "parse": "qty"},
+        {"target": "unit", "source": "Đơn vị tính"},
+        {"target": "base_qty", "source": "SL lẻ", "parse": "qty"},
+        {"target": "unit_price", "source": "Price", "parse": "money"},
+        {"target": "line_amount", "source": "Thành tiền (đ)", "parse": "money"}
+      ]
+    }
+  ]
+}

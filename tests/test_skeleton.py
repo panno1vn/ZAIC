@@ -84,8 +84,10 @@ def test_month_without_year_follows_rule_2():
 
 
 def test_unsupported_shapes_resolve_to_none_for_now():
-    plan = QueryPlan.model_validate({"intent": "compare", "measures": [{"metric": "revenue"}],
-                                     "period": {"kind": "this_month"}, "compare": {"kind": "previous_same_days"}})
+    # the day a price rose to X needs the linked product: resolved with the price-effect metrics, abstains until then
+    plan = QueryPlan.model_validate({"intent": "compare", "measures": [{"metric": "quantity"}],
+                                     "period": {"kind": "days_from", "n": 7, "anchor_price": 41000},
+                                     "compare": {"kind": "before_days_from"}})
     assert resolve(plan, date(2026, 8, 24), Path("x")) is None
 
 

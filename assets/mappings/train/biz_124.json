@@ -1,0 +1,167 @@
+{
+  "industry": "nhà thuốc",
+  "record_grain": "order",
+  "notes": [
+    "Mapping tay từ README biz_124: ba nguồn: Excel xuất từ phần mềm (BanHang_*), sổ chủ tiệm ghi tay (SoTay_*, có dòng tiêu đề), và ton_kho.csv.",
+    "Trạng thái: 'Không giao được' là đơn huỷ (cửa hàng không có cách ghi huỷ nào khác; tỉ lệ huỷ tháng 1/2026 tính theo cách này ra 0,93%, khớp đáp án train). 'Đang vận chuyển' là đang giao.",
+    "Sổ nhập hàng ghi tên hàng, không ghi mã: tra mã theo tên ở BanHang_HangHoa để nối với các bảng khác.",
+    "Tiền trong sổ tay có dạng '41,785tr' (41,785 triệu), '25000k', '578.000đ'.",
+    "Ton kho là tồn hết ngày cuối có dữ liệu (README: 25/05/2026)."
+  ],
+  "tables": [
+    {
+      "target": "orders",
+      "sources": ["BanHang_HoaDon.xlsx::*"],
+      "columns": [
+        {"target": "order_id", "source": "Order ID"},
+        {"target": "order_time", "source": "Giờ tạo đơn", "parse": "datetime"},
+        {"target": "has_time", "const": true},
+        {"target": "status", "source": "Trạng thái"},
+        {"target": "customer_key", "source": "Mã KH mua"},
+        {"target": "customer_name", "source": "Tên KH"},
+        {"target": "customer_group", "source": "Mã KH mua", "transform": "lookup",
+         "args": {"table": "BanHang_KhachHang.xlsx::Sheet1", "key": "Customer ID", "value": "Hạng", "keep_missing": false}},
+        {"target": "employee", "source": "Mã NV bán"},
+        {"target": "channel", "source": "Nguồn đơn"},
+        {"target": "payment_method", "source": "Phương thức TT"},
+        {"target": "order_discount", "source": "CK", "parse": "money"},
+        {"target": "total_due", "source": "Tong tien", "parse": "money"}
+      ],
+      "value_maps": {
+        "status": {"Đã giao": "completed", "Không giao được": "cancelled", "Đổi trả": "returned",
+                   "Đang vận chuyển": "delivering"}
+      }
+    },
+    {
+      "target": "lines",
+      "sources": ["BanHang_ChiTietHoaDon.xlsx::*"],
+      "columns": [
+        {"target": "order_id", "source": "Mã giao dịch"},
+        {"target": "line_no", "source": "TT dòng", "parse": "number"},
+        {"target": "product_key", "source": "Ma hang"},
+        {"target": "product_name", "source": "Chi tiết hàng"},
+        {"target": "is_item", "const": true},
+        {"target": "qty", "source": "Slg", "parse": "qty"},
+        {"target": "unit", "source": "Đ.vị"},
+        {"target": "base_qty", "source": "SL cơ bản", "parse": "qty"},
+        {"target": "unit_price", "source": "Giá niêm yết", "parse": "money"},
+        {"target": "line_discount", "source": "Khuyến mãi", "parse": "money"},
+        {"target": "line_amount", "source": "Thanh tien", "parse": "money"},
+        {"target": "unit_cost", "source": "Giá vốn lúc bán", "parse": "money"}
+      ]
+    },
+    {
+      "target": "products",
+      "sources": ["BanHang_HangHoa.xlsx::Sheet1"],
+      "columns": [
+        {"target": "product_key", "source": "ma_sp"},
+        {"target": "product_name", "source": "Món"},
+        {"target": "product_group", "source": "Phân loại"},
+        {"target": "base_unit", "source": "Đơn vị"},
+        {"target": "unit_cost", "source": "Giá vốn hiện tại", "parse": "money"},
+        {"target": "is_prescription", "source": "ma_sp", "transform": "lookup", "parse": "bool",
+         "args": {"table": "BanHang_Thuoc.xlsx::Sheet1", "key": "Mã HH", "value": "Kê đơn", "keep_missing": false}},
+        {"target": "active_ingredient", "source": "ma_sp", "transform": "lookup",
+         "args": {"table": "BanHang_Thuoc.xlsx::Sheet1", "key": "Mã HH", "value": "Hoạt chất", "keep_missing": false}}
+      ]
+    },
+    {
+      "target": "unit_conversions",
+      "sources": ["BanHang_DonViQuyDoi.xlsx::Sheet1"],
+      "columns": [
+        {"target": "product_key", "source": "Mã sp"},
+        {"target": "unit", "source": "Đơn vị"},
+        {"target": "factor", "source": "Bằng", "parse": "number"},
+        {"target": "base_unit", "source": "Mã sp", "transform": "lookup",
+         "args": {"table": "BanHang_HangHoa.xlsx::Sheet1", "key": "ma_sp", "value": "Đơn vị", "keep_missing": false}}
+      ]
+    },
+    {
+      "target": "customers",
+      "sources": ["BanHang_KhachHang.xlsx::Sheet1"],
+      "columns": [
+        {"target": "customer_key", "source": "Customer ID"},
+        {"target": "customer_name", "source": "ten_kh"},
+        {"target": "customer_group", "source": "Hạng"},
+        {"target": "phone", "source": "Số điện thoại"}
+      ]
+    },
+    {
+      "target": "payments",
+      "sources": ["BanHang_PhieuThu.xlsx::*"],
+      "columns": [
+        {"target": "order_id", "source": "Mã bill"},
+        {"target": "paid_time", "source": "Thời gian thu", "parse": "datetime"},
+        {"target": "amount", "source": "Số tiền thu", "parse": "money"},
+        {"target": "method", "source": "PTTT"}
+      ]
+    },
+    {
+      "target": "price_history",
+      "sources": ["BanHang_LichSuGia.xlsx::Sheet1"],
+      "columns": [
+        {"target": "product_key", "source": "Mã sản phẩm"},
+        {"target": "effective_date", "source": "Ngày áp dụng", "parse": "date"},
+        {"target": "price", "source": "Giá mới", "parse": "money"}
+      ]
+    },
+    {
+      "target": "lots",
+      "sources": ["BanHang_LoHang.xlsx::Sheet1"],
+      "columns": [
+        {"target": "lot_id", "source": "Lô"},
+        {"target": "product_key", "source": "Mã món"},
+        {"target": "expiry_date", "source": "HSD", "parse": "date"},
+        {"target": "base_qty_in", "source": "SL nhập (ĐVT cơ bản)", "parse": "qty"},
+        {"target": "receipt_id", "source": "Mã phiếu nhập"}
+      ]
+    },
+    {
+      "target": "lot_sales",
+      "sources": ["BanHang_BanTheoLo.xlsx::*"],
+      "columns": [
+        {"target": "order_id", "source": "Mã hóa đơn"},
+        {"target": "line_no", "source": "No.", "parse": "number"},
+        {"target": "lot_id", "source": "Lô"},
+        {"target": "base_qty", "source": "SL quy ra lẻ", "parse": "qty"},
+        {"target": "returned_base_qty", "source": "SL trả (ĐVT cơ bản)", "parse": "qty"}
+      ]
+    },
+    {
+      "target": "purchases",
+      "sources": ["SoTay_NhapHang.xlsx::Sheet1"],
+      "columns": [
+        {"target": "receipt_id", "source": "Số phiếu"},
+        {"target": "receipt_time", "source": "Ngày nhập", "parse": "datetime"},
+        {"target": "supplier", "source": "Nhà cung cấp"},
+        {"target": "product_key", "source": "Product", "transform": "lookup",
+         "args": {"table": "BanHang_HangHoa.xlsx::Sheet1", "key": "Món", "value": "ma_sp", "keep_missing": false}},
+        {"target": "qty", "source": "SL nhập", "parse": "qty"},
+        {"target": "unit", "source": "ĐVT nhập"},
+        {"target": "unit_cost", "source": "Giá nhập", "parse": "money"},
+        {"target": "amount", "source": "Thành tiền", "parse": "money"},
+        {"target": "lot_id", "source": "Lô"},
+        {"target": "expiry_date", "source": "HSD", "parse": "date"},
+        {"target": "note", "source": "Mô tả"}
+      ]
+    },
+    {
+      "target": "expenses",
+      "sources": ["SoTay_ChiPhi.xlsx::Sheet1"],
+      "columns": [
+        {"target": "expense_date", "source": "Ngày chi", "parse": "date"},
+        {"target": "amount", "source": "So tien", "parse": "money"},
+        {"target": "category", "source": "Mục"}
+      ]
+    },
+    {
+      "target": "inventory",
+      "sources": ["ton_kho.csv"],
+      "columns": [
+        {"target": "product_key", "source": "ID SP"},
+        {"target": "as_of", "const": "2026-05-25", "parse": "date"},
+        {"target": "base_qty", "source": "Ton kho", "parse": "qty"}
+      ]
+    }
+  ]
+}

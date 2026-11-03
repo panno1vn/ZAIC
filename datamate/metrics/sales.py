@@ -69,7 +69,7 @@ def top_products(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     lines = valid_lines(plan, db)
     if lines is None or "base_qty" not in lines.columns:
         return None
-    items = lines[lines["is_item"].fillna(True).astype(bool)] if "is_item" in lines.columns else lines
+    items = lines[lines["is_item"].ne(False)] if "is_item" in lines.columns else lines  # not marked as fee or voucher
     if items.empty or items["base_qty"].isna().any():
         return None  # a line without base quantity cannot be ranked safely
     totals = items.groupby("product_key").agg(qty=("base_qty", "sum"), name=("product_name", "first")).reset_index()

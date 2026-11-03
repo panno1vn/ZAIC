@@ -210,6 +210,11 @@ class ListSpec(_Model):
     count: bool = False  # "bao nhiêu mặt hàng ế": the answer is the number of objects, not the list
 
 
+# each optional section belongs to one intent; a plan carrying another intent's section is rejected
+SECTION_OWNER = {"compare": "compare", "rank": "rank", "threshold": "count_where", "list_spec": "list_items",
+                 "share_of": "share"}
+
+
 class QueryPlan(_Model):
     intent: Intent
     measures: list[Measure] = []  # in the order the question asks for them
@@ -233,6 +238,9 @@ class QueryPlan(_Model):
         required = {"compare": "compare", "rank": "rank", "count_where": "threshold", "list_items": "list_spec"}
         if i in required and getattr(self, required[i]) is None:
             raise ValueError(f"intent {i} cần trường {required[i]}")
+        extra = [k for k, owner in SECTION_OWNER.items() if getattr(self, k) is not None and owner != i]
+        if extra:  # a section of another intent: the plan was read two ways at once (K3: an LLM filling every field)
+            raise ValueError(f"intent {i} không có trường {extra}")
         if i in ("trend", "series") and (self.period is None or self.period.kind != "months"):
             raise ValueError(f"intent {i} cần period kind months")
         if i == "rank" and self.measures and self.measures[0].metric != self.rank.by:

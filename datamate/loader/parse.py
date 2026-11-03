@@ -50,6 +50,11 @@ def parse_money(v) -> float | None:
         s, mult = s[:-1], 1000.0
     elif s.lower().endswith("tr"):
         s, mult = s[:-2], 1_000_000.0
+    if mult != 1.0 and s.count(",") + s.count(".") == 1:  # with a k / tr suffix one separator is the decimal mark
+        try:  # '41,785tr' = 41,785 triệu, not 41.785 triệu × 1000
+            return float(s.replace(",", ".")) * mult
+        except ValueError:
+            return None
     x = _to_float(s)
     return None if x is None else x * mult
 

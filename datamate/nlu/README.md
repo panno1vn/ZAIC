@@ -7,6 +7,16 @@
 
 **Đã có (bộ khung 05/11):** [baseline.py](baseline.py), bộ hiểu câu hỏi theo luật cho 4 dạng câu (doanh thu, số đơn, mặt hàng bán chạy nhất, ngày doanh thu cao nhất) với 4 kiểu kỳ. Gặp từ lạ là trả `None`, để **không bao giờ đoán bộ lọc**. Trên biz_101 trả lời được 28/40 câu, không câu nào sai.
 
+**Đã có (04/11, phần K3 không cần GPU):**
+- [llm/__init__.py](../llm/__init__.py) `LlamaServerLLM`: gọi `llama-server` của llama.cpp trên localhost (chạy offline được), temperature 0, seed cố định, ép output theo JSON schema, **timeout cho mỗi lời gọi** (H12), tắt chế độ thinking của Qwen3 (server cần cờ `--jinja`).
+- [prompt.py](prompt.py): hướng dẫn ngắn bám hợp đồng v1.1 (kèm các mã bộ lọc), data card, 6 ví dụ mẫu chọn bằng BM25 trên kho 123 plan viết tay; tổng khoảng 1.500 token.
+- `parse_question` với LLM: plan phải hợp lệ; baseline cũng đọc được câu đó thì hai bên phải ra plan giống nhau (`canonical_plan`), khác thì trả `None`.
+- Lệnh chấm K3: `python -m datamate.eval.k3 --base-url http://127.0.0.1:8080 --out outputs/k3/x.jsonl`. Mỗi câu bị loại khỏi kho ví dụ của chính nó. Có `--mock` để tự kiểm tra: ra 100%.
+- **K3 (05/11) với Qwen3-8B Q4_K_M: plan khớp hoàn toàn 83,7%, 1,8 giây/câu, chạy lại ra y hệt.** Chi tiết ở mục K3 trong file hạn chế. Hai bước sau K3:
+  - `PLAN_SCHEMA` là **schema sinh output**: `anyOf` theo loại câu, các trường bắt buộc theo thứ tự đọc, `filters` bắt buộc. Hợp đồng `QueryPlan` vẫn là nơi kiểm tra cuối cùng.
+  - [grounding.py](grounding.py): bộ lọc phải có căn cứ trong câu hỏi, không có thì plan bị loại.
+- Chạy server: `llama-server -m E:\llm\models\Qwen3-8B-Q4_K_M.gguf --jinja -ngl 99 -c 8192 --parallel 1 --host 127.0.0.1 --port 8091`. Cổng 8080 trên laptop từng bị chiếm, nên dùng 8091.
+
 **Việc cần làm:**
 1. Backend LLM thật trong [datamate/llm](../llm/__init__.py): chạy model local, temperature 0, **timeout cho mỗi lời gọi** (mục H12), ép output theo JSON schema `schemas/query_plan.schema.json`.
 2. Prompt gồm schema, data card và 5–8 ví dụ mẫu gần nhất (BM25 trên [assets/plans/](../../assets/plans/)). Mục K3: thử trên 30 câu train với Qwen3-8B trước.

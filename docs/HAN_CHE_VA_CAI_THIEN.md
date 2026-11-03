@@ -83,7 +83,20 @@ Mức độ: **Cao** = phải sửa trước khi khóa hợp đồng (tối T5 0
   - Chỗ cần xem lại: câu Tết "17 ngày trước Tết" (đang dùng `before_tet`, không ghi số 17; nên thêm `n` để đối chiếu); câu lô gần hết hạn (kỳ để trống = tính tại hôm nay); câu "ly size M" (bộ lọc `size = "M"`).
   - Cách sửa: một người khác review chéo (T4); khi có thư viện hàm thì chạy từng plan, chỉ giữ plan ra đúng đáp án ("kho ví dụ đã kiểm chứng").
 - [x] **K2. Chưa có bài thử sức hợp đồng.** *(xong 02/11, leader + Claude: 99 câu, 6 thay đổi → hợp đồng v1.1, xem docs/contracts.md và mục R21 bên dưới; nhóm vẫn có thể làm thêm trên câu khác để tập viết plan)* Cách sửa: 100 câu train ngẫu nhiên, mỗi người tự viết plan bằng tay; câu nào không viết được là lỗ hổng hợp đồng (T4–T5, trước khi khóa).
-- [ ] **K3. Schema chưa thử với LLM thật.** Cách sửa: chạy Qwen3-8B 4-bit trên laptop (llama.cpp ép output theo JSON schema), parse 30 câu train kèm vài ví dụ mẫu, đo tỉ lệ JSON hợp lệ và tỉ lệ đúng; sai nhiều thì đơn giản hóa schema (T4, trước khi khóa).
+- [x] **K3. Schema chưa thử với LLM thật.** *(xong 05/11: Qwen3-8B Q4_K_M, llama.cpp b12064 trên RTX 4060 laptop, 123 câu, mỗi câu bị loại khỏi kho ví dụ của chính nó)*
+
+  | Lần | Thay đổi | Plan khớp hoàn toàn | JSON hợp lệ |
+  |---|---|---|---|
+  | 1 | schema của hợp đồng | 69,9% | 95,9% |
+  | 2 | schema sinh output tách theo loại câu | **83,7%** | 98,4% |
+  | 3 | thêm kiểm tra bộ lọc có căn cứ | **83,7%** | 94,3% |
+
+  - **Lần 1:** dưới mốc 70%. Câu xếp hạng chỉ khớp 6%. Lỗi chính: model bỏ kỳ (10 câu), **bỏ sót bộ lọc** (7 câu, mỗi câu là một −1 chắc chắn), điền phần thừa của loại câu khác.
+  - **Lần 2:** mỗi loại câu có các trường bắt buộc theo thứ tự; `filters` phải ghi tường minh; hợp đồng không nhận phần thừa; so plan theo nghĩa. Câu xếp hạng lên 94%, **0 câu bỏ sót bộ lọc**. Tác dụng phụ: 10 câu thêm bộ lọc thừa.
+  - **Lần 3:** plan có bộ lọc bịa (5) bị loại; plan viết tay và plan đúng bị loại oan: 0.
+  - 1,8 giây/câu. **Chạy lại cho ra plan giống hệt nhau: 0/123 khác** (cùng máy).
+  - Kết quả từng câu: `outputs/k3/`.
+  - Lưu ý: hướng dẫn trong prompt được chỉnh sau khi xem lỗi trên chính 123 câu này, nên số trên có thể cao hơn thực tế một chút. Số thật sẽ đo trên câu train ngoài kho ví dụ, khi chạy cả 30 cửa hàng.
 
 ## D. Review code ngày 04/11
 
@@ -145,7 +158,24 @@ Rà lại toàn bộ code ngày 1–4. Mỗi lỗi nghi ngờ đều được x�
 - [x] **R21 (Cao, phát hiện khi làm K2).** Model pydantic **bỏ qua trường lạ**: plan có `"filter"` (gõ nhầm của `"filters"`) vẫn hợp lệ nhưng mất bộ lọc, nên câu hỏi về một mặt hàng bị trả lời bằng doanh thu cả cửa hàng, tức −1. JSON schema đưa cho LLM cũng không cấm trường lạ. → `extra="forbid"` cho mọi model plan và mapping.
 
 **Chưa sửa** (cần quyết định thiết kế hoặc thuộc gói khác):
-- [ ] **H17 (Cao, leader + G2). Kiểm tra mapping chỉ kiểm cấu trúc, không kiểm nghĩa.**
+- [x] **H17 (Cao, leader + G2). Kiểm tra mapping chỉ kiểm cấu trúc, không kiểm nghĩa.** *(xong 05/11: thêm 4 bước kiểm tra theo nghĩa vào `run_checks`, nay có 10 bước)*
+  - *Ngưỡng đo trên 8 mapping tay đúng:*
+
+    | Đại lượng | Đo được | Ngưỡng đặt |
+    |---|---|---|
+    | Thành tiền ≈ số lượng × đơn giá − giảm giá | 98,0–100% dòng | ≥ 95% |
+    | Đơn hoàn thành + đang giao | 95–98% | ≥ 50% |
+    | Ngày cuối dữ liệu so với ngày README ghi | lệch 0 ngày ở cả 8 | lệch ≤ 1 ngày |
+    | Số âm ngoài đơn trả hàng | 0 | ≤ 0,1% |
+
+    Các bước theo tỉ lệ chỉ chạy khi có ≥ 20 đơn / dòng.
+  - *Thử phá có chủ đích 8 kiểu trên dữ liệu thật: bị chặn cả 8.*
+    - Thành tiền lấy từ cột đơn giá: biz_103, biz_105, biz_120, còn 50–85% dòng khớp.
+    - Số lượng lấy từ cột thành tiền: biz_117, còn 3,5%.
+    - Đảo trạng thái hoàn thành ↔ huỷ: biz_103, biz_123, còn 1–3%.
+    - Bỏ sót file cuối: biz_105, dữ liệu dừng ở 31/01 trong khi README ghi 24/06.
+    - Thành tiền lấy từ cột giảm giá: biz_120, còn 0%.
+  - 8 mapping đúng qua đủ 10/10 bước, không bị chặn oan.
   - Probe: map `line_amount` vào cột **đơn giá** của biz_101 thì cả 6 bước vẫn qua, và doanh thu tháng 6/2026 ra 150.180.900 thay vì 238.924.600. Mapping tự động cho cửa hàng private chưa từng thấy sẽ sai kiểu này, và đây là nguồn −1 lớn nhất.
   - Cách sửa: thêm kiểm tra chéo, chạy khi có đủ cột:
     - `line_amount ≈ qty × unit_price − line_discount` trên ≥ 99% dòng.
@@ -159,7 +189,7 @@ Rà lại toàn bộ code ngày 1–4. Mỗi lỗi nghi ngờ đều được x�
   - *Quyết định 02/11:* để sau. Đây là lỗi an toàn (cửa hàng bỏ trống, không bị điểm âm), mất tối đa 119/3000 câu train (4%). Không cần đổi hợp đồng: giao G1 bỏ dòng tổng ngay ở loader (ô đầu là "Cộng" / "Tổng cộng", các cột mã đơn và ngày trống), mất khoảng 1 giờ, có test. `row_filter` giữ làm ghi chú.
   - *Xong 03/11 (G1):* loader bỏ dòng tổng. Quét lại cả 44 cửa hàng thấy dòng tổng ở **3 cửa hàng: biz_105, dev_004, dev_014**, tức 2/14 cửa hàng public, nhiều hơn ước tính lúc đầu. `row_filter` vẫn để làm ghi chú.
   - Cùng các dòng đó có 2 kiểu ghi tiền mới cho G1: `332,5972tr` và `409tr663`. `parse_money` hiện chưa đọc được kiểu sau.
-- [ ] **N4 (Cao, G3 + leader). Chưa tính tới độ ổn định của LLM khi BTC chạy lại.**
+- [ ] **N4 (Cao, G3 + leader). Chưa tính tới độ ổn định của LLM khi BTC chạy lại.** *(05/11: cùng máy, chạy 2 lần cho 123/123 plan giống hệt; còn phải đo trên GPU khác, ví dụ RTX 5090)*
   - Điểm cuối do BTC chạy lại trên RTX 5090 và phải lệch ≤ 0,03 PA.
   - Kể cả temperature 0, kết quả của vLLM/llama.cpp vẫn có thể khác nhau giữa GPU và giữa kích thước batch, nên một số plan sẽ đổi.
   - Cách sửa:
@@ -173,6 +203,21 @@ Rà lại toàn bộ code ngày 1–4. Mỗi lỗi nghi ngờ đều được x�
 
 - [x] **R22 (Cao, phát hiện khi làm G1 03/11).** `parse_money` không đọc được `45,000.0000` (cột Đơn giá / Thành tiền của biz_112) và `1tr440` (cột Tiền của biz_117). Tệ hơn, `parse_number` đọc **sai lặng lẽ** `45,000.0000` thành 45 và `1tr440` thành 1. → Dùng chung một quy tắc dấu phân cách (có cả `,` và `.` thì dấu sau cùng là dấu thập phân), thêm dạng `AtrB`; có test.
   - Khi sửa có lỡ làm hỏng regex dấu phân cách nghìn: test oracle biz_101 và bước kiểm tra R18 ("278 ô thành tiền trống") bắt được ngay, cửa hàng bỏ trống chứ không trả lời sai.
+
+- [x] **R23 (Cao, phát hiện khi viết mapping tay 04/11).** Hai kiểu dòng không phải dữ liệu mà loader chưa bỏ:
+  - dòng chú thích cuối sheet ("Ghi chú: tiền tính bằng đồng", biz_105, biz_117);
+  - dòng "**Tổng tháng** + số tiền" (biz_117).
+
+  Có phép điền xuống theo §8 thì cả hai sẽ thành dòng hàng giả. Lần này bước kiểm tra R18 chặn được, nhưng mất trọn cửa hàng. → Loader bỏ dòng chú thích cuối sheet (dòng chỉ có 1 ô, bảng ≥ 4 cột); mẫu dòng tổng nới thành "dòng thưa bắt đầu bằng Cộng / Tổng / Total".
+- [x] **R24 (TB, 04/11).** Dòng trả hàng ghi *ngày trả* và có thể nằm trước dòng bán (biz_105: 333 đơn trải nhiều ngày). Lấy ngày đơn theo dòng đầu có thể ra nhầm ngày trả. → Ngày của đơn = ngày sớm nhất trong các dòng của đơn.
+- [x] **R25 (Cao, phát hiện khi viết mapping tay biz_124 ngày 05/11).** `41,785tr` (41,785 triệu) bị đọc thành **41,8 tỉ**, gấp 1000 lần, vì phần `41,785` khớp mẫu dấu phân cách nghìn trước khi xét hậu tố `tr`. Lỗi có từ bản đầu của bộ đọc tiền; profile của biz_124 cho thấy chi phí 41,8 tỉ và tiền nhập 23 tỉ, vô lý cho một nhà thuốc nhỏ. → Có hậu tố `k` / `tr` thì một dấu `,` hoặc `.` duy nhất là dấu thập phân; có test.
+- [ ] **H20 (Cao, 04/11). Mạng 4G của leader không tải được file nặng:**
+  - model 5–9 GB;
+  - llama.cpp khoảng 300 MB;
+  - lớn nhất là **upload image Docker 10–20 GB lên Google Drive trước 16/11**.
+
+  Thêm nữa, quyền chạy file `.exe` tải về đang bị chặn trên máy. Cách xử lý đề xuất: làm mọi việc nặng trên **máy GPU thuê** (tải model, chạy K3, so 8B / 14B, build Docker, upload thẳng từ máy thuê lên Google Drive bằng `rclone`); laptop chỉ viết code. Cần leader quyết định ngày thuê.
+- [ ] **H21 (Thấp, 04/11).** `profile_business` chỉ tính min / max trên 300 giá trị đầu, nên khoảng ngày trong profile có thể sai (biz_103: "01/04–09/04"). Cần sửa trước khi đưa profile cho LLM viết mapping (G2 phần 3).
 
 ## Thứ tự xử lý đề xuất
 1. **T4 sáng:** sửa H1–H7, sinh lại schema, thêm test cho từng mục.

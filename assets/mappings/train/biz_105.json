@@ -1,0 +1,87 @@
+{
+  "industry": "cà phê",
+  "record_grain": "order",
+  "notes": [
+    "Mapping tay từ README biz_105: sổ ghi tay chuyển Excel, mỗi tháng một sheet (2 file), header 2 dòng, dòng 'Cộng' và dòng chú thích cuối sheet (loader bỏ).",
+    "Trả hàng: dòng số lượng âm cùng mã đơn, 'Giờ' của dòng trả là lúc trả; trạng thái đơn gộp từ các dòng (order_status_from_lines), ngày đơn = dòng sớm nhất.",
+    "Giờ là ngày giờ đầy đủ, trùng ngày với 'Ngày giao dịch' ở 140205/140205 dòng có giờ: dùng Giờ làm order_time (has_time).",
+    "Tồn cuối là tồn hết ngày cuối có dữ liệu (README: 24/06/2026)."
+  ],
+  "tables": [
+    {
+      "target": "orders",
+      "sources": ["SoBanHang_1.xlsx::*", "SoBanHang_2026.xlsx::*"],
+      "columns": [
+        {"target": "order_id", "source": "Mã hóa đơn"},
+        {"target": "order_time", "source": "Giờ", "parse": "datetime"},
+        {"target": "has_time", "const": true},
+        {"target": "status", "source": "Status", "transform": "order_status_from_lines"},
+        {"target": "customer_key", "source": "Khách"},
+        {"target": "customer_name", "source": "Khách"}
+      ],
+      "value_maps": {
+        "status": {"đã lấy": "completed", "đã xong": "completed", "hủy": "cancelled", "Đã hủy đơn": "cancelled",
+                   "Trả hàng": "returned", "Đổi trả": "returned", "hàng trả về": "returned", "Hoàn trả": "returned",
+                   "Đang giao": "delivering", "Đang giao hàng": "delivering"},
+        "customer_key": {"Khách lẻ": ""}
+      }
+    },
+    {
+      "target": "lines",
+      "sources": ["SoBanHang_1.xlsx::*", "SoBanHang_2026.xlsx::*"],
+      "columns": [
+        {"target": "order_id", "source": "Mã hóa đơn"},
+        {"target": "product_key", "source": "Hàng"},
+        {"target": "product_name", "source": "Hàng"},
+        {"target": "is_item", "const": true},
+        {"target": "qty", "source": "so_luong", "parse": "qty"},
+        {"target": "unit", "source": "Unit"},
+        {"target": "unit_price", "source": "Giá lẻ", "parse": "money"},
+        {"target": "line_amount", "source": "Trị giá", "parse": "money"}
+      ]
+    },
+    {
+      "target": "unit_conversions",
+      "sources": ["DanhMuc.xlsx::Sheet1"],
+      "columns": [
+        {"target": "product_key", "source": "Tên món"},
+        {"target": "unit", "source": "ĐV nhập"},
+        {"target": "factor", "source": "Hệ số", "parse": "number"},
+        {"target": "base_unit", "source": "Đơn vị gốc"}
+      ]
+    },
+    {
+      "target": "price_history",
+      "sources": ["BangGia.xlsx::Sheet1"],
+      "columns": [
+        {"target": "product_key", "source": "ten_hang"},
+        {"target": "effective_date", "source": "Ngày áp dụng", "parse": "date"},
+        {"target": "price", "source": "Giá mới", "parse": "money"}
+      ]
+    },
+    {
+      "target": "purchases",
+      "sources": ["SoNhapHang.xlsx::Sheet1"],
+      "columns": [
+        {"target": "receipt_id", "source": "Số phiếu"},
+        {"target": "receipt_time", "source": "Ngày nhập", "parse": "datetime"},
+        {"target": "supplier", "source": "Nhà cung cấp"},
+        {"target": "product_key", "source": "Tên mặt hàng"},
+        {"target": "qty", "source": "SL nhập", "parse": "qty"},
+        {"target": "unit", "source": "ĐVT"},
+        {"target": "unit_cost", "source": "Giá nhập", "parse": "money"},
+        {"target": "amount", "source": "Thành tiền", "parse": "money"},
+        {"target": "note", "source": "Ghi chu"}
+      ]
+    },
+    {
+      "target": "inventory",
+      "sources": ["TonKho.xlsx::Sheet1"],
+      "columns": [
+        {"target": "product_key", "source": "Hàng hóa"},
+        {"target": "as_of", "const": "2026-06-24", "parse": "date"},
+        {"target": "base_qty", "source": "Tồn cuối", "parse": "qty"}
+      ]
+    }
+  ]
+}

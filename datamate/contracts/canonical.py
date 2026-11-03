@@ -87,7 +87,8 @@ TABLES: dict[str, TableSpec] = {
     )),
     "unit_conversions": TableSpec("Hệ số quy đổi; đơn vị không có dòng nào là đơn vị cơ bản, hệ số 1", (
         Col("product_key", "str", True), Col("unit", "str", True),
-        Col("factor", "float", True, "số đơn vị cơ bản trong 1 đơn vị này"), _SOURCE,
+        Col("factor", "float", True, "số đơn vị cơ bản trong 1 đơn vị này"),
+        Col("base_unit", "str", doc="đơn vị cơ bản của mặt hàng, nếu file ghi"), _SOURCE,
     )),
     "customers": TableSpec("Danh sách khách", (
         Col("customer_key", "str", True), Col("customer_name", "str"), Col("customer_group", "str"),

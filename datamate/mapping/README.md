@@ -4,17 +4,36 @@
 
 **Hợp đồng:** `map_business(raw, profile, rulebook, llm) -> Mapping` ([contracts/mapping.py](../contracts/mapping.py)). `build_canonical(raw, mapping) -> CanonicalDB`; `run_checks(db)` chạy 6 bước kiểm tra bắt buộc (`REQUIRED_CHECKS`); `build_card(db) -> DataCard`.
 
-**Đã có (bộ khung 05/11):**
-- `build_canonical` ([build.py](build.py)): parse theo kiểu, đổi tên cột, `value_maps`, hằng số, bỏ dòng trùng trong cùng đơn (§8), mỗi đơn lấy dòng đầu, khoảng ngày theo bảng.
-- `run_checks`: 6 bước kiểm tra bắt buộc (giải quyết mục H8; bước 6 "cột bắt buộc đủ giá trị" thêm ở review lần 2, mục R18): một ô ngày hay ô tiền không đọc được là cả cửa hàng không đạt, vì nếu bỏ qua thì đáp án sai mà không báo lỗi. Xem `detail` của bước đó để biết cột nào, bao nhiêu ô.
-- **Chưa có kiểm tra theo nghĩa** (mục H17): map nhầm `line_amount` sang cột đơn giá vẫn qua đủ 6 bước.
-- Mapping tay của biz_101: [assets/mappings/train/biz_101.json](../../assets/mappings/train/biz_101.json).
-- `map_business` **chưa có**: hiện mọi cửa hàng đều bỏ trống.
+**Đã có (04/11, G2 phần 1):**
+- `build_canonical` ([build.py](build.py)):
+  - parse theo kiểu, đổi tên cột, `value_maps`, hằng số (hằng số cũng được parse, ví dụ ngày tồn kho `"2026-06-24"` với `parse: date`);
+  - **cài đủ 8 biến đổi** của `TRANSFORMS`:
+    - `note_contains` nhận thêm `default` ("ghi chú không nhắc trạng thái là đơn hoàn thành");
+    - `lookup` nhận `keep_missing`;
+    - `order_status_from_lines`: có dòng trả thì đơn là trả hàng; tất cả huỷ thì là huỷ; trộn không rõ thì để trống, tức kiểm tra không qua;
+  - `sources` nhận **mẫu glob** (`"SoBanHang.xlsx::*"`);
+  - **cột phụ** `_source`, `_row` (mã dòng, cho sổ không có mã đơn), `_year`;
+  - **điền xuống theo §8:** ô cấp đơn để trống ở các dòng sau của đơn lấy theo dòng đầu, chỉ trong cùng sheet, làm *trước* bước bỏ dòng trùng;
+  - ngày không ghi năm lấy năm của sheet; **ngày của đơn = dòng sớm nhất**, vì dòng trả hàng ghi ngày trả;
+  - **`lines.base_qty` tự suy** từ `unit_conversions` khi file không ghi sẵn. Hợp đồng thêm cột `unit_conversions.base_unit`. Đơn vị lạ của một mặt hàng có quy đổi thì để trống, không đoán.
+- `run_checks(db, readme)`: **10 bước kiểm tra bắt buộc**.
+  - 6 bước cấu trúc (H8, R18).
+  - 4 bước theo nghĩa (H17, 05/11): thành tiền khớp số lượng × đơn giá − giảm giá, trạng thái hợp lý, ngày cuối khớp README, số âm chỉ ở đơn trả.
+  - Ngưỡng đo trên 8 mapping tay (xem H17 trong file hạn chế). Phá có chủ đích 8 kiểu thì bị chặn cả 8. Xem `detail` của mỗi bước để biết vì sao không đạt.
+- **Mapping tay của 4 cửa hàng** ở [assets/mappings/train/](../../assets/mappings/train/): biz_101 (csv phẳng), biz_103 (xlsx theo tháng, dòng nối tiếp để trống, 8 cách ghi trạng thái), biz_105 (sổ ghi tay, header 2 dòng, trả hàng số âm, nhập hàng / tồn / bảng giá), biz_117 (ngày 4 kiểu, giao nhiều đợt, khách lẻ 3 kiểu).
+  - Cả 4 qua đủ 6 bước; `oracle --all` ra **51 đúng / 0 sai** / 345 bỏ trống. Phần lớn câu bỏ trống là do [C] mới có baseline.
+  - Cách hiểu 'Đang giao dịch' = đang giao (biz_103) có căn cứ: cả 9 đơn đều nằm ở 9 ngày cuối của dữ liệu.
+- Công cụ [tools/show_business.py](../../tools/show_business.py) in README và từng bảng (cột, kiểu, mẫu) để viết mapping hay data card. Chỉ dùng cho cửa hàng train.
+- `map_business` **chưa có**: chạy bình thường thì mọi cửa hàng vẫn bỏ trống.
 
 **Việc cần làm:**
-1. Cài 8 biến đổi trong `contracts.mapping.TRANSFORMS` (`regex_extract`, `split_qty_unit`, `year_from_sheet`, `note_contains`, `lookup`, `order_status_from_lines`, `concat`, `negate`).
-2. Điền ô trống trong nhóm dòng của cùng một đơn (§8); dùng `year_hint` khi parse ngày.
-3. Mapping tay cho 8 cửa hàng train khác kiểu nhau (từ data card của nhóm), lưu ở `assets/mappings/train/`.
+1. ~~Cài 8 biến đổi~~ (xong 04/11).
+2. ~~Điền ô trống của cùng một đơn (§8), dùng `year_hint`~~ (xong 04/11).
+3. ~~Mapping tay thêm 4 cửa hàng; H17~~ (xong 05/11).
+   - Thêm biz_120 (nhà thuốc xuất từ phần mềm, 10 file nối bằng mã), biz_123 (sqlite POS 17 bảng), biz_124 (3 nguồn, sổ ghi tay dùng tên hàng), biz_126 (nhà hàng, không mã đơn, dòng phí phục vụ).
+   - Bốn cửa hàng này được chọn theo độ phủ kiểu dữ liệu: 8 cửa hàng phủ 29/30 kiểu tìm thấy ở 30 cửa hàng train.
+   - `oracle --all` trên 8 cửa hàng: **113 đúng / 0 sai / 677 bỏ trống**.
+   - Ba cách ghi trạng thái được kiểm bằng dữ liệu: 'Đang xử lý' và 'shipping' là đang giao (chỉ có ở 3 ngày cuối dữ liệu); 'Không giao được' là huỷ (tỉ lệ huỷ khớp đáp án train).
 4. `map_business`: luật đồng nghĩa tên cột trước, LLM điền phần còn thiếu (theo [schemas/mapping.schema.json](../contracts/schemas/mapping.schema.json)), chạy kiểm tra, sai thì cho LLM sửa một lần.
 5. Nhận diện ngành (§6); bảng quy đổi đơn vị; bảng lạ vào `extra_tables`.
 
