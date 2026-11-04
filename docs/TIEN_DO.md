@@ -179,7 +179,10 @@
   - **`eval.mapping` (30 cửa hàng train, mapping của chính cửa hàng bị bỏ khỏi ví dụ, plan LLM đã lưu): 1881 đúng / 0 sai / 1119 bỏ trống, PA +0,627** (sau khi ghép bảng theo README + chốt R43).
   - Cả chuỗi với LLM (`oracle --all --auto-mapping`): v1 830 đúng / 0 sai; v2 1060 / 0; v3 1570 / 0; **v4 1712 / 0 (PA +0,571); v5 1815 / 0 / 1185 bỏ trống (PA +0,605)**.
   - Public: 8/14 cửa hàng có mapping qua kiểm tra (trước T5: 0).
-  - 315 test qua.
+  - **Review cuối phiên 04/11** (HAN_CHE mục L): sửa R44 (mô tả README lấy nhầm bảng), R45 (ngày ảnh tồn chỉ khi README ghi rõ).
+  - **N23, mapping dựng từ mô tả cột trong README** (không cần LLM): `eval.mapping` cả hệ **2294 đúng / 0 sai / 706 bỏ trống, PA +0,765**; riêng đường README 2048 / 0 trên 25/30 cửa hàng. Public không đổi (8/14).
+  - **Public lượt 1** (04/11, trước N23): `outputs/public_run1/submission.jsonl`, 370 trả lời / 630 bỏ trống, 23 phút, qua `eval.validate`. Chờ trưởng nhóm nộp và ghi điểm.
+  - 325 test qua.
 - **Tài liệu khác:** sổ tay nhóm (artifact, riêng tư) https://claude.ai/artifact/SkCWcHheFw2NE6obQzUPxT; [KE_HOACH_DataMate.md](KE_HOACH_DataMate.md); [data_cards/README.md](data_cards/README.md) (chia 30 cửa hàng train cho thành viên A–D); [rules_notes.md](rules_notes.md).
 
 ## 4. Trạng thái hiện tại
@@ -218,6 +221,7 @@
 - Dùng API thương mại hoặc trợ lý AI với dữ liệu thi có được không.
 - "Không phân biệt dấu câu" khi chấm chuỗi bỏ những ký tự nào.
 - Private test có bao nhiêu câu.
+- (04/11, N22) Có được xem cấu trúc file và README của public test để viết luật đọc dữ liệu dùng chung không. Câu hỏi ở BAN_GIAO_PHIEN_3 mục "Việc tiếp theo".
 
 Tin nhắn hỏi BTC đã soạn sẵn trong phiên 1 (5 câu về Docker). Phần Docker trong kế hoạch vẫn để trống chờ guideline.
 

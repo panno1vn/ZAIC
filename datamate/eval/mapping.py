@@ -4,6 +4,7 @@ go through the whole chain, and the answers are scored against the train answers
 
     python -m datamate.eval.mapping                      # every train business
     python -m datamate.eval.mapping --business biz_102   # some
+    python -m datamate.eval.mapping --readme-only        # only the mapping built from the README (N23)
 
 Prints, per business, the example the mapping came from (or why none passed) and right / wrong / blank; then the
 wrong answers. Development only: train answers, hand mappings.
@@ -35,6 +36,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--business", nargs="*")
     ap.add_argument("--llm-url", help="llama-server để ghép cột theo nghĩa (mặc định: chỉ ghép theo tên cột)")
     ap.add_argument("--llm-cache", default="outputs/llm_cache_mapping.jsonl")
+    ap.add_argument("--readme-only", action="store_true",
+                    help="chỉ dựng mapping từ mô tả cột trong README (N23), không dùng mapping mẫu: đo riêng đường này")
     args = ap.parse_args(argv)
     llm = connect_llm(args.llm_url, cache=args.llm_cache) if args.llm_url else None
     if args.llm_url and llm is None:
@@ -56,10 +59,10 @@ def main(argv: list[str] | None = None) -> int:
     total, wrong = Counter(), []
     print(f"  {'cửa hàng':10}{'đúng':>6}{'sai':>5}{'trống':>7}  mapping")
     for b in sorted(args.business or by_business):
-        pool = transfer.examples(leave_out=b)
+        pool = [] if args.readme_only else transfer.examples(leave_out=b)
 
         def map_fn(raw, profile, rulebook_text, _llm=None, pool=pool):
-            m, tried = transfer.map_by_transfer(raw, pool, llm=llm)
+            m, tried = transfer.map_by_transfer(raw, pool, llm=None if args.readme_only else llm)
             return m if m is not None else transfer.failed(tried)
         ctx = prepare_business(split / "data" / b, rulebook, None, map_fn)
         outcome = Counter()

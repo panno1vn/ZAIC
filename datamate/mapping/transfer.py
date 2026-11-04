@@ -256,14 +256,18 @@ def map_by_transfer(raw: RawBusiness, pool: list[Example] | None = None, llm: LL
     for m in candidates(raw, pool):
         if (ok := _passes(m, raw, tried)) is not None:
             return ok, tried
-    if llm is None:
-        return None, tried
-    for e in sibling_files(raw, pool)[:by_meaning]:
+    for e in sibling_files(raw, pool)[:by_meaning] if llm is not None else []:
         m = transfer_by_meaning(e, raw, llm)
         if m is None:
             tried.append(f"ghép theo nghĩa với mapping mẫu {e.name}: thiếu bảng đơn hoặc dòng hàng")
         elif (ok := _passes(m, raw, tried)) is not None:
             return ok, tried
+    from .from_readme import map_from_readme  # N23: no example fits, the README's column meanings do
+    m, why = map_from_readme(raw)
+    if m is None:
+        tried.append(f"dựng từ README: {why}")
+    elif (ok := _passes(m, raw, tried)) is not None:
+        return ok, tried
     return None, tried
 
 
@@ -367,16 +371,22 @@ def readme_columns(readme: str) -> dict[str, dict[str, str]]:
     return out
 
 
-def column_notes(readme_cols: dict[str, dict[str, str]], table_id: str) -> dict[str, str]:
-    """The README notes of a raw table: by its file or table name, else by its stem (files split _1, _2…); none when
-    the README names no such table (review 04/11: the stem test was always true, every table the README did not name
-    exactly took the notes of the README's first section)."""
+def readme_section(readme_cols: dict[str, dict[str, str]], table_id: str) -> str | None:
+    """The README section ("## Cột trong `<name>`") of a raw table: its sheet or table name, its file name, else its
+    stem (files split _1, _2…); None when the README names no such table (review 04/11: the stem test was always
+    true, every table the README did not name exactly took the notes of the README's first section)."""
     file, _, sheet = table_id.partition("::")
-    for name in (file, sheet):
-        if name in readme_cols:
-            return readme_cols[name]
+    for name in (sheet, file):
+        if name and name in readme_cols:
+            return name
     s = stem(table_id).split("/")[-1]
-    return next((v for k, v in readme_cols.items() if re.sub(r"[^a-z]+", "", _fold(Path(k).stem)) == s), {})
+    return next((k for k in readme_cols if re.sub(r"[^a-z]+", "", _fold(Path(k).stem)) == s), None)
+
+
+def column_notes(readme_cols: dict[str, dict[str, str]], table_id: str) -> dict[str, str]:
+    """The README notes of a raw table (readme_section); none when the README does not describe it."""
+    section = readme_section(readme_cols, table_id)
+    return readme_cols[section] if section is not None else {}
 
 
 def _meaning(e: Example, table_id: str, column: str) -> str:

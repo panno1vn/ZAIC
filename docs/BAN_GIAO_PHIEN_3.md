@@ -84,13 +84,14 @@ Nhật ký: `outputs/overnight.log`.
 
 ## Việc tiếp theo
 1. ~~Đọc kết quả `oracle` v5~~: 1815 đúng / 0 sai (14:13 ngày 04/11).
-2. **Review cuối phiên (HAN_CHE mục L):** sửa R44, R45; train vẫn 1881 / 0. Trưởng nhóm cần quyết N22 (vùng xám luật).
+2. ~~Review cuối phiên (HAN_CHE mục L)~~: sửa R44, R45; train vẫn 1881 / 0. N22 đã quyết: hỏi BTC, tạm chỉ dùng train.
 3. **Tăng độ phủ mapping** (HAN_CHE N20, N23).
-   - Dò trên **10 cửa hàng train không map được khi bỏ mapping của chính nó** (biz_101, 107, 110, 111, 113, 120, 123, 124, 126, 127), không dò từng cửa hàng public. Public chỉ dùng để đếm số cửa hàng map được (đang 8/14).
-   - Hướng chính: N23, mapping dựng từ mô tả cột trong README khi không mẫu nào khớp, yêu cầu 0 sai.
-   - Họ định dạng nào có ở train thì vẫn có thể viết mapping tay cho một cửa hàng train của họ đó, rồi chạy lại `tools/mapping_signatures.py`.
+   - ~~N23, mapping dựng từ README~~ (xong 04/11): train cả hệ **2294 đúng / 0 sai, PA +0,765**. Public không đổi (8/14).
+   - Chỉ dò trên train (trưởng nhóm quyết N22 ngày 04/11), cho tới khi BTC trả lời câu hỏi dưới đây. Còn trượt ở train: biz_110 (chỉ có đơn), biz_123 (sqlite POS), biz_124 (3 nguồn).
+   - Câu hỏi gửi BTC (trưởng nhóm gửi):
+     > Đội em muốn hỏi về mục 4.2 của thể lệ. Đội không gán nhãn, không xem đáp án, không viết xử lý riêng cho từng cửa hàng hay từng câu hỏi. Đội có được **xem cấu trúc file và README (đầu vào) của public test** để viết các luật đọc dữ liệu dùng chung cho mọi cửa hàng không, ví dụ thêm một cách gọi tên cột vào từ điển chung? Hay đội chỉ được phát triển dựa trên dữ liệu train? Đội cảm ơn BTC.
 4. **Đọc N16** (HAN_CHE mục I): giữ hay tắt cổng câu anh em. Mặc định đang bật, ngưỡng 0. Muốn tắt thì đổi `twin_threshold` thành `null`.
-5. **Nộp public sớm nhất có thể (N24), muộn nhất 09/11: chạy `predict` trên public** (`eval.validate` trước khi nộp). `predict` đã dùng mapping tự động và LLM (`--llm-url`).
+5. **Nộp public (N24):** lượt 1 đã chạy 04/11, file `outputs/public_run1/submission.jsonl` (370 trả lời / 630 bỏ trống, đã qua `eval.validate`, chưa có đường README; với public, đường README không đổi gì). Trưởng nhóm nộp lên portal, ghi điểm vào TIEN_DO. Các lượt sau: chạy `predict` (`eval.validate` trước khi nộp). `predict` đã dùng mapping tự động và LLM (`--llm-url`).
 6. v2 còn lại (ít câu): tuổi nợ, giá trị tồn, lô / hạn dùng, hiệu ứng tăng giá theo trung bình mỗi ngày.
 7. Ghi chú về kho:
    - `verified_train.jsonl` nằm trong `assets/plans`, nên cũng là ví dụ BM25 khi chạy thật. K3, `check_plans` và script T1 chỉ đọc `prompt.HAND_FILES`.

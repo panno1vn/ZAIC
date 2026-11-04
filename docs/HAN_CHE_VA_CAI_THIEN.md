@@ -378,11 +378,20 @@ Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval
 - Mapping tay chỉ có ở 10 cửa hàng train. Không từ khoá trạng thái nào chỉ xuất hiện ở public (đếm 04/11).
 - [ ] **N21 (Thấp). Đo leave-one-out còn rò từ điển giá trị**: `vocabulary()` gộp cả mapping tay của cửa hàng đang bị bỏ ra. Đo 04/11: chỉ khác 2 từ khách lẻ ('kl', 'lẻ'), mà `blank_walk_ins` đằng nào cũng xử lý; trạng thái đơn không khác từ nào. Số đo vẫn đúng; sửa khi động vào phần này.
 - [ ] **N22 (TB, cần trưởng nhóm quyết). Vùng xám: thiết kế dựa trên dữ liệu public.** N19 (ngưỡng 0,5% đơn không rõ trạng thái) sinh ra từ một cửa hàng public. Đây không phải nhãn hay huấn luyện: quy tắc chung, và số liệu đơn đó có thể làm đổi thì bỏ trống. Đề xuất: giữ, ghi rõ trong tài liệu phương pháp. Từ nay không dò lỗi từng cửa hàng public nữa (N20 đổi cách dò).
+  - **Trưởng nhóm quyết 04/11: hỏi BTC; trong lúc chờ chỉ cải thiện bằng dữ liệu train.** Câu hỏi soạn sẵn ở [BAN_GIAO_PHIEN_3.md](BAN_GIAO_PHIEN_3.md).
 - `R_MAIN_SUPPLIER` đọc một dòng chỉ có trong rulebook public. Rulebook là đầu vào đi kèm mỗi split, và [R] chặn khi dòng đó vắng, nên hợp lệ.
 
 **Hướng đi:**
 - 2/3 số câu bỏ trống trên train (≈ 790/1185) là của 10 cửa hàng không map được. Ở 20 cửa hàng map được: ≈ 85% đúng, 0 sai. **Đòn bẩy lớn nhất vẫn là độ phủ mapping.** Mapping chuyển từ mẫu chỉ phủ các định dạng train có; private có thể có định dạng mới.
-- [ ] **N23 (Cao). Mapping dựng từ README khi không mẫu nào khớp.** README mô tả từng cột ("## Cột trong `file`", "- **cột**: ý nghĩa"), và README ở mọi split đều theo một khuôn. LLM chọn cột cho từng cột chuẩn theo mô tả README, rồi qua 10 bước kiểm tra. Dò và đo trên 10 cửa hàng train không map được (leave-one-out), yêu cầu 0 sai.
+- [x] **N23 (Cao). Mapping dựng từ README khi không mẫu nào khớp** ([from_readme.py](../datamate/mapping/from_readme.py), làm 04/11).
+  - Không cần LLM. README mô tả mỗi cột bằng một cụm nghĩa lấy từ danh sách cố định (74 cụm ở train), và mỗi cụm của bảng bán ứng với đúng một cột chuẩn ở mọi mapping tay.
+  - Đo trên train: chỉ đường README (`eval.mapping --readme-only`) **2048 đúng / 0 sai** trên 25/30 cửa hàng. Cả hệ (chuyển mẫu trước, README sau): **2294 đúng / 0 sai / 706 bỏ trống, PA +0,765** (trước +0,627).
+  - Ba cửa hàng chưa từng có mapping tay (107, 113, 127) đúng 181 / 0. Đây là phép đo sạch nhất: từ điển cụm nghĩa không học từ chúng.
+  - Hai lỗi gom bảng lộ ra khi dò trên train và đã sửa, mỗi lỗi có test:
+    - một workbook có 4 sheet, README mô tả từng sheet (biz_116);
+    - hai phần của một sổ, mỗi phần một mục README (biz_105).
+  - Còn trượt: biz_110 (chỉ có đơn), 123 và 124 (README không mô tả cột theo khuôn).
+  - **Public: không phủ thêm cửa hàng nào** (đường README qua 3/14, cả ba đã được chuyển mẫu phủ). Muốn biết vì sao phải xem định dạng public, nên chờ N22.
 - [ ] **N24 (Cao). "0 sai" là số trong mẫu.** Các cổng và chốt được thêm sau khi thấy lỗi trên chính train, nên tỉ lệ sai thật trên cửa hàng mới chưa biết. **Nộp public sớm nhất có thể** để đo; mỗi ngày được 5 lần, so cả bật / tắt cổng câu anh em (N16).
 - Docker chưa làm (kế hoạch 10–12/11, chờ guideline BTC): llama-server CUDA ≥ 12.8 trong image, chép `assets/` (H14), chạy thử đủ 6 giờ trên máy thuê.
 

@@ -44,7 +44,14 @@
   - dòng "Phí phục vụ" không phải mặt hàng (`mark_fee_lines`);
   - dòng tổng giữa sheet bị bỏ dù nhãn nằm ở cột nào;
   - cho phép ≤ 0,5% đơn không rõ trạng thái; mọi số liệu đơn đó có thể làm thay đổi thì bỏ trống.
-- **Đo:** `python -m datamate.eval.mapping [--llm-url …]` (mapping của chính cửa hàng bị bỏ khỏi ví dụ, plan LLM đã lưu, chấm với đáp án train); `python -m datamate.eval.oracle --all --auto-mapping --llm-url …` (cả chuỗi).
+- **Dựng từ README (N23, [from_readme.py](from_readme.py)), khi không mẫu nào qua kiểm tra; không cần LLM:**
+  - README mô tả từng cột bằng một cụm nghĩa lấy từ danh sách cố định ("mã đơn", "thành tiền sau giảm", "số lượng đã đổi ra đơn vị cơ bản"…; 74 cụm ở train). Mỗi cụm của bảng bán ứng với đúng một cột chuẩn ở mọi mapping tay, ví dụ "thành tiền sau giảm" → `lines.line_amount` 70/70 lần.
+  - Bảng nhận vai theo cụm nghĩa của cột: dòng hàng, đơn, danh mục, khách, phiếu thu, tồn, chi tiết nhập (lấy ngày / nhà cung cấp từ bảng phiếu nhập), đợt giao. Hai bảng cùng vai thì không đoán.
+  - Gom bảng: sheet được README mô tả riêng là một bảng; còn lại theo tên gốc của file (các tháng, các phần `_1` / `_2026`).
+  - Dòng hàng có mã đơn thì gom thành đơn: đơn ở file riêng, hoặc ở chính file dòng hàng (file phẳng, trạng thái đọc qua `order_status_from_lines`). Không mã đơn thì mỗi dòng là một đơn (§8).
+  - Thời điểm đơn: "thời điểm đặt đơn", rồi "giờ đặt đơn" (khi ô ghi đủ ngày giờ), rồi "ngày bán".
+  - Phiếu nhập có trạng thái khác "đã nhập" thì không map nhập hàng.
+- **Đo:** `python -m datamate.eval.mapping [--llm-url …] [--readme-only]` (mapping của chính cửa hàng bị bỏ khỏi ví dụ, plan LLM đã lưu, chấm với đáp án train); `python -m datamate.eval.oracle --all --auto-mapping --llm-url …` (cả chuỗi).
 - **Mapping tay thêm cho T5:** biz_115 (họ `So_chi_tiet_ban_hang`), biz_111 (họ csv `don_hang / chi_tiet_don`).
 
 **Việc cần làm:**
