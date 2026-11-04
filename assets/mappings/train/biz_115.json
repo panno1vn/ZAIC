@@ -1,0 +1,63 @@
+{
+  "industry": "vật liệu xây dựng",
+  "record_grain": "order",
+  "notes": [
+    "Mapping tay từ README biz_115: phần mềm xuất sổ chi tiết bán hàng, mỗi tháng một sheet; thông tin đơn lặp lại ở mọi dòng của đơn; sổ không có mã hàng, nối với danh sách hàng hóa qua tên.",
+    "Ngày chỉ có ngày (dd/mm/yyyy): has_time false. 'Số lượng quy đổi' là số lượng theo đơn vị cơ bản; bảng quy đổi chỉ nằm trong README, không cần vì có cột này.",
+    "Khách lẻ ghi 'kl' / 'Khách lẻ' (blank_walk_ins). 'Chi tiết công nợ theo hạn' (hạn nợ của đơn) không có bảng chuẩn, để ngoài."
+  ],
+  "tables": [
+    {
+      "target": "orders",
+      "sources": ["So_chi_tiet_ban_hang.xlsx::*"],
+      "columns": [
+        {"target": "order_id", "source": "Mã đơn hàng"},
+        {"target": "order_time", "source": "Ngày", "parse": "datetime"},
+        {"target": "has_time", "const": false},
+        {"target": "status", "source": "Trạng thái"},
+        {"target": "customer_key", "source": "Khách hàng"},
+        {"target": "customer_name", "source": "Khách hàng"}
+      ],
+      "value_maps": {
+        "status": {"Đã hoàn thành": "completed", "Đã hủy": "cancelled", "Đã trả hàng": "returned",
+                   "Đang giao hàng": "delivering"},
+        "customer_key": {"Khách lẻ": "", "kl": ""}
+      }
+    },
+    {
+      "target": "lines",
+      "sources": ["So_chi_tiet_ban_hang.xlsx::*"],
+      "columns": [
+        {"target": "order_id", "source": "Mã đơn hàng"},
+        {"target": "product_key", "source": "Tên hàng hóa"},
+        {"target": "product_name", "source": "Tên hàng hóa"},
+        {"target": "is_item", "const": true},
+        {"target": "qty", "source": "Số lượng", "parse": "qty"},
+        {"target": "unit", "source": "Đơn vị tính"},
+        {"target": "base_qty", "source": "Số lượng quy đổi", "parse": "qty"},
+        {"target": "unit_price", "source": "Đơn giá", "parse": "money"},
+        {"target": "line_amount", "source": "Thành tiền", "parse": "money"}
+      ]
+    },
+    {
+      "target": "products",
+      "sources": ["Danh sách hàng hóa.xlsx::Sheet1"],
+      "columns": [
+        {"target": "product_key", "source": "Tên hàng hóa"},
+        {"target": "product_name", "source": "Tên hàng hóa"},
+        {"target": "product_group", "source": "Nhóm hàng hóa"},
+        {"target": "base_unit", "source": "Đơn vị tính"},
+        {"target": "unit_cost", "source": "Giá vốn", "parse": "money"}
+      ]
+    },
+    {
+      "target": "deliveries",
+      "sources": ["Bảng kê phiếu giao hàng.xlsx::Sheet1"],
+      "columns": [
+        {"target": "order_id", "source": "Mã đơn hàng"},
+        {"target": "delivery_time", "source": "Ngày giao hàng", "parse": "datetime"},
+        {"target": "batch_no", "source": "Lần giao", "parse": "number"}
+      ]
+    }
+  ]
+}

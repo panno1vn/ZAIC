@@ -9,13 +9,19 @@ from datamate.contracts import CanonicalDB, ExecResult, ResolvedPlan
 
 from .registry import REGISTRY, MetricSpec, lookup, metric
 from . import sales  # noqa: F401,E402  registers the sales metrics
+from . import stock  # noqa: F401,E402  registers purchases, prices and stock (§5)
+from . import debt  # noqa: F401,E402  registers debts (§4)
+from . import industry  # noqa: F401,E402  registers industry rules (§6)
 
 
 def metric_name(plan: ResolvedPlan) -> str | None:
-    """Registry key of a plan: rank.by for rankings, the condition for lists, else the first measure's metric."""
+    """Registry key of a plan: rank.by for rankings, the threshold's metric for counts (v1.1: no measures needed),
+    the condition for lists, else the first measure's metric."""
     p = plan.plan
     if p.intent == "rank" and p.rank is not None:
         return p.rank.by
+    if p.intent == "count_where" and p.threshold is not None:
+        return p.threshold.metric
     if p.intent == "list_items" and p.list_spec is not None:
         return p.list_spec.condition
     return p.measures[0].metric if p.measures else None

@@ -7,14 +7,15 @@ answered without its filter.
 from __future__ import annotations
 
 import re
-import unicodedata
 
 from datamate.contracts import QueryPlan
+
+from .templates import tokens
 
 ABBREVIATIONS = [
     (r"\bdthu\b|\bdt\b|\brevenue\b", "doanh thu"), (r"\bbnhiu\b|\bbn\b|\bbao nhiu\b|\bbnhieu\b", "bao nhieu"),
     (r"\bnhiu\b", "nhieu"), (r"\bdc\b|\bdk\b", "duoc"), (r"\bhnay\b|\bbua nay\b|\bhom ni\b", "hom nay"),
-    (r"\bhqua\b|\bbua qua\b", "hom qua"), (r"\bsp\b", "san pham"), (r"\bbill\b", "don"),
+    (r"\bhqua\b|\bbua qua\b", "hom qua"), (r"\bsp\b", "san pham"), (r"\bbill?\b", "don"),
 ]
 # words that may appear around the recognised shapes without changing their meaning
 FILLER = set("""
@@ -25,9 +26,9 @@ nam quy hom nay qua nao cao nhat nhieu mat san pham chay top nhung gi cai co duo
 
 
 def fold(text: str) -> str:
-    t = unicodedata.normalize("NFD", text.lower()).replace("đ", "d")
-    t = "".join(c for c in t if not unicodedata.combining(c))
-    t = re.sub(r"([a-z])\1(?=[a-z])", r"\1", t)  # doubled letters from typing: 'thangs' stays, 'dduwowcj' shrinks
+    """Lower case, no diacritics, telex typed without the input method undone ("thangs", "dduwowcj": N7, 0 of 290
+    such train questions were read before), abbreviations expanded; words and digit runs only."""
+    t = " ".join(tokens(text))
     for pat, rep in ABBREVIATIONS:
         t = re.sub(pat, rep, t)
     return " ".join(re.findall(r"[a-z]+|\d+", t))

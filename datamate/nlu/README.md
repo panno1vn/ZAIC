@@ -31,12 +31,19 @@
 ## G6: [C3] Nối thực thể
 **Mục tiêu:** đổi giá trị bộ lọc viết trong câu ("coca", "cafe sua M", "Hai Bà Trưng") thành giá trị có thật trong dữ liệu.
 
-**Hợp đồng:** `link_entities(resolved, db) -> ResolvedPlan`. Ghi `linked[giá trị như trong câu] = giá trị trong dữ liệu` và `link_scores`. Không chắc thì **không ghi**; [V] sẽ cho câu đó bỏ trống.
+**Hợp đồng:** `link_entities(resolved, db, question) -> ResolvedPlan`. Ghi `linked[giá trị như trong câu] = giá trị để lọc` và `link_scores`. Không chắc thì **không ghi**; [V] sẽ cho câu đó bỏ trống.
+
+**Đã có (T2, phiên 3, 03/11):** [linking.py](linking.py). Chi tiết và số đo ở [docs/research/linking.md](../../docs/research/linking.md).
+- Ba bước: khớp tuyệt đối (cả mã) → tên đầy đủ có trong câu hỏi → so khớp mờ `token_sort_ratio` ≥ 90, hơn ứng viên thứ hai ≥ 5 điểm.
+- Tên hàng nối về **mã hàng**. Tên hàng được thử thêm sau khi bỏ đơn vị đếm ở đầu.
+- Kênh bán và thanh toán nối về **mã** qua [assets/linking/synonyms.json](../../assets/linking/synonyms.json). Lọc bằng `linking.matches`, vì có cột trộn mã với chữ.
+- Trên 220 câu train có bộ lọc của 8 cửa hàng: nối được 100% tên hàng, 94% tên khách. Mọi tên không nối được đều thuộc câu `unanswerable`.
 
 **Việc cần làm:**
-1. So khớp không dấu bằng RapidFuzz trên danh sách giá trị (tên hàng, nhóm, kênh, khách…); chấp nhận cả mã.
-2. Đặt ngưỡng; hai ứng viên gần bằng nhau thì không nối.
-3. Tên khách viết khác cách là cùng một khách (§3).
+1. ~~So khớp không dấu bằng RapidFuzz; chấp nhận cả mã.~~ Xong.
+2. ~~Ngưỡng; hai ứng viên gần bằng nhau thì không nối.~~ Xong.
+3. Tên khách viết khác cách là cùng một khách (§3). Phần này ở mapping (G2): shop không có mã khách thì `customer_key` = tên đã chuẩn hoá. Linking chỉ nối về `customer_key`.
+4. T3: đo "câu đã nối mà trả lời sai = 0" bằng đáp án.
 
 **Thế nào là xong:** trên các câu train có bộ lọc, nối đúng ≥ 95% ở những câu đã nối, và có số đo tỉ lệ không nối được.
 

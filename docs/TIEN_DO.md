@@ -104,10 +104,86 @@
     - Lần 3: thêm kiểm tra bộ lọc có căn cứ.
 
     1,8 giây/câu; chạy lại 2 lần cho plan giống hệt. Đã vượt mốc dừng 70%. Tổng cộng 247 test.
+- **Phiên 3 (ngày thật 03/11; theo kế hoạch là T1 sáng 06/11): T1 gom cụm mẫu câu, xong.** Chi tiết ở [research/templates.md](research/templates.md).
+  - `datamate/nlu/templates.py`:
+    - `template_text`: bỏ dấu, **gỡ lỗi gõ telex** khi tắt bộ gõ, che số và tên, bỏ từ đệm;
+    - `NameIndex`;
+    - `plan_shape`.
+
+    Viết ở đây để T4 dùng lại.
+  - `tools/research/templates.py` sinh ra `assets/plans/templates_train.json` và bảng trong tài liệu. Chạy lại cho kết quả giống hệt.
+  - Kết quả:
+    - **450 cụm, 95,3% câu nằm trong cụm ≥ 2 câu** (đạt tiêu chí ≥ 95%);
+    - 94,1% câu nằm trong cụm có mặt ở ≥ 2 cửa hàng;
+    - **30,3% câu train nằm trong cụm đã có hàm** (cận trên);
+    - T3: 55,2%; v2: 13,2%.
+  - **Đổi so với kế hoạch: `token_sort_ratio` thay `token_set_ratio`.** `token_set_ratio` cho 100 điểm khi câu này chứa trọn câu kia, nên ở ngưỡng 90 có 44 cụm lẫn plan, so với 6 khi dùng `token_sort_ratio`.
+  - Thêm bước tách cụm theo kiểu đáp án train, vì "5 khách…" (list) khác "khách nào…" (string).
+  - LLM (Qwen3-8B) đọc 576 câu đại diện. Đã sửa các mẫu nó đọc sai bằng **26 plan tay mới** ([assets/plans/t1_reps.jsonl](../assets/plans/t1_reps.jsonl)). Kho ví dụ tăng từ 123 lên 149 plan.
+    - Lỗi lớn nhất: "giá nhập bình quân" bị đọc thành `avg_order_value`, làm 63 câu v2 bị tính sang T3.
+    - "Tính riêng hôm nay" thì bị bịa bộ lọc; cổng kiểm tra bộ lọc có căn cứ đã chặn được.
+  - Ghi N5–N8 vào file hạn chế. **N7: baseline đọc 0/290 câu có lỗi gõ telex; gỡ telex thì đọc được 35.** Sửa ở T3, kèm chạy lại K3.
+  - 255 test qua (thêm 8 ở `tests/test_templates.py`).
+- **Phiên 3: T2 G6 nối tên, xong.** Chi tiết ở [research/linking.md](research/linking.md).
+  - `datamate/nlu/linking.py` có 3 bước: khớp tuyệt đối → tên đầy đủ có trong câu hỏi → so khớp mờ `token_sort_ratio` ≥ 90, cách ứng viên thứ hai ≥ 5 điểm.
+  - Tên hàng nối về mã hàng; kênh bán và thanh toán nối về mã qua `assets/linking/synonyms.json` (chỉ có từ thấy trong train), lọc bằng `linking.matches`.
+  - `link_entities` nhận thêm câu hỏi; pipeline đã truyền vào.
+  - Lệnh đo `python -m datamate.eval.linking`. Trên 220 câu có bộ lọc của 8 cửa hàng (231 giá trị): tên hàng nối 100%, khách 94%. **Mọi giá trị không nối được đều thuộc câu `unanswerable`.**
+  - Sửa R26: bỏ đơn vị đếm ở đầu tên hàng; tên LLM chép sai thì nối theo tên trong câu hỏi.
+  - `oracle --all` vẫn 113 đúng / 0 sai. 267 test qua.
+- **Phiên 3: T3 G5 nhóm bán hàng + nối LLM, xong.** `oracle --all --llm-url` trên 790 câu của 8 cửa hàng: **567 đúng / 0 sai / 223 bỏ trống, PA +0,718** (trước T3: 113 đúng, PA +0,143). Lượt đầu sai 2 câu do LLM đọc sai ý câu; đã sửa R30 bằng cổng `ungrounded_measures`.
+  - `datamate/metrics/frames.py` (bảng dùng chung, bộ lọc dùng chung).
+  - `datamate/metrics/sales.py` viết lại: 7 chỉ số; value / compare / share / rank / count_where / trend / series / hàng ế.
+  - `python -m datamate.eval.check_plans`: chạy plan có sẵn qua cả chuỗi rồi chấm. Kết quả **230 đúng / 2 sai / 131 bỏ trống** trên 363 câu của 8 cửa hàng; 2 câu sai là LLM đọc sai ý câu (N12, cần cổng T4).
+  - Đã sửa:
+    - R27: "kl" bị coi là khách; sửa bằng `blank_walk_ins`.
+    - R28: `count_where` không có measure không tìm được hàm.
+    - R29: LLM bịa ngày; thêm cổng: ngày / năm của plan phải có căn cứ trong câu.
+  - `predict` và `oracle` có `--llm-url`; `oracle` có thêm `--llm-cache` (chỉ dùng khi phát triển).
+  - Mapping không đạt thì pipeline không gọi LLM.
+  - 282 test qua.
+- **Phiên 3: N7 + T4 (đang chạy).**
+  - N7: `baseline.fold` gỡ lỗi gõ telex. Khi LLM không cho plan dùng được thì dùng plan của baseline. `oracle --all --llm-url`: **571 đúng / 0 sai / 219 bỏ trống, PA +0,723**.
+  - T4, code đã có:
+    - `eval/build_bank.py`: LLM đọc 3000 câu với ví dụ của cửa hàng khác, kiểm chứng plan bằng đáp án hoặc theo mẫu, ghi `assets/plans/verified_train.jsonl`;
+    - `nlu/twins.py` + `pipeline.twin_check`: cổng câu anh em, `Signals.twin_ok`;
+    - `eval/twin_gate.py`: chọn ngưỡng theo kiểu bỏ ra một cửa hàng.
+- **Đêm 03→04/11: T4 xong.** Mọi số dưới đây đo trung thực: LLM không thấy ví dụ của chính cửa hàng đang chấm.
+  - `build_bank`: 3000 câu, khoảng 1,4 giờ. Kho có **2117 plan đã kiểm chứng**: 565 bằng đáp án, 1552 theo mẫu.
+  - Lượt `oracle` trung thực đầu tiên (790 câu, tắt cổng): **575 đúng / 7 sai**; cả 7 câu là LLM đọc sai ý. Cổng câu anh em chặn được 6/7 nhưng mất 11 câu đúng.
+  - Đã sửa R31–R33, N14, N15 ([HAN_CHE mục I](HAN_CHE_VA_CAI_THIEN.md)): cổng phải có câu anh em thật; luật căn cứ cho câu hỏi tồn / đơn giá / nhập hàng; ca cần chữ "sáng" / "chiều"; bỏ bộ lọc huỷ thừa; gộp loại kỳ theo họ.
+  - **Sau khi sửa: tắt cổng 575 đúng / 0 sai (PA +0,728); bật cổng 570 đúng / 0 sai (PA +0,722).** Ngưỡng 0 (chỉ đòi câu anh em cùng dạng) đã ghi trong `configs/default.json`. Giữ cổng hay không: xem N16.
+  - K3 trên 149 câu (sau N7 và các cổng mới): **khớp hoàn toàn 76,5%**, 1,8 giây/câu. 15 plan rỗng: 12 bị cổng loại vì LLM bịa bộ lọc / ngày hoặc đọc sai chỉ số, 3 có JSON sai khuôn; không plan nào bị loại oan.
+  - 287 test qua.
+- **Sáng 04/11: chỉ số v2** ([HAN_CHE mục J](HAN_CHE_VA_CAI_THIEN.md), [metrics/README](../datamate/metrics/README.md)). Mỗi công thức đều được dò với đáp án train trước khi viết.
+  - `metrics/stock.py` (§5): tiền nhập, giá nhập bình quân, giá bán ngày D, tồn đến hết ngày X (cả `[chẵn, lẻ]`), xếp nhà cung cấp.
+  - `metrics/debt.py` (§4): nợ thêm, trả nợ, còn nợ, số khách nợ, xếp khách nợ (bảng).
+  - `metrics/industry.py` (§6): số đợt giao.
+  - `sales.py`: lãi gộp, hàng lời nhất, lãi ròng.
+  - Cổng căn cứ mới (R34–R36): tồn cần chữ về tồn; tiền nhập cần "tiền / giá trị" (phòng dòng "nhà cung cấp chính" của rulebook public); lãi gộp không dùng khi câu nói "ròng".
+  - `check_plans`: **316 đúng / 0 sai / 47 bỏ trống** trên 363 câu (trước: 230 / 2 / 131).
+  - Plan LLM của `build_bank` ở 8 cửa hàng có mapping: **690 đúng / 0 sai** / 58 bỏ trống (trước: 565 / 0 / 184). Kho đã kiểm chứng: 2390 plan.
+  - `oracle` có LLM sau v2, đo trung thực trên 8 cửa hàng có mapping tay: bật cổng **699 đúng / 0 sai**, tắt cổng 709 đúng / 0 sai.
+- **Trưa 04/11: T5 mapping tự động** ([HAN_CHE mục K](HAN_CHE_VA_CAI_THIEN.md), [mapping/README](../datamate/mapping/README.md)).
+  - `mapping/transfer.py`: chuyển mapping tay của cửa hàng cùng họ định dạng sang cửa hàng mới.
+    - Theo tên cột: định dạng xuất từ phần mềm.
+    - Theo nghĩa: LLM chọn cột, có mẫu giá trị và mô tả cột trong README; dùng cho sổ tay đổi tên cột.
+    - Vẫn phải qua 10 bước kiểm tra.
+  - Mapping tay thêm: biz_115 (họ `So_chi_tiet_ban_hang`), biz_111 (họ csv `don_hang / chi_tiet_don`).
+  - Sửa ở bước dựng dữ liệu chuẩn (áp cho mọi mapping):
+    - gộp các cách viết của một tên;
+    - "Phí phục vụ" không phải mặt hàng;
+    - bỏ dòng tổng giữa sheet và dòng header lặp lại;
+    - cho phép ≤ 0,5% đơn không rõ trạng thái.
+  - Cổng căn cứ mới: năm của ngày, "quý" ≠ tháng, bộ lọc thứ cần tên ngày, "bao nhiu", "bán được bao nhiêu ly".
+  - **`eval.mapping` (30 cửa hàng train, mapping của chính cửa hàng bị bỏ khỏi ví dụ, plan LLM đã lưu): 1881 đúng / 0 sai / 1119 bỏ trống, PA +0,627** (sau khi ghép bảng theo README + chốt R43).
+  - Cả chuỗi với LLM (`oracle --all --auto-mapping`): v1 830 đúng / 0 sai; v2 1060 / 0; v3 1570 / 0; **v4 1712 / 0 (PA +0,571); v5 1815 / 0 / 1185 bỏ trống (PA +0,605)**.
+  - Public: 8/14 cửa hàng có mapping qua kiểm tra (trước T5: 0).
+  - 315 test qua.
 - **Tài liệu khác:** sổ tay nhóm (artifact, riêng tư) https://claude.ai/artifact/SkCWcHheFw2NE6obQzUPxT; [KE_HOACH_DataMate.md](KE_HOACH_DataMate.md); [data_cards/README.md](data_cards/README.md) (chia 30 cửa hàng train cho thành viên A–D); [rules_notes.md](rules_notes.md).
 
 ## 4. Trạng thái hiện tại
-- 247 test qua (`python -m pytest`; thêm `-m slow` để chạy cả split public thật).
+- 255 test qua (`python -m pytest`; thêm `-m slow` để chạy cả split public thật). T1 xong; việc tiếp theo là T2 (G6 nối tên), rồi T3 theo danh sách ở [research/templates.md](research/templates.md).
 - Chạy bình thường: mọi câu bỏ trống, vì `map_business` (G2) chưa có. Chạy với mapping tay: biz_101 PA +0,70.
 - **Git:** đã commit ngày 1 (`449deaf`) và ngày 2–4 (`cc6908c`). File này và các bản sửa của review lần 2 chưa commit; leader tự commit.
 

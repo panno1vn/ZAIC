@@ -259,6 +259,17 @@ Vì vậy, điểm tới từ ba thứ: **phủ đủ các mẫu câu bằng hà
 | T6 Thử Qwen3-14B | qua đêm | tải 9 GB + K3 | có |
 
 ### T1. Gom cụm mẫu câu (06/11 sáng, ~1,5 giờ)
+> **Xong 03/11 (phiên 3).** Kết quả:
+> - 450 cụm; 95,3% câu nằm trong cụm ≥ 2 câu;
+> - 30,3% câu train nằm trong cụm đã có hàm (cận trên);
+> - bảng 60 cụm và danh sách việc theo dạng plan ở [research/templates.md](research/templates.md).
+>
+> Khác kế hoạch ở ba điểm:
+> - dùng `token_sort_ratio` thay `token_set_ratio`;
+> - tên được che theo tên cột cho cả 30 cửa hàng;
+> - thêm bước tách cụm theo kiểu đáp án train.
+>
+> **Thứ tự T3 đề xuất lại theo số câu:** `avg_order_value` → huỷ → số lượng theo đơn vị → bộ lọc cho doanh thu → so sánh kỳ → tỉ trọng → hiệu ứng tăng giá (83 câu, đưa vào T3) → xếp hạng khách → đếm theo ngưỡng / chuỗi → hàng ế. Sau T3 nên làm ngay `purchase_avg_cost` và `unit_price` (mỗi việc 63 câu).
 - **Mục tiêu:** biến 3000 câu train thành danh sách mẫu câu kèm số câu mỗi mẫu. Đây là danh sách việc của T3, xếp theo điểm đem lại, và là thước đo độ phủ.
 - **Đầu vào → đầu ra:** `data/train/questions.jsonl`, 123 plan viết tay → `tools/research/templates.py`, `docs/research/templates.md` (bảng các cụm), `assets/plans/templates_train.json` (cụm → danh sách id câu). Chỉ dùng train.
 - **Các bước:**
@@ -274,6 +285,12 @@ Vì vậy, điểm tới từ ba thứ: **phủ đủ các mẫu câu bằng hà
 - **Rủi ro:** ngưỡng 90 gộp nhầm hai mẫu khác nghĩa (ví dụ "số đơn" với "số đơn huỷ"). Cách chặn: trong một cụm, các plan phải cùng loại câu và cùng chỉ số; cụm lẫn thì tách ra.
 
 ### T2. G6: nối tên trong câu với giá trị trong dữ liệu (06/11, ~3 giờ)
+> **Xong 03/11 (phiên 3).** Kết quả và cách làm ở [research/linking.md](research/linking.md). Khác kế hoạch ở ba điểm:
+> - so khớp mờ bằng `token_sort_ratio` (không dùng `WRatio` / `token_set_ratio`);
+> - thêm bước "tên đầy đủ có trong câu hỏi";
+> - kênh bán và thanh toán nối về mã, lọc bằng `linking.matches`.
+>
+> Trên 220 câu có bộ lọc: tên hàng nối 100%; mọi giá trị không nối được đều thuộc câu `unanswerable`.
 - **Mục tiêu:** điền `ResolvedPlan.linked`. Ví dụ "coca" → "Coca Cola 330ml" (hoặc mã), "tại quầy" → `store`, "ck" → `transfer`. Câu có bộ lọc chỉ được trả lời khi mọi tên đã nối.
 - **File:** `datamate/nlu/linking.py` (mới), `nlu.link_entities` gọi vào đó; `tests/test_linking.py`.
 - **Ứng viên theo trường lọc:**
@@ -301,6 +318,11 @@ Vì vậy, điểm tới từ ba thứ: **phủ đủ các mẫu câu bằng hà
 - **Rủi ro:** nối nhầm sang mặt hàng tên gần giống ("Bia Tiger lon" với "Bia Tiger Bạc lon"). Cách chặn: ngưỡng cao, luật ngang điểm thì không nối, log `link_scores` để phân tích.
 
 ### T3. G5: thư viện hàm nhóm bán hàng + nối LLM vào pipeline (06–07/11, ~8–10 giờ, việc lớn nhất)
+> **Xong 03/11 (phiên 3).** `oracle --all --llm-url`: 567 đúng / **0 sai** / 223 bỏ trống, PA +0,718. Thêm so với kế hoạch:
+> - `eval.check_plans` (chấm plan có sẵn);
+> - cổng căn cứ cho ngày, năm và chỉ số (R29, R30);
+> - `blank_walk_ins` (R27);
+> - `--llm-cache` để chạy lại khi phát triển.
 - **Mục tiêu:** mỗi mẫu câu phổ biến (theo T1) có một hàm tính đúng tuyệt đối theo rulebook.
 - **Nguyên tắc cho mỗi hàm:** khai báo `requires`, `rules` (id trong `assets/rules/reference_rules.json`), `filters`, `entity` (registry R17).
   - Tiền làm tròn bằng `formatter.money` (nửa lên); phần trăm làm tròn 2 chữ số.
@@ -329,6 +351,16 @@ Vì vậy, điểm tới từ ba thứ: **phủ đủ các mẫu câu bằng hà
   - Mỗi câu sai trong quá trình làm phải có lý do ghi vào file hạn chế, rồi được sửa hoặc có cổng chặn.
 
 ### T4. Kho ví dụ đã kiểm chứng + cổng "câu anh em" (chạy qua đêm 06→07/11 + ~3–4 giờ)
+> **Xong đêm 03→04/11 (phiên 3).**
+> - Kho: 2117 plan đã kiểm chứng (565 bằng đáp án, 1552 theo mẫu).
+> - Đo trung thực trên 790 câu (LLM không thấy ví dụ của chính cửa hàng): bật cổng **570 đúng / 0 sai**, tắt cổng 575 đúng / 0 sai.
+>
+> Khác kế hoạch ở ba điểm:
+> - Ngưỡng chốt là **0**, tức chỉ đòi có câu đã kiểm chứng cùng dạng plan. Điểm giống của câu không tách được câu đúng diễn đạt khác (54–89) khỏi câu đọc sai (76–83).
+> - Loại kỳ được gộp theo họ khi so dạng.
+> - 7 câu sai của lượt đo đầu được chặn bằng luật căn cứ (R32), không phải bằng ngưỡng.
+>
+> Chi tiết ở [HAN_CHE mục I](HAN_CHE_VA_CAI_THIEN.md).
 - **Mục tiêu:** đẩy độ chính xác trên câu đã trả lời lên ≥ 95% mà không mất nhiều câu trả lời.
 - **Kho ví dụ** (`python -m datamate.eval.build_bank`, mới; ra `assets/plans/verified_train.jsonl`):
   1. Cho LLM đọc cả 3000 câu train, mỗi câu dùng kho ví dụ **không chứa câu của cùng cửa hàng**. Khoảng 3000 × 1,8 giây ≈ 1,5 giờ.
@@ -341,6 +373,17 @@ Vì vậy, điểm tới từ ba thứ: **phủ đủ các mẫu câu bằng hà
 - **Thế nào là xong:** có bảng ngưỡng → (độ chính xác, tỉ lệ trả lời); ngưỡng đã chốt ghi vào `configs/`.
 
 ### T5. G2 phần 3: mapping tự động `map_business` (07–08/11, ~6–8 giờ)
+> **Phần lớn xong 04/11 (phiên 3).** Khác kế hoạch: không dùng từ điển đồng nghĩa và không để LLM viết cả mapping. Thay vào đó **chuyển mapping tay của cửa hàng cùng họ định dạng**:
+> - theo tên cột, cho định dạng xuất từ phần mềm;
+> - theo nghĩa (LLM chọn cột trong danh sách cột thật), cho sổ tay đổi tên cột;
+> - sau đó vẫn qua 10 bước kiểm tra.
+>
+> Kết quả:
+> - Cả chuỗi trên 3000 câu train: 1060 đúng / 0 sai (v2).
+> - Public: 4/14 cửa hàng.
+> - Thêm mapping tay biz_115 và biz_111 để phủ hai họ định dạng.
+>
+> Việc còn lại ở HAN_CHE N20. Chi tiết ở [mapping/README](../datamate/mapping/README.md).
 - **Mục tiêu:** cửa hàng chưa từng thấy → mapping qua đủ 10 bước kiểm tra, hoặc bị chặn. Không bao giờ sai mà lọt.
 - **Các bước:**
   1. `datamate/mapping/synonyms.py`: rút từ `assets/mappings/train/*.json`:

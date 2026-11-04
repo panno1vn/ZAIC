@@ -1,0 +1,213 @@
+"""What the sales metrics share, built once per business: orders with their revenue, lines with their product's
+attributes, and the masks that apply a plan's filters (rulebook §1–§3, §6).
+
+A filter the frames cannot apply exactly (a field the shop does not record, a name [C3] did not link, a product
+attribute left blank for some lines) makes the mask None, and the metric returns None: the question abstains rather
+than being answered without its filter.
+"""
+from __future__ import annotations
+
+import re
+import weakref
+
+import pandas as pd
+
+from datamate.contracts import CanonicalDB, Filter, ResolvedPeriod
+from datamate.nlu import linking
+
+VALID_STATUSES = ("completed", "delivering")  # §1: not cancelled, not returned; orders in delivery count
+ORDER_FILTERS = frozenset({"channel", "payment_method", "customer_group", "customer", "employee", "shift", "weekday"})
+LINE_FILTERS = frozenset({"product", "product_group", "active_ingredient", "prescription", "size", "category", "brand"})
+FILTERS = ORDER_FILTERS | LINE_FILTERS
+ORDER_COLUMN = {"channel": "channel", "payment_method": "payment_method", "customer_group": "customer_group",
+                "customer": "customer_key", "employee": "employee"}
+LINE_COLUMN = {"product": "product_key", "product_group": "product_group", "active_ingredient": "active_ingredient",
+               "category": "category", "brand": "brand"}
+SHIFT_HOURS = {"morning": range(6, 14), "afternoon": range(14, 22)}  # §2: 06:00–13:59, 14:00–21:59
+WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+_SIZE = {"M": re.compile(r"\(\s*m\s*\)\s*$", re.I), "L": re.compile(r"\(\s*l\s*\)\s*$", re.I)}  # §6: name ends (M)
+
+_CACHE: dict[int, tuple[weakref.ref, dict]] = {}
+
+
+def _cache(db: CanonicalDB) -> dict:
+    ref, store = _CACHE.get(id(db), (None, None))
+    if ref is None or ref() is not db:
+        store = {}
+        _CACHE[id(db)] = (weakref.ref(db), store)
+    return store
+
+
+def orders(db: CanonicalDB) -> pd.DataFrame | None:
+    """Every order with its day, revenue (§1: sum of its lines' amounts, fee lines included) and whether that revenue
+    is complete (no line with an unread amount)."""
+    store = _cache(db)
+    if "orders" not in store:
+        o, lines = db.table("orders"), db.table("lines")
+        if o is None or lines is None or "line_amount" not in lines.columns:
+            store["orders"] = None
+        else:
+            o = o.copy()
+            o["day"] = o["order_time"].dt.date
+            o["revenue"] = o["order_id"].map(lines.groupby("order_id")["line_amount"].sum()).fillna(0.0)
+            unread = set(lines.loc[lines["line_amount"].isna(), "order_id"])
+            o["revenue_ok"] = ~o["order_id"].isin(unread)
+            store["orders"] = o
+    return store["orders"]
+
+
+def base_units(db: CanonicalDB) -> dict[str, str]:
+    """Base unit of each product (folded): the conversion table's or catalogue's, else the one unit its lines use
+    that has no conversion row (§10: a unit without a conversion row is the base unit)."""
+    store = _cache(db)
+    if "base_units" not in store:
+        out: dict[str, str] = {}
+        conv, products, lines = db.table("unit_conversions"), db.table("products"), db.table("lines")
+        converted: dict[str, set[str]] = {}
+        if conv is not None:
+            for row in conv.itertuples(index=False):
+                converted.setdefault(str(row.product_key), set()).add(linking.norm(row.unit))
+                if "base_unit" in conv.columns and isinstance(row.base_unit, str) and row.base_unit.strip():
+                    out.setdefault(str(row.product_key), linking.norm(row.base_unit))
+        if products is not None and "base_unit" in products.columns:
+            for k, u in zip(products["product_key"].astype(str), products["base_unit"]):
+                if isinstance(u, str) and u.strip():
+                    out.setdefault(k, linking.norm(u))
+        if lines is not None and "unit" in lines.columns:
+            used = lines.dropna(subset=["unit"]).groupby(lines["product_key"].astype(str))["unit"].unique()
+            for k, us in used.items():
+                plain = {linking.norm(u) for u in us} - converted.get(k, set())
+                if k not in out and len(plain) == 1:
+                    out[k] = plain.pop()
+        store["base_units"] = out
+    return store["base_units"]
+
+
+def lines(db: CanonicalDB) -> pd.DataFrame | None:
+    """Every line with its order's day, status, time and customer, and its product's group, ingredient, prescription
+    flag, category, brand and base unit (from the catalogue when the line does not carry them)."""
+    store = _cache(db)
+    if "lines" not in store:
+        o, ln = orders(db), db.table("lines")
+        if o is None or ln is None:
+            store["lines"] = None
+        else:
+            keep = [c for c in ("order_id", "day", "status", "order_time", "has_time", "customer_key") if c in o.columns]
+            df = ln.merge(o[keep], on="order_id", how="inner")
+            df["product_key"] = df["product_key"].astype(str)
+            products = db.table("products")
+            if products is not None:
+                attrs = products.drop_duplicates("product_key").assign(product_key=lambda p: p["product_key"].astype(str))
+                for col in ("product_group", "active_ingredient", "is_prescription", "category", "brand"):
+                    if col in attrs.columns and attrs[col].notna().any():
+                        from_catalogue = df["product_key"].map(attrs.set_index("product_key")[col])
+                        df[col] = df[col].fillna(from_catalogue) if col in df.columns else from_catalogue
+            df["base_unit"] = df["product_key"].map(base_units(db))
+            store["lines"] = df
+    return store["lines"]
+
+
+def in_period(frame: pd.DataFrame, period: ResolvedPeriod) -> pd.Series:
+    return (frame["day"] >= period.start) & (frame["day"] <= period.end)
+
+
+def valid(frame: pd.DataFrame) -> pd.Series:
+    return frame["status"].isin(VALID_STATUSES)
+
+
+def unknown_status(frame: pd.DataFrame) -> bool:
+    """Some order of the frame has no status. The checks let a shop through with a few such orders (a ledger row left
+    blank, in a public shop 1 order of 820), and a figure they could change is not given: whether they count is unknown."""
+    return "status" in frame.columns and bool(frame["status"].isna().any())
+
+
+def _values(f: Filter) -> list:
+    return f.value if isinstance(f.value, list) else [f.value]
+
+
+def _linked(f: Filter, linked: dict[str, str]) -> list[str] | None:
+    out = [linked.get(str(v)) for v in _values(f)]
+    return None if any(v is None for v in out) else out
+
+
+def _apply(mask: pd.Series, sel: pd.Series, f: Filter) -> pd.Series | None:
+    if f.op in ("eq", "in"):
+        return mask & sel
+    if f.op in ("ne", "not_in"):
+        return mask & ~sel
+    return None  # gte / contains on a name: not a filter these frames know
+
+
+def order_mask(o: pd.DataFrame, filters: list[Filter], linked: dict[str, str]) -> pd.Series | None:
+    """Orders passing the order-level filters (channel, payment, customer group, customer, employee, shift, weekday)."""
+    mask = pd.Series(True, index=o.index)
+    for f in filters:
+        if f.field not in ORDER_FILTERS:
+            continue
+        if f.field == "shift":
+            if "has_time" not in o.columns or not o["has_time"].eq(True).all():
+                return None  # §2 shifts need the time of each order
+            hours = o["order_time"].dt.hour
+            sel = pd.Series(False, index=o.index)
+            for v in _values(f):
+                sel |= hours.isin(SHIFT_HOURS[v])
+        elif f.field == "weekday":
+            sel = o["order_time"].dt.dayofweek.isin([WEEKDAYS.index(v) for v in _values(f)])
+        else:
+            col, values = ORDER_COLUMN[f.field], _linked(f, linked)
+            if values is None or col not in o.columns or o[col].isna().all():
+                return None
+            sel = pd.Series(False, index=o.index)
+            for v in values:
+                sel |= linking.matches(f.field, o[col], v)
+            if f.field == "customer_group" and "customer_key" in o.columns:
+                sel &= o["customer_key"].notna()  # §1: walk-in orders belong to no group, not even "lẻ"
+        mask = _apply(mask, sel, f)
+        if mask is None:
+            return None
+    return mask
+
+
+def line_mask(ln: pd.DataFrame, filters: list[Filter], linked: dict[str, str]) -> pd.Series | None:
+    """Lines passing the product-level filters (product, group, ingredient, prescription, size, category, brand)."""
+    mask = pd.Series(True, index=ln.index)
+    items = ln["is_item"].ne(False) if "is_item" in ln.columns else pd.Series(True, index=ln.index)
+    for f in filters:
+        if f.field not in LINE_FILTERS:
+            continue
+        if f.field == "size":
+            pats = [_SIZE.get(str(v).upper()) for v in _values(f)]
+            if None in pats:
+                return None
+            names = ln["product_name"].astype(str)
+            sel = pd.Series(False, index=ln.index)
+            for p in pats:
+                sel |= names.str.contains(p)
+        elif f.field == "prescription":
+            if "is_prescription" not in ln.columns or (ln["is_prescription"].isna() & items).any():
+                return None
+            sel = ln["is_prescription"].fillna(False).astype(bool).isin([bool(v) for v in _values(f)]) & items
+        else:
+            col, values = LINE_COLUMN[f.field], _linked(f, linked)
+            if values is None or col not in ln.columns:
+                return None
+            if f.field != "product" and (ln[col].isna() & items).any():
+                return None  # an item line without the attribute could belong to the asked group (fee lines cannot)
+            sel = ln[col].astype(str).isin(values) & ln[col].notna()
+        mask = _apply(mask, sel, f)
+        if mask is None:
+            return None
+    return mask
+
+
+def filter_columns(filters: list[Filter]) -> list[str]:
+    """Canonical columns a set of filters reads, for ExecResult.requires."""
+    out = []
+    for f in filters:
+        if f.field in ORDER_COLUMN:
+            out.append(f"orders.{ORDER_COLUMN[f.field]}")
+        elif f.field == "shift":
+            out.append("orders.has_time")
+        elif f.field in ("product", "size"):
+            out.append("lines.product_key")
+    return out

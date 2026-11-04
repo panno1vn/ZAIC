@@ -10,6 +10,7 @@ from __future__ import annotations
 import fnmatch
 import re
 import unicodedata
+from collections import Counter
 from datetime import date
 
 import pandas as pd
@@ -31,6 +32,9 @@ AMOUNT_MATCH_MIN = 0.95  # share of lines with amount ≈ qty × price − disco
 SOLD_SHARE_MIN = 0.5  # share of orders completed or delivering; 0.95–0.98 on correct mappings
 NEGATIVE_MAX = 0.001  # share of lines with a negative amount or qty outside returned orders; 0 on correct mappings
 MIN_ROWS = 20  # the share checks need this many orders / lines to mean anything (real shops have hundreds or more)
+# orders whose status cell is blank on their first row (a public shop: 1 order of 820, nothing to read it from): the
+# shop is kept and every figure such an order could change is not given (metrics/frames.unknown_status)
+UNKNOWN_STATUS_MAX = 0.005
 _README_END = re.compile(r"đến hết (?:ngày )?(\d{1,2})/(\d{1,2})/(\d{4})")
 PSEUDO = ("_source", "_row", "_year")
 
@@ -200,7 +204,10 @@ def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
     raw_frames = prepare_raw(raw, mapping)
     for tm in mapping.tables:
         db.tables[tm.target] = _build_table(tm, mapping, db.warnings, raw_frames)
+    unify_keys(db)
+    mark_fee_lines(db)
     derive_base_qty(db)
+    blank_walk_ins(db)
     for table, col in DATE_COLUMNS.items():
         df = db.table(table)
         if df is not None and col in df.columns and df[col].notna().any():
@@ -208,6 +215,67 @@ def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
             if len(values):
                 db.date_ranges[table] = (values.min().date(), values.max().date())
     return db
+
+
+FEE_LINE = re.compile(r"^(?:phi phuc vu|phi dich vu|service charge)\b")
+
+
+def mark_fee_lines(db: CanonicalDB) -> None:
+    """§3: a "Phí phục vụ" line is not an item (not ranked, not counted, still revenue), whatever the mapping says: a
+    mapping moved from a shop without such lines writes every line as an item (04/11: three counts of products one
+    too many)."""
+    lines = db.tables.get("lines")
+    if lines is None or not len(lines) or "product_name" not in lines.columns:
+        return
+    fee = lines["product_name"].map(lambda v: isinstance(v, str) and bool(FEE_LINE.match(_fold(v))))
+    if fee.any():
+        lines["is_item"] = (lines["is_item"] if "is_item" in lines.columns else True)
+        lines.loc[fee, "is_item"] = False
+
+
+def unify_keys(db: CanonicalDB) -> None:
+    """One key per product and per customer however the files spell it (§8 "tên gọi, nhãn", §3 "hai tên chỉ khác
+    cách viết là cùng một khách"). The train files write a name with other case, doubled spaces or no diacritics
+    ("MÌ OMACHI SƯỜN HẦM", "Coca  Cola 330ml", "Gao ST25": 7 of 70 product names in one shop, 04/11); every spelling
+    takes the most frequent one, in every table. Two names apart only by their diacritics ("Bánh bò", "Bánh bơ") stay
+    two, and a spelling without diacritics, which could be either, stays apart from both. Codes are untouched."""
+    for column in ("product_key", "customer_key"):
+        frames = [df for df in db.tables.values() if column in df.columns and len(df)]
+        counts = Counter(v for df in frames for v in df[column].dropna() if isinstance(v, str))
+        by_fold: dict[str, list[str]] = {}
+        for v in counts:
+            by_fold.setdefault(_fold(v), []).append(v)
+        rename = {}
+        for folded, spellings in by_fold.items():
+            if len(spellings) < 2:
+                continue
+            by_name: dict[str, list[str]] = {}
+            for v in spellings:
+                by_name.setdefault(" ".join(v.lower().split()), []).append(v)
+            marked = [n for n in by_name if n != folded]  # names that carry diacritics
+            groups = [spellings] if len(marked) <= 1 else list(by_name.values())
+            for g in groups:
+                keep = max(g, key=lambda v: (counts[v], v))
+                rename.update({v: keep for v in g if v != keep})
+        if rename:
+            for df in frames:
+                df[column] = df[column].map(lambda v: rename.get(v, v))
+            db.warnings.append(f"{column}: gộp {len(rename)} cách viết khác của cùng một tên")
+
+
+# walk-in customers written in the customer column (§3: an order without a customer code is "khách lẻ", not a
+# customer); the spellings found in the train files
+WALK_IN = frozenset({"khach le", "le", "kl", "khach vang lai", "vang lai"})
+
+
+def blank_walk_ins(db: CanonicalDB) -> None:
+    """orders.customer_key empty for walk-in orders, whatever the file wrote ("Khách lẻ", "kl", ""): a mapping that
+    misses one spelling would otherwise rank "kl" as the best customer (T3, 03/11)."""
+    o = db.tables.get("orders")
+    if o is None or "customer_key" not in o.columns:
+        return
+    walk = o["customer_key"].map(lambda v: isinstance(v, str) and (not v.strip() or _fold(v) in WALK_IN))
+    o.loc[walk, "customer_key"] = None
 
 
 def derive_base_qty(db: CanonicalDB) -> None:
@@ -227,9 +295,14 @@ def derive_base_qty(db: CanonicalDB) -> None:
             if "base_unit" in conv.columns and isinstance(row.base_unit, str):
                 base_unit[row.product_key] = _fold(row.base_unit)
     converted = {p for p, _ in factors}
+    # a product sold in two units with no conversion row: which one is the base is unknown (04/11, a mapping moved
+    # from a shop without a conversion table took every unit for the base unit, "1 thùng" for one can)
+    units = lines.dropna(subset=["unit"]).groupby("product_key")["unit"].agg(
+        lambda s: len({_fold(str(u)) for u in s if str(u).strip()}))
+    unclear = {p for p, n in units.items() if n > 1} - converted
 
     def base(p, u, q):
-        if pd.isna(q):
+        if pd.isna(q) or p in unclear:
             return None
         u = _fold(u) if isinstance(u, str) else ""
         if (p, u) in factors:
@@ -253,6 +326,8 @@ def empty_required_cells(db: CanonicalDB) -> list[str]:
         if spec is None or not len(df):
             continue
         for c in spec.columns:
+            if (name, c.name) == ("orders", "status"):
+                continue  # a few orders without status are let through by the status check (UNKNOWN_STATUS_MAX)
             n = int(df[c.name].isna().sum()) if c.required and c.name in df.columns else 0
             if n:
                 out.append(f"{name}.{c.name}: {n}/{len(df)} ô trống")
@@ -304,7 +379,7 @@ def run_checks(db: CanonicalDB, readme: str = "") -> list[CheckResult]:
     has_core = db.has("orders") and db.has("lines")
     problems = [p for name, df in db.tables.items() for p in check_frame(name, df)]
     status_ok = has_core and set(db.tables["orders"]["status"].dropna()) <= set(ORDER_STATUSES) \
-        and db.tables["orders"]["status"].notna().all()
+        and db.tables["orders"]["status"].isna().mean() <= UNKNOWN_STATUS_MAX
     span = db.date_ranges.get("orders")
     span_ok = span is not None and date(2000, 1, 1) <= span[0] <= span[1] <= date(2100, 1, 1)
     lines_ok = has_core and set(db.tables["lines"]["order_id"].dropna()) <= set(db.tables["orders"]["order_id"])

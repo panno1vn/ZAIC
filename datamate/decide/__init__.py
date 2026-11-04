@@ -18,6 +18,8 @@ def decide(signals: Signals, result: ExecResult | None) -> Decision:
         failed.append(f"period_coverage={signals.period_coverage}")
     if signals.compare_coverage not in (None, "full"):
         failed.append(f"compare_coverage={signals.compare_coverage}")
+    if signals.twin_ok is False:  # an LLM reading the train set never confirmed (T4)
+        failed.append("twin")
     if failed:
         return Decision(kind="abstain", reason="cổng chưa qua: " + ", ".join(failed))
     return Decision(kind="answer", confidence=1.0)

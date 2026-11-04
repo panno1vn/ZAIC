@@ -76,8 +76,12 @@ def test_llm_plan_kept_when_baseline_cannot_read_the_question():
 def test_two_readers_must_agree():
     q = "tong dthu thang 6 nam 2026 la bn"  # the baseline reads it as revenue of June 2026
     assert parse_question(q, AS_OF, DataCard(), MockLLM([REVENUE_JUNE])) is not None
-    other = {**REVENUE_JUNE, "measures": [{"metric": "order_count"}]}
+    other = {**REVENUE_JUNE, "measures": [{"metric": "avg_order_value"}]}  # grounded ("dthu"), but another reading
     assert parse_question(q, AS_OF, DataCard(), MockLLM([other])) is None
+    # an LLM plan without ground (no word for orders) is not used; the baseline's reading stands (T4, 03/11)
+    ungrounded = {**REVENUE_JUNE, "measures": [{"metric": "order_count"}]}
+    assert canonical_plan(parse_question(q, AS_OF, DataCard(), MockLLM([ungrounded]))) == canonical_plan(
+        QueryPlan.model_validate(REVENUE_JUNE))
 
 
 @pytest.mark.parametrize("reply", [{"intent": "value"}, {"intent": "value", "measures": [{"metric": "revenue"}],

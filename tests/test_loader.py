@@ -40,6 +40,25 @@ def test_summary_rows_are_dropped_but_a_customer_named_tong_is_kept():
     assert any("bỏ 3 dòng tổng" in n for n in t.notes) and any("chú thích cuối sheet" in n for n in t.notes)
 
 
+def test_a_daily_total_inside_the_sheet_is_dropped_whatever_column_holds_its_label():
+    """04/11, a hand-kept ledger with shuffled columns: "3,411,000 | Tổng ngày 01/03" between two days' rows."""
+    t = to_table([HEADER, ROW, ["", "", "", "", "", "3.411.000"], ["", "", "", "Tổng ngày 01/02", "", "3.411.000"], ROW])
+    assert list(t.frame["Hàng"]) == ["Mì", "", "Mì"]  # a sparse row without a total label stays
+    assert any("bỏ 1 dòng tổng: Tổng ngày 01/02" in n for n in t.notes)
+
+
+def test_a_dated_total_is_dropped_even_on_a_full_row():
+    """04/11, a public shop: "tổng 01/05" in the order id column with the day's sums in five other columns."""
+    t = to_table([HEADER, ROW, ["tổng 01/02", "", "", "", "12", "1.200.000"], ROW])
+    assert len(t.frame) == 2 and list(t.frame["Khách"]) == ["Tống Văn An"] * 2
+
+
+def test_the_header_written_again_inside_the_data_is_no_record():
+    """04/11, a public shop: one row "Mã đơn hàng | Ngày đặt hàng | Trạng thái đơn hàng…" among 84 000 lines."""
+    t = to_table([HEADER, ROW, HEADER, ROW])
+    assert len(t.frame) == 2 and any("bỏ 1 dòng lặp lại header" in n for n in t.notes)
+
+
 def test_duplicate_and_empty_column_names():
     t = to_table([["", "Tên", "Tên", "", "Giá"], ["", "Mì", "Mì gói", "x", "5"]])
     assert list(t.frame.columns) == ["Tên", "Tên_2", "cot_3", "Giá"]  # the all-empty first column is dropped

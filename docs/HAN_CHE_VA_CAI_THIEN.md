@@ -219,6 +219,173 @@ Rà lại toàn bộ code ngày 1–4. Mỗi lỗi nghi ngờ đều được x�
   Thêm nữa, quyền chạy file `.exe` tải về đang bị chặn trên máy. Cách xử lý đề xuất: làm mọi việc nặng trên **máy GPU thuê** (tải model, chạy K3, so 8B / 14B, build Docker, upload thẳng từ máy thuê lên Google Drive bằng `rclone`); laptop chỉ viết code. Cần leader quyết định ngày thuê.
 - [ ] **H21 (Thấp, 04/11).** `profile_business` chỉ tính min / max trên 300 giá trị đầu, nên khoảng ngày trong profile có thể sai (biz_103: "01/04–09/04"). Cần sửa trước khi đưa profile cho LLM viết mapping (G2 phần 3).
 
+## F. T1: gom cụm mẫu câu (phiên 3)
+
+Chi tiết ở [research/templates.md](research/templates.md).
+
+- [ ] **N5 (TB). Plan của cụm không có plan viết tay chưa được kiểm bằng đáp án.**
+  - Nguồn của các plan này: LLM (Qwen3-8B, khớp 83,7% ở K3) hoặc baseline.
+  - Vì vậy dạng plan, và trạng thái hàm, của các cụm đó có thể sai.
+  - Đã giảm rủi ro một phần: LLM đọc 2 câu mỗi cụm (câu đại diện và câu ít giống nhất), hai plan khác dạng thì đánh dấu.
+  - Cách sửa: T4 chạy plan trên 8 cửa hàng có mapping và so với đáp án.
+- [ ] **N6 (Thấp). "Đã có hàm" mới ở mức registry.** Hàm được đăng ký và nhận đủ bộ lọc, nhưng vẫn có thể từ chối một biến thể (nhiều measure, `k` ≠ 1, xếp tăng dần). Câu đó lại cần mapping đúng mới trả lời được. Vì vậy tỉ lệ "câu nằm trong cụm có hàm" là **cận trên**; số thật là kết quả của `oracle --all`.
+- [x] **N7 (TB, cho T3 / G3). `baseline.fold` không gỡ lỗi gõ telex khi tắt bộ gõ** ("thangs", "dduwowcj"). *Xong 03/11: `fold` dùng `templates.tokens`. Baseline đọc được 39/290 câu telex (trước là 0). `oracle --all` không LLM: 116 đúng / 0 sai (trước 113); có LLM: 570 đúng / 0 sai (trước 567). K3 chưa chạy lại.*
+  - Probe ngày 03/11 trên 290 câu train có từ dạng telex: **baseline đọc được 0/290; sau khi gỡ telex bằng `templates.tokens` thì đọc được 35**.
+  - Bộ chọn ví dụ BM25 của prompt dùng cùng `fold`, nên các câu này cũng được chọn ví dụ kém hơn.
+  - Lỗi này an toàn (bỏ trống, không trả lời sai) nhưng làm mất độ phủ.
+  - Cách sửa: `fold` dùng phép gỡ telex của `datamate/nlu/templates.py`. Sửa ở T3, lúc nối LLM, rồi chạy lại K3, vì ví dụ BM25 sẽ đổi.
+- [ ] **N8 (Thấp). Che tên dựa vào tên cột.** Cột có tên lạ thì tên trong cột không được che, và câu bị tách thành cụm riêng.
+  - Kênh bán và hình thức thanh toán cố ý không che.
+  - Chỉ ảnh hưởng số cụm; danh sách việc của T3 không bị ảnh hưởng, vì danh sách này gom theo dạng plan.
+  - T4 dùng `NameIndex` lúc chạy thật thì nên lấy tên từ bảng chuẩn hoá (`products.product_name`, `customers`…), không lấy theo tên cột thô.
+
+## G. T2: nối tên (phiên 3)
+
+Chi tiết ở [research/linking.md](research/linking.md).
+
+- [x] **R26 (TB, phát hiện khi đo T2 ngày 03/11). Linking bỏ sót 6/231 giá trị lẽ ra nối được** (đáp án là số):
+  - LLM chép cả đơn vị đếm vào tên hàng: "bình Gas Petrolimex 12kg", "xe 4m3 cat xay to".
+  - LLM chép sai tên dù câu hỏi có tên đầy đủ: "sinh tu bo" cho "sinh tố bơ (m)", "Nguyễn Mai Hiếu" cho "nghiêm mai hiếu".
+
+  Đây là lỗi an toàn (bỏ trống). → Thử thêm tên hàng sau khi bỏ **đơn vị đếm có thật của cửa hàng** ở đầu; nối theo tên đầy đủ có trong câu hỏi khi tên đó có chung ≥ 2 chữ và ≥ nửa số chữ với giá trị LLM ghi. Cả 6 đã nối đúng; có test hồi quy.
+- [ ] **N9 (TB). Bước "tên có trong câu hỏi" dựa vào việc đề chèn nguyên tên.** Nếu private viết tên tắt hoặc khác cách, bước này không giúp được; câu đó rơi về so khớp mờ (ngưỡng 90) hoặc bỏ trống. Lỗi an toàn, nhưng làm giảm độ phủ. Kiểm lại trên câu public sau lần nộp đầu, chỉ đếm số câu không nối được (không đọc đáp án vì không có).
+- [ ] **N10 (TB). Chưa có đáp án chuẩn cho việc nối.** 9 lần nối không phải khớp tuyệt đối đã xem tay, đều đúng. Kiểm thật bằng đáp án ở T3: câu đã nối mà trả lời sai phải là 0.
+
+## H. T3: thư viện hàm nhóm bán hàng (phiên 3)
+
+Đo bằng `python -m datamate.eval.check_plans`: lấy plan có sẵn (plan tay + plan LLM đã cache), chạy qua cả chuỗi của pipeline, rồi chấm với đáp án train của 8 cửa hàng.
+
+- Lần đầu: 363 câu, **9 sai**.
+- Sau các bản sửa dưới đây: **230 đúng / 2 sai / 131 bỏ trống**. Phần bỏ trống chủ yếu là chỉ số v2.
+
+- [x] **R27 (Cao). Khách lẻ ghi "kl" bị coi là một khách** (biz_117). Khách mua nhiều tiền nhất ra "kl" ở 3 câu.
+  - Nguyên nhân: mapping tay chỉ khai "Khách lẻ / khách lẻ / lẻ".
+  - Sửa: thêm `blank_walk_ins` khi dựng dữ liệu chuẩn. Mọi cách ghi khách lẻ đã thấy trong file train ("khách lẻ", "lẻ", "kl", "vãng lai") và ô rỗng đều thành không có mã khách (§3). Mapping tự động (T5) cũng được hưởng; có test.
+- [x] **R28 (TB). Plan `count_where` không có measure (hợp đồng v1.1 cho phép) không tìm được hàm**, vì `metric_name` chỉ biết lấy chỉ số từ xếp hạng, từ điều kiện liệt kê và từ measure. 6 câu đếm đơn / đếm ngày theo ngưỡng bị bỏ trống oan. → `metric_name` lấy `threshold.metric`; test bắt được.
+- [x] **R29 (Cao). LLM bịa ngày.** Câu "kể từ khi X lên giá …" không ghi ngày (ngày tăng giá nằm trong bảng giá, tức `anchor_price`), LLM ghi ngày hôm nay. Kết quả: 4 câu hiệu ứng tăng giá ra −95% trong khi đáp án là +130…+390%.
+  - Sửa (`grounding.py`): ngày trong plan phải có trong câu hỏi (d/m; hôm nay / hôm qua chỉ khi câu nói vậy); với chuỗi tháng liên tiếp chỉ xét tháng đầu và tháng cuối. Năm của tháng / quý / Tết mà câu không ghi thì **bỏ đi**, để §2 tự suy năm.
+  - Trên 827 plan (149 plan tay + 678 plan LLM), cổng chỉ loại đúng 4 plan bịa ngày.
+- [ ] **N11 (TB, hợp đồng). `trend` không ghi được chiều tăng hay giảm.** Cả 21 câu trend của train đều hỏi chiều tăng, nên hàm trả lời "tăng ngặt qua từng tháng". Nếu private hỏi "giảm liên tục" thì sẽ sai. Cách sửa khi có thời gian: thêm `direction` vào hợp đồng (v1.2), kèm từ khoá căn cứ "giảm".
+- [x] **R30 (Cao). LLM đọc sai ý câu, hàm tính vẫn đúng.** Lượt `oracle --all --llm-url` đầu tiên (790 câu) ra **567 đúng / 2 sai**. Hai câu sai:
+  - "số **ddown** ca chiều" (telex của "đơn") bị đọc thành doanh thu;
+  - "có **bao nhiêu** mặt hàng không bán được" bị đọc thành danh sách.
+
+  Trên plan cache còn một câu nữa: "dthu thuốc kê đơn" bị đọc thành tỉ trọng.
+  - Sửa: `ungrounded_measures` trong `grounding.py`, nằm trong cổng `accept_plan`. Doanh thu cần từ về tiền; số đơn cần "đơn"; tỉ trọng và "% thay đổi" cần từ về phần trăm; đếm hay liệt kê phải khớp chữ của câu ("cái nào" không phải liệt kê).
+  - Trên 807 plan (149 plan tay + plan LLM của cả 30 cửa hàng), cổng chỉ bắt 12 plan, cả 12 đều là LLM đọc sai; không plan tay nào bị loại oan.
+  - **Sau khi sửa: 567 đúng / 0 sai / 223 bỏ trống, PA +0,718.**
+- [ ] **N12 (Cao, T4). Các cổng căn cứ được rút ra từ lỗi trên 8 cửa hàng có mapping**, nên có thể khớp quá sát với chính các câu này. Phép thử thật là T4: đo kiểu bỏ ra một cửa hàng, và chạy trên 22 cửa hàng còn lại khi có mapping tự động. Cổng "câu anh em" (T4) là lớp chặn thứ hai cho LLM đọc sai ý câu.
+- [ ] **N13 (Thấp). Chưa làm:**
+  - xếp hạng tăng dần ("bán chậm nhất");
+  - bảng kèm số đo;
+  - `min_orders` ("khách sộp");
+  - đếm ngày có doanh thu dưới N (cần cả những ngày không có đơn);
+  - `which_more`;
+  - số lượng hỏi theo đơn vị lớn.
+
+  Gặp các dạng này thì hàm trả `None` (bỏ trống). Theo T1, mỗi dạng chỉ có vài câu.
+
+## I. T4: kho đã kiểm chứng và cổng câu anh em (đêm 03→04/11)
+
+Đo trung thực: LLM **không thấy ví dụ của chính cửa hàng** (mặc định của `oracle` từ 03/11), giống khi gặp cửa hàng lạ ở private. Số 571 đúng / 0 sai trước đó lạc quan, vì kho BM25 chứa chính câu đang chấm.
+
+- [x] **R31 (TB). Cổng câu anh em cho qua plan không có câu anh em nào** khi ngưỡng là 0: điểm mặc định 0,0 ≥ 0. → `Twin.passes`: phải có câu anh em, rồi mới so điểm; `oracle --twin-threshold -1` là tắt cổng. Có test.
+- [x] **R32 (Cao). Lượt đo trung thực đầu tiên (790 câu, tắt cổng): 575 đúng / 7 sai.** Cả 7 câu đều do LLM đọc sai ý, hàm tính không sai:
+  - 4 câu hỏi tồn ("còn bao nhiêu tuýp", "kho còn tồn") đọc thành số đã bán tính đến hôm nay;
+  - "đơn giá bao nhiêu tiền một viên" đọc thành doanh thu;
+  - "số nhập trừ số bán" đọc thành số bán;
+  - "có tổng cộng mấy mặt hàng ế, bán ko dc món nào" đọc thành danh sách.
+
+  Sửa trong `ungrounded_measures`: số lượng bán cần chữ "bán / chạy / hot / tiêu thụ / xuất"; plan chỉ có chỉ số bán hàng thì bị loại khi câu hỏi tồn (cụm "còn bao nhiêu", "tồn kho", "trong kho"…), hỏi nhập ("nhập"), hoặc đơn giá ("đơn giá", "giá bán"); "không … món nào" không phải chữ liệt kê. Đo trước khi sửa: luật bắt đủ 7/7, không đụng câu đúng nào, 0/149 plan tay và 0/2105 plan trong kho bị loại oan. Có test cho cả 7 câu.
+- [x] **R33 (TB). Bộ lọc ca chỉ cần chữ "ca", mà "cá" bỏ dấu cũng là "ca".** "bán Chả cá chiên được bao nhiêu tiền" đọc thành doanh thu ca chiều (cửa hàng không mapping, câu anh em 83 điểm nên lọt cổng). → ca sáng cần chữ "sáng", ca chiều cần "chiều". Có test.
+- [x] **N14 (TB). Bộ lọc "trạng thái = huỷ" trên chỉ số huỷ.** LLM thêm bộ lọc này vào 12/2895 plan ("mấy đơn ở trạng thái huỷ"). Với số đơn huỷ, bộ lọc thừa làm hàm từ chối nên câu bị bỏ trống; với tỉ lệ huỷ, bộ lọc làm tỉ lệ thành 100%. → `nlu.drop_implied_filters` bỏ bộ lọc này. Có test.
+- **Chọn ngưỡng cổng (`twin_gate`).** Trên 749 plan của 8 cửa hàng có mapping, không ngưỡng nào có câu sai, nên bảng này không chọn được ngưỡng. Thêm phép đo trên 22 cửa hàng không có mapping: plan **khác dạng** với cách đọc đã kiểm chứng của cụm mẫu câu thì nhiều khả năng là đọc sai. Đọc tay 61 plan khác dạng:
+  - khoảng một nửa là đọc sai thật ("hoạt chất" đọc thành tên hàng, "quý 2" đọc thành tháng, "Chả cá chiên" đọc thành ca);
+  - phần còn lại chỉ khác loại kỳ ("tháng này" so với "tháng 3"), vì T1 che số khi gom cụm.
+
+  Điểm giống của câu anh em không tách được hai nhóm: câu đúng nhưng diễn đạt khác có điểm 54–89, câu đọc sai 76–83. Vì vậy chọn **ngưỡng 0**, tức chỉ đòi có câu đã kiểm chứng cùng dạng plan ở cửa hàng khác.
+- [x] **N15 (TB). Cổng làm mất câu đúng chỉ vì loại kỳ.** Lượt có cổng (trước khi sửa) mất 11 câu đúng, phần lớn vì kho có "tháng 3" mà câu hỏi "tháng này". → `twins.twin_shape` gộp loại kỳ theo họ (hôm nay / hôm qua / một ngày; tuần này / tuần trước; tháng này / tháng trước / một tháng). Các kỳ đổi ý câu vẫn tách riêng: "đến hết ngày" (tồn), quý, Tết, khoảng ngày. Trên 749 plan có mapping, số câu đúng bị chặn giảm từ 12 xuống 6.
+- [ ] **N16 (TB). Có nên giữ cổng câu anh em không: số trên train còn sát nhau.**
+  - Sau mọi bản sửa (lượt v2): bật cổng 570 đúng / 0 sai, tắt cổng 575 đúng / 0 sai. Như vậy trên train cổng chỉ làm mất 5 câu đúng: 2 câu Tết, 2 câu ca làm, 1 câu số gói. Lý do là khi đo bỏ ra một cửa hàng, kho thiếu dạng plan của cửa hàng đó.
+  - Phép đo duy nhất trên **lỗi đọc sai kiểu mới**, trước khi có luật khớp riêng với chúng, là lượt đầu: cổng chặn 6/7 câu sai và mất 11 câu đúng. Sau N15, số câu đúng mất ở mức 5.
+  - Quyết định tạm: **giữ cổng (ngưỡng 0)**. Khi chạy thật, kho có câu của mọi cửa hàng train, nên số câu đúng bị mất sẽ ít hơn con số đo bỏ ra một cửa hàng. Còn lỗi đọc sai kiểu mới ở private thì luật căn cứ chưa biết trước được.
+  - Muốn tắt: đổi `"twin_threshold"` thành `null` trong `configs/default.json`.
+  - Cách đo thật: lần nộp public đầu tiên (09/11), nếu lượt nộp cho phép thì nộp cả hai bản (bật / tắt cổng) và so điểm trên leaderboard. Đó là cửa hàng lạ thật.
+
+## J. Chỉ số v2: nhập hàng, giá bán, tồn kho, công nợ (04/11)
+
+Mỗi công thức đều được dò với đáp án train trước khi viết (xem [metrics/README](../datamate/metrics/README.md)).
+- Đã có: nhập hàng, giá bán, tồn, công nợ (thu / nợ thêm / còn nợ / xếp khách nợ), số đợt giao, lãi gộp, lãi ròng.
+- `check_plans`: 316 đúng / **0 sai** / 47 bỏ trống trên 363 câu (trước: 230 / 2 / 131).
+- Plan LLM của `build_bank` trên 8 cửa hàng có mapping: 690 đúng / 0 sai / 58 bỏ trống trên 748 plan (trước v2: 565 / 0 / 184).
+
+- [x] **R34 (TB). "Số nhập trừ số bán" bị đọc thành tồn cuối tháng.** Lỗi lộ ra khi đã có hàm tồn: `check_plans` ra 98, trong khi đáp án là −28. → Chỉ số tồn cần chữ về tồn ("tồn", "còn", "trong kho", "hết hàng"). Trên 149 plan tay và 2346 plan trong kho, luật không gạt nhầm plan nào. Có test.
+- [x] **R35 (TB, phòng trước cho public). Rulebook public có dòng "nhà cung cấp chính" = nhiều phiếu nhập nhất, khác với nhập nhiều tiền nhất.** LLM có thể đọc câu đó thành xếp theo tiền nhập.
+  - Sửa 1: tiền nhập cần chữ "tiền" hoặc "giá trị". Cả 9 cụm câu về tiền nhập trong train đều có một trong hai chữ này.
+  - Sửa 2: thêm hàm xếp theo số phiếu, gắn dòng luật `§5.nha_cung_cap_chinh`. Trên train, [R] tự chặn hàm này vì rulebook train không có dòng đó. Có test.
+- [x] **R36 (TB). "Lợi nhuận ròng" bị đọc thành lãi gộp** (lỗi lộ ra khi đã có hàm lãi gộp: 81 130 158 so với đáp án 8 125 158). → Lãi gộp không được dùng khi câu có chữ "ròng"; lãi ròng cần chữ "ròng" hoặc "chi phí". Thêm hàm lãi ròng (3/3 câu dò khớp). Có test.
+- [ ] **N17 (TB). Tồn của một ngày trước ảnh tồn duy nhất thì bỏ trống.** Phần lớn cửa hàng chỉ có một ảnh tồn vào ngày cuối dữ liệu; muốn ra tồn ngày trước đó phải lùi các phát sinh nhập / bán / trả, mà luật trả hàng với kho chưa rõ. Mọi câu tồn trong train đều hỏi "hết hôm nay", trùng với ngày của ảnh tồn. Nếu private hỏi ngày khác thì câu bị bỏ trống (an toàn).
+- [ ] **N18 (Thấp). Giá bán hỏi theo đơn vị lớn ("giá một thùng") và giá nhập hỏi theo đơn vị khác đơn vị nhập thì bỏ trống**, vì §5 chỉ định nghĩa theo đơn vị cơ bản / đơn vị nhập. Train không có câu nào như vậy.
+
+## K. T5: mapping tự động (04/11)
+
+Cách làm ở [mapping/README](../datamate/mapping/README.md). Đo bằng `eval.mapping` (plan LLM đã lưu) và `oracle --all --auto-mapping` (cả chuỗi, LLM thật); mapping của chính cửa hàng luôn bị bỏ khỏi ví dụ.
+- Cả chuỗi trên 3000 câu train: v1 (chỉ theo tên cột) 830 đúng / 0 sai; v2 (thêm theo nghĩa, gộp khoá, cổng năm) 1060 / 0; v4 1712 / 0; **v5 (ghép bảng theo README + chốt R43) 1815 đúng / 0 sai, PA +0,605**.
+- Public: 8/14 cửa hàng có mapping qua kiểm tra.
+
+- [x] **R37 (Cao). Mapping "theo nghĩa" từ một sổ không mã đơn đọc một cửa hàng có mã đơn từng dòng một**: qua đủ 10 bước kiểm tra mà sai 68/119 câu (số đơn, đơn huỷ, doanh thu). → Mẫu không mã đơn chỉ dùng khi không cột nào của cửa hàng mới gom dòng thành đơn (`_groups_rows`: ≥ 20% dòng tiếp nối dòng trên, ≥ 5% giá trị khác nhau). Có test.
+- [x] **R38 (TB). Tên hàng / tên khách ghi nhiều cách** ("MÌ OMACHI", "Coca  Cola", "Gao ST25"; 7/70 tên ở biz_101, cả ở mapping tay). Số lượng của một mặt hàng bị chia ra nhiều khoá: một câu "bán chạy nhất" sai. → `build.unify_keys` gộp về cách viết hay gặp nhất; hai tên chỉ khác dấu thì không gộp. Có test.
+- [x] **R39 (TB). Dòng "Phí phục vụ" bị tính là mặt hàng** khi mapping chuyển từ cửa hàng không có dòng này: 3 câu "mấy mặt hàng xuất hiện ≥ N đơn" thừa 1. → `build.mark_fee_lines` theo §3. Có test.
+- [x] **R40 (TB). Dòng tổng giữa sheet không bị bỏ** khi nhãn "Tổng ngày…" không nằm ở ô đầu (cột xáo thứ tự). → loader xét mọi ô của dòng thưa. Có test.
+- [x] **R41 (TB). LLM đọc sai, lộ ra trên các cửa hàng mới có mapping:**
+  - năm của ngày tăng giá khác năm câu hỏi ghi;
+  - "quý 2" đọc thành tháng 2;
+  - bộ lọc "thứ Hai" bịa từ chữ "thu" của "doanh thu";
+  - "bao nhiu mặt hàng" đọc thành danh sách;
+  - "bán được bao nhiêu ly" thêm doanh thu.
+
+  Mỗi lỗi có cổng căn cứ và test. 0/149 plan tay, 0/2390 plan trong kho bị loại oan.
+- [x] **R42 (Thấp). `count_where` theo khách và nợ theo khách lỗi khi cửa hàng không ghi khách** (mapping chuyển sang bỏ cột tuỳ chọn). → trả `None`.
+- [x] **R43 (Cao). Ghép bảng theo mô tả README (khi tên file khác nhau) mở ra cặp mẫu khác cấu trúc: 47 câu sai** trên train. Ba nguyên nhân, ba chốt, mỗi chốt có test:
+  - LLM ghép cột "số lượng quy đổi" của mẫu vào chính cột số lượng → hai cột mẫu khác nghĩa không được chung một cột mới (`_one_meaning_each`);
+  - mặt hàng bán theo hai đơn vị mà không có hệ số quy đổi → số lượng cơ bản để trống (`derive_base_qty`);
+  - mẫu có mã đơn dùng cho sổ không mã đơn → cột ghép làm mã đơn của dòng hàng phải gom dòng thành đơn (`_order_ids_group_lines`).
+
+  Sau đó: **1881 đúng / 0 sai** trên 30 cửa hàng train; public 8/14. Mẫu cùng tên file được thử trước mẫu chỉ khớp theo README.
+- [ ] **N19 (TB). Ngưỡng 0,5% đơn không rõ trạng thái** (một cửa hàng public có 1/820 đơn để trống trạng thái ở dòng đầu). Số liệu nào đơn đó có thể làm thay đổi thì bỏ trống, nên an toàn. Nhưng ngưỡng mới dựa trên một trường hợp. Review 04/11: **không cửa hàng train nào có đơn thiếu trạng thái**, nên quy tắc này sinh ra từ việc nhìn dữ liệu public (vùng xám của luật, xem mục L).
+- [ ] **N20 (Cao). Độ phủ public còn thấp (8/14).** Các họ định dạng còn thiếu mapping mẫu:
+  - csv `danh_sach_hoa_don` chỉ có đơn, không có dòng hàng (train biz_110);
+  - `chi_tiet_hoa_don.csv`, `ChiTietHoaDon_*.xlsx`;
+  - sổ có sheet "Ghi tắt";
+  - sổ sửa xe, sổ điện thoại (§6).
+
+  Cách sửa: thêm mapping tay cho cửa hàng train cùng họ (nếu có). Review 04/11 đổi cách dò: **dò trên 10 cửa hàng train không map được khi bỏ mapping của chính nó** (biz_101, 107, 110, 111, 113, 120, 123, 124, 126, 127), không dò từng cửa hàng public (xem mục L).
+
+## L. Review cuối phiên 3: hướng đi, luật, bug (04/11)
+
+Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval.mapping` vẫn ra **1881 đúng / 0 sai / 1119 bỏ trống** trên train (PA +0,627).
+
+**Bug đã sửa (mỗi mục có test):**
+- [x] **R44 (TB). README của bảng không được README gọi đúng tên lấy nhầm mô tả của mục README đầu tiên** (`transfer.column_notes`: phép so tên gốc của file luôn đúng). Ví dụ `SoBanHang_1.xlsx` nhận mô tả cột của `KhachHang.xlsx`; LLM ghép cột theo nghĩa thấy mô tả của bảng khác.
+  - Đo: train 0/339 bảng dính, nên các số đo T5 không bị ảnh hưởng. Public 34/163 bảng, ở 2 cửa hàng; cả hai map theo tên cột (không qua LLM), nên đáp án cũng không đổi.
+  - Sửa: so đúng tên gốc; README không nhắc bảng thì không có mô tả.
+- [x] **R45 (TB). Ngày ảnh tồn kho được gán là ngày cuối dữ liệu cho mọi cửa hàng mới**, dù README của cửa hàng đó có nói vậy hay không. Một cửa hàng ghi tồn đầu kỳ, hoặc tồn tại ngày khác, sẽ sai mọi câu tồn kho mà không bước kiểm tra nào bắt được.
+  - Căn cứ: mọi README train có file tồn đều ghi "**X** là tồn cuối ngày cuối có dữ liệu".
+  - Sửa: hằng số ngày tồn chỉ giữ khi README cửa hàng mới có câu đó; không có thì bỏ bảng tồn (câu tồn kho bỏ trống). Train 5/5 cửa hàng có câu này, nên không đổi. Public chưa cửa hàng nào dính, vì cửa hàng duy nhất có tồn lấy ngày từ cột của file.
+
+**Luật thi:**
+- Code chạy thật không đọc `answers.jsonl` hay `outputs/`, không ghi vào thư mục dữ liệu, không có id cửa hàng hay câu hỏi (`test_no_id_logic`). LLM giải mã tham lam (temperature 0, top_k 1, seed 0), nên BTC chạy lại cho cùng kết quả. Cache LLM chỉ dùng khi phát triển.
+- Mapping tay chỉ có ở 10 cửa hàng train. Không từ khoá trạng thái nào chỉ xuất hiện ở public (đếm 04/11).
+- [ ] **N21 (Thấp). Đo leave-one-out còn rò từ điển giá trị**: `vocabulary()` gộp cả mapping tay của cửa hàng đang bị bỏ ra. Đo 04/11: chỉ khác 2 từ khách lẻ ('kl', 'lẻ'), mà `blank_walk_ins` đằng nào cũng xử lý; trạng thái đơn không khác từ nào. Số đo vẫn đúng; sửa khi động vào phần này.
+- [ ] **N22 (TB, cần trưởng nhóm quyết). Vùng xám: thiết kế dựa trên dữ liệu public.** N19 (ngưỡng 0,5% đơn không rõ trạng thái) sinh ra từ một cửa hàng public. Đây không phải nhãn hay huấn luyện: quy tắc chung, và số liệu đơn đó có thể làm đổi thì bỏ trống. Đề xuất: giữ, ghi rõ trong tài liệu phương pháp. Từ nay không dò lỗi từng cửa hàng public nữa (N20 đổi cách dò).
+- `R_MAIN_SUPPLIER` đọc một dòng chỉ có trong rulebook public. Rulebook là đầu vào đi kèm mỗi split, và [R] chặn khi dòng đó vắng, nên hợp lệ.
+
+**Hướng đi:**
+- 2/3 số câu bỏ trống trên train (≈ 790/1185) là của 10 cửa hàng không map được. Ở 20 cửa hàng map được: ≈ 85% đúng, 0 sai. **Đòn bẩy lớn nhất vẫn là độ phủ mapping.** Mapping chuyển từ mẫu chỉ phủ các định dạng train có; private có thể có định dạng mới.
+- [ ] **N23 (Cao). Mapping dựng từ README khi không mẫu nào khớp.** README mô tả từng cột ("## Cột trong `file`", "- **cột**: ý nghĩa"), và README ở mọi split đều theo một khuôn. LLM chọn cột cho từng cột chuẩn theo mô tả README, rồi qua 10 bước kiểm tra. Dò và đo trên 10 cửa hàng train không map được (leave-one-out), yêu cầu 0 sai.
+- [ ] **N24 (Cao). "0 sai" là số trong mẫu.** Các cổng và chốt được thêm sau khi thấy lỗi trên chính train, nên tỉ lệ sai thật trên cửa hàng mới chưa biết. **Nộp public sớm nhất có thể** để đo; mỗi ngày được 5 lần, so cả bật / tắt cổng câu anh em (N16).
+- Docker chưa làm (kế hoạch 10–12/11, chờ guideline BTC): llama-server CUDA ≥ 12.8 trong image, chép `assets/` (H14), chạy thử đủ 6 giờ trên máy thuê.
+
 ## Thứ tự xử lý đề xuất
 1. **T4 sáng:** sửa H1–H7, sinh lại schema, thêm test cho từng mục.
 2. **T4–T5:** K2 (cả nhóm), K3 (người có kinh nghiệm), K1 review chéo.

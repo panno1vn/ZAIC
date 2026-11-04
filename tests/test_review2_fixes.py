@@ -87,23 +87,26 @@ def registry():
 def test_r17_rankings_of_different_entities_do_not_replace_each_other(registry):
     day = REGISTRY[("rank", "revenue", "day")].fn
 
-    @metric("rank", "revenue", entity="customer")
-    def top_customers(p, d):
-        return ExecResult(value="Chị Lan", answer_type="string", source="D1")
+    # an entity the sales library does not rank (T3 registered customer, employee, day, month, product)
+    @metric("rank", "revenue", entity="supplier")
+    def top_suppliers(p, d):
+        return ExecResult(value="Cty Lan", answer_type="string", source="D1")
     assert REGISTRY[("rank", "revenue", "day")].fn is day
-    customer = plan({"intent": "rank", "rank": {"entity": "customer", "by": "revenue"}, "period": {"kind": "this_month"}})
-    assert metrics.execute(customer, CanonicalDB()).value == "Chị Lan"
+    supplier = plan({"intent": "rank", "rank": {"entity": "supplier", "by": "revenue"}, "period": {"kind": "this_month"}})
+    assert metrics.execute(supplier, CanonicalDB()).value == "Cty Lan"
     with pytest.raises(ValueError):
-        metric("rank", "revenue", entity="customer")(top_customers)
+        metric("rank", "revenue", entity="supplier")(top_suppliers)
+    with pytest.raises(ValueError):  # the library's own key cannot be replaced either
+        metric("rank", "revenue", entity="day")(top_suppliers)
 
 
 def test_r17_a_filter_the_function_does_not_declare_never_reaches_it(registry):
-    @metric("value", "cancel_count", filters=("payment_method",))
-    def cancels(p, d):
+    @metric("value", "cash_collected", filters=("payment_method",))  # a v2 metric: no library function yet
+    def paid(p, d):
         return ExecResult(value=3, answer_type="number", source="D1")
     base = {"intent": "value", "period": {"kind": "this_month"}}
-    by_method = {"metric": "cancel_count", "filters": [{"field": "payment_method", "value": "COD"}]}
-    by_product = {"metric": "cancel_count", "filters": [{"field": "product", "value": "Mì"}]}
+    by_method = {"metric": "cash_collected", "filters": [{"field": "payment_method", "value": "COD"}]}
+    by_product = {"metric": "cash_collected", "filters": [{"field": "product", "value": "Mì"}]}
     assert metrics.execute(plan({**base, "measures": [by_method]}), CanonicalDB()).value == 3
     assert metrics.execute(plan({**base, "measures": [by_product]}), CanonicalDB()) is None
     compare = {"kind": "filter", "filters": [{"field": "shift", "value": "morning"}]}

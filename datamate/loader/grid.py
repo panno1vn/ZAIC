@@ -22,6 +22,9 @@ _DATA_LIKE = re.compile(
     r"|^\d{1,2}\s*thg\s*\d{1,2}", re.I)
 # "Cộng", "Tổng cộng", "Tổng tháng", "Total"…; only on sparse rows, so a customer "Tống Văn An" on a full row stays
 _SUMMARY = re.compile(r"^(?:cong|tong|total|grand total|sum|subtotal)\b")
+# a total of a day or month ("tổng 01/05", "Tổng ngày 01/03", "Cộng tháng 3"): a summary on a full row too, its
+# numbers in every column; a name "Tống Văn An" has no number after it
+_DATED_SUMMARY = re.compile(r"^(?:cong|tong|total)(?: cong)?(?: ngay| thang)? ?\d{1,2}(?:[/.-]\d{1,4})*$")
 
 
 def cell_text(v) -> str:
@@ -111,15 +114,21 @@ def to_table(grid: list[list]) -> Table:
         notes.append("tên cột trùng, đã thêm hậu tố _2, _3…")
     body = rows[h + 1:]
     min_filled = max(2, _filled(header) // 2)
-    keep, dropped = [], []
+    keep, dropped, repeated = [], [], 0
     for r in body:
-        first = next((c for c in r if c), "")
-        if _SUMMARY.match(fold(first)) and _filled(r) < min_filled:  # "Cộng" + a total; a customer "Tống…" is a full row
+        # "Cộng" + a total; a customer "Tống…" is a full row. The label may sit after the total: columns come in any
+        # order ("3,411,000 | Tổng ngày 01/03", daily totals inside a hand-kept ledger sheet)
+        if (_filled(r) < min_filled and any(c and _SUMMARY.match(fold(c)) for c in r)) or any(
+                c and _DATED_SUMMARY.match(fold(c)) for c in r):  # "tổng 01/05" in the order id column, sums beside
             dropped.append(" ".join(c for c in r if c)[:60])
+        elif _filled(r) and sum(bool(c) and c == n for c, n in zip(r, header)) * 2 > _filled(r):
+            repeated += 1  # the header written again inside the data (files pasted together): no record
         else:
             keep.append(r)
     if dropped:
         notes.append(f"bỏ {len(dropped)} dòng tổng: {dropped[0]}")
+    if repeated:
+        notes.append(f"bỏ {repeated} dòng lặp lại header")
     footer = []
     while keep and len(names) >= 4 and _filled(keep[-1]) <= 1:  # "Ghi chú: tiền tính bằng đồng" under the data
         footer.insert(0, " ".join(c for c in keep.pop() if c)[:60])

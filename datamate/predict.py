@@ -25,7 +25,21 @@ def load_config(path: Path) -> RunConfig:
     return RunConfig(time_budget_s=cfg.get("time_budget_hours", 5.5) * 3600,
                      reserve_s=cfg.get("reserve_seconds", 120.0),
                      write_logs=cfg.get("write_logs", True),
-                     started_at=PROCESS_START)
+                     started_at=PROCESS_START,
+                     twin_threshold=cfg.get("twin_threshold"))
+
+
+def connect_llm(url: str | None, timeout_s: float = 60.0, cache: str | None = None):
+    """A llama-server client that answers /health, else None (and a message): never a run with a dead server.
+    `cache`: a jsonl file of earlier answers (development runs on train only)."""
+    if not url:
+        return None
+    from .llm import CachedLLM, LlamaServerLLM
+    llm = LlamaServerLLM(url, timeout_s=timeout_s)
+    if not llm.healthy():
+        print(f"không gọi được {url}/health: server chưa chạy hoặc chưa load xong model", file=sys.stderr)
+        return None
+    return CachedLLM(llm, cache) if cache else llm
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,6 +51,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--config", default=str(DEFAULT_CONFIG))
     ap.add_argument("--budget-hours", type=float, help="ghi đè ngân sách thời gian trong config")
     ap.add_argument("--no-logs", action="store_true")
+    ap.add_argument("--llm-url", help="llama-server đọc câu hỏi, ví dụ http://127.0.0.1:8091 (mặc định: chỉ baseline)")
     args = ap.parse_args(argv)
 
     config = load_config(Path(args.config))
@@ -44,7 +59,10 @@ def main(argv: list[str] | None = None) -> int:
         config.time_budget_s = args.budget_hours * 3600
     if args.no_logs:
         config.write_logs = False
-    summary = run(Path(args.data), Path(args.out), config)
+    llm = connect_llm(args.llm_url)
+    if args.llm_url and llm is None:
+        return 1
+    summary = run(Path(args.data), Path(args.out), config, llm)
     types = ", ".join(f"{t}={n}" for t, n in summary.types.most_common())
     print(f"{summary.n_questions} câu · {types} · lỗi {summary.errors} · hết giờ {summary.timed_out} · "
           f"{summary.elapsed_s:.1f}s → {Path(args.out) / 'submission.jsonl'}")

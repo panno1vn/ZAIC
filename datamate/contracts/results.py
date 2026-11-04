@@ -32,6 +32,7 @@ class Signals(BaseModel):
     sane: bool = False
     rules_unchanged: bool = False
     paths_agree: bool | None = None  # D1 vs D2, when both ran
+    twin_ok: bool | None = None  # T4: an LLM plan has a verified twin or the baseline's agreement; None = not gated
     notes: list[str] = []
 
 

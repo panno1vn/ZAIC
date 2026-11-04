@@ -16,6 +16,8 @@ from datamate.contracts import CODED_VALUES, DataCard, QueryPlan
 from .baseline import fold
 
 BANK_FILES = sorted((Path(__file__).resolve().parents[2] / "assets" / "plans").glob("*.jsonl"))
+VERIFIED_FILE = "verified_train.jsonl"  # LLM plans verified by the train answers (T4, eval/build_bank.py)
+HAND_FILES = [f for f in BANK_FILES if f.name != VERIFIED_FILE]  # what build_bank and K3 may use as examples
 
 # Generation schema: one branch per intent, its fields required and in reading order. With every field optional the
 # server's grammar let the model close an object early: K3 (05/11) found plans without a period (10/123), without the

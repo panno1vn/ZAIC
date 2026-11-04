@@ -51,11 +51,11 @@ def test_p3_rank_without_measures_runs_its_metric():
     db, _ = world()
     saved = dict(REGISTRY)
 
-    @metric("rank", "revenue")
+    @metric("rank", "gross_profit")  # a metric the sales library does not rank by
     def top(p, d):
         return ExecResult(value="Khách A", answer_type="string", source="D1")
     try:
-        plan = ResolvedPlan(plan=QueryPlan.model_validate({"intent": "rank", "rank": {"entity": "customer", "by": "revenue"},
+        plan = ResolvedPlan(plan=QueryPlan.model_validate({"intent": "rank", "rank": {"entity": "customer", "by": "gross_profit"},
                                                           "period": {"kind": "last_week"}}), as_of=date(2026, 6, 30))
         assert metrics.execute(plan, db).value == "Khách A"
     finally:

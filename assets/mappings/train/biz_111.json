@@ -1,0 +1,79 @@
+{
+  "industry": "cà phê",
+  "record_grain": "order",
+  "notes": [
+    "Mapping tay từ README biz_111: 5 file csv nối bằng mã (đơn, chi tiết đơn, sản phẩm, khách, phiếu thu).",
+    "NgayBan chỉ có ngày, ghi nhiều kiểu (serial Excel, '1 thg 1 2025'): has_time false. Trạng thái và hình thức thanh toán ghi sẵn bằng mã.",
+    "Dòng hàng chỉ có mã hàng: tên tra từ san_pham.csv; 'SL quy đổi' là số lượng theo đơn vị cơ bản. Khách: tên ở cột 'Khách lẻ/sỉ' của khach_hang.csv (kèm số điện thoại như file ghi)."
+  ],
+  "tables": [
+    {
+      "target": "orders",
+      "sources": ["don_hang.csv"],
+      "columns": [
+        {"target": "order_id", "source": "Mã chứng từ"},
+        {"target": "order_time", "source": "NgayBan", "parse": "datetime"},
+        {"target": "has_time", "const": false},
+        {"target": "status", "source": "Xử lý"},
+        {"target": "customer_key", "source": "Số KH"},
+        {"target": "customer_name", "source": "Số KH", "transform": "lookup",
+         "args": {"table": "khach_hang.csv", "key": "ma_kh", "value": "Khách lẻ/sỉ", "keep_missing": false}},
+        {"target": "customer_group", "source": "Số KH", "transform": "lookup",
+         "args": {"table": "khach_hang.csv", "key": "ma_kh", "value": "Nhóm", "keep_missing": false}},
+        {"target": "channel", "source": "Bán qua"},
+        {"target": "payment_method", "source": "Phương thức TT"},
+        {"target": "total_due", "source": "Tổng bill", "parse": "money"}
+      ],
+      "value_maps": {
+        "status": {"completed": "completed", "cancelled": "cancelled", "returned": "returned",
+                   "shipping": "delivering"}
+      }
+    },
+    {
+      "target": "lines",
+      "sources": ["chi_tiet_don.csv"],
+      "columns": [
+        {"target": "order_id", "source": "Ma don"},
+        {"target": "line_no", "source": "Thứ tự", "parse": "number"},
+        {"target": "product_key", "source": "ID SP"},
+        {"target": "product_name", "source": "ID SP", "transform": "lookup",
+         "args": {"table": "san_pham.csv", "key": "SKU", "value": "Sản phẩm"}},
+        {"target": "is_item", "const": true},
+        {"target": "qty", "source": "SL", "parse": "qty"},
+        {"target": "unit", "source": "Đơn vị (tính)"},
+        {"target": "base_qty", "source": "SL quy đổi", "parse": "qty"},
+        {"target": "unit_price", "source": "Giá đơn vị", "parse": "money"},
+        {"target": "line_amount", "source": "T.Tiền", "parse": "money"}
+      ]
+    },
+    {
+      "target": "products",
+      "sources": ["san_pham.csv"],
+      "columns": [
+        {"target": "product_key", "source": "SKU"},
+        {"target": "product_name", "source": "Sản phẩm"},
+        {"target": "product_group", "source": "Nhom hang"},
+        {"target": "base_unit", "source": "Đơn vị"}
+      ]
+    },
+    {
+      "target": "customers",
+      "sources": ["khach_hang.csv"],
+      "columns": [
+        {"target": "customer_key", "source": "ma_kh"},
+        {"target": "customer_name", "source": "Khách lẻ/sỉ"},
+        {"target": "customer_group", "source": "Nhóm"}
+      ]
+    },
+    {
+      "target": "payments",
+      "sources": ["thanh_toan.csv"],
+      "columns": [
+        {"target": "order_id", "source": "Số HĐ"},
+        {"target": "paid_time", "source": "Thời gian thu", "parse": "datetime"},
+        {"target": "amount", "source": "Tiền", "parse": "money"},
+        {"target": "method", "source": "Phương thức"}
+      ]
+    }
+  ]
+}

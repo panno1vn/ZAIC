@@ -15,9 +15,10 @@ from pathlib import Path
 from typing import Callable
 
 from datamate import codegen, decide, formatter, loader, mapping, metrics, nlu, rules, temporal, verify
-from datamate.contracts import (BusinessProfile, CanonicalDB, DataCard, Mapping, RawBusiness, ResolvedPlan,
-                                SubmissionLine)
+from datamate.contracts import (BusinessProfile, CanonicalDB, DataCard, Mapping, QueryPlan, RawBusiness,
+                                ResolvedPlan, SubmissionLine)
 from datamate.llm import LLMClient
+from datamate.nlu import twins
 from datamate.output import SubmissionWriter, TimeGuard, write_log
 
 
@@ -30,6 +31,9 @@ class RunConfig:
     reserve_s: float = 120.0
     write_logs: bool = True
     started_at: float | None = None  # time.monotonic() at process start; None = when run() starts
+    twin_threshold: float | None = None  # T4: an LLM plan needs a verified twin this similar (None: gate off)
+    # development hook: example ids the LLM may not see for a question (oracle: its business's own train questions)
+    exclude_examples: Callable[[dict], frozenset[str]] | None = None
     # development hooks, never set by predict: hand-made mappings, a subset of questions (datamate/eval/oracle.py)
     map_fn: MapFn | None = None
     question_filter: Callable[[dict], bool] | None = None
@@ -111,23 +115,44 @@ def prepare_business(root: Path, rulebook: str, llm: LLMClient | None, map_fn: M
         return BusinessContext(None, None, Mapping(), CanonicalDB(), DataCard(), error=traceback.format_exc())
 
 
+def twin_check(question: str, plan: QueryPlan, ctx: BusinessContext, threshold: float | None, log: dict,
+               exclude_ids: frozenset[str] = frozenset()) -> bool | None:
+    """T4 gate for a plan read with the LLM: True when the baseline reads the question the same way or a verified
+    train question of the plan's shape is at least `threshold` similar; None when the gate is off or has no bank."""
+    index = twins.default_index()
+    if threshold is None or not len(index):
+        return None
+    base = nlu.baseline.parse(question)
+    if base is not None and nlu.canonical_plan(base) == nlu.canonical_plan(plan):
+        log["twin"] = {"baseline_agrees": True}
+        return True
+    twin = index.twin(twins.question_text(question, ctx.db), plan, exclude_ids=exclude_ids)
+    log["twin"] = {"score": twin.score, "id": twin.question_id}
+    return twin.passes(threshold)
+
+
 def answer_question(q: dict, ctx: BusinessContext, calendar: Path, rule_status: dict[str, bool], rulebook: str,
-                    llm: LLMClient | None) -> tuple[SubmissionLine, dict]:
+                    llm: LLMClient | None, twin_threshold: float | None = None,
+                    exclude_examples: frozenset[str] = frozenset()) -> tuple[SubmissionLine, dict]:
     log: dict = {"id": q["id"], "business_id": q["business_id"], "question": q["question"],
                  "as_of_date": q["as_of_date"]}
     try:
         as_of = date.fromisoformat(q["as_of_date"])
-        plan = nlu.parse_question(q["question"], as_of, ctx.card, llm)
+        reader = llm if ctx.mapping.ok else None  # no usable data: the question abstains anyway, spare the LLM call
+        log["reader"] = "llm+baseline" if reader is not None else "baseline"
+        plan = nlu.parse_question(q["question"], as_of, ctx.card, reader, exclude_examples)
         log["plan"] = plan
         resolved: ResolvedPlan | None = temporal.resolve(plan, as_of, calendar, ctx.db) if plan is not None else None
         if resolved is not None:
-            resolved = nlu.link_entities(resolved, ctx.db)
+            resolved = nlu.link_entities(resolved, ctx.db, q["question"])
         log["resolved"] = resolved
         result = None
         if resolved is not None and resolved.plan.intent != "out_of_scope":
             result = metrics.execute(resolved, ctx.db) or codegen.solve(q["question"], resolved, ctx.db, rulebook, llm)
         log["result"] = result
         signals = verify.collect_signals(resolved, result, ctx.db, ctx.mapping, rule_status)
+        if plan is not None and reader is not None:
+            signals.twin_ok = twin_check(q["question"], plan, ctx, twin_threshold, log, exclude_examples)
         log["signals"] = signals
         decision = decide.decide(signals, result)
         log["decision"] = decision
@@ -178,7 +203,9 @@ def run(data_dir: Path, out_dir: Path, config: RunConfig | None = None, llm: LLM
                     if guard.expired():
                         break
                     t1 = time.perf_counter()
-                    line, record = answer_question(q, ctx, split_dir / "calendar.csv", rule_status, rulebook, llm)
+                    excluded = config.exclude_examples(q) if config.exclude_examples else frozenset()
+                    line, record = answer_question(q, ctx, split_dir / "calendar.csv", rule_status, rulebook, llm,
+                                                   config.twin_threshold, excluded)
                     record["elapsed_ms"] = round((time.perf_counter() - t1) * 1000)
                     try:
                         written = writer.write(line)

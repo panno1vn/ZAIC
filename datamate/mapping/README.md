@@ -26,6 +26,27 @@
 - Công cụ [tools/show_business.py](../../tools/show_business.py) in README và từng bảng (cột, kiểu, mẫu) để viết mapping hay data card. Chỉ dùng cho cửa hàng train.
 - `map_business` **chưa có**: chạy bình thường thì mọi cửa hàng vẫn bỏ trống.
 
+**T5, mapping tự động (04/11):** [transfer.py](transfer.py). `map_business` chuyển mapping tay của một cửa hàng train cùng định dạng sang cửa hàng mới.
+- **Vì sao chuyển, không dựng từ đầu:** dữ liệu sinh theo vài họ định dạng lặp lại (phần mềm bán hàng, sổ tay, csv POS…). Định dạng xuất từ phần mềm giữ nguyên tên cột; sổ tay thì đổi tên cột theo từng cửa hàng ("Mã phiếu" / "Ma don", "Tiền" / "Amount").
+- **Theo tên cột:** mỗi bảng của mapping mẫu nhận các bảng của cửa hàng mới có đủ cột *bắt buộc* nó đọc. Cột tuỳ chọn không có thì bỏ. Hai bảng khác bố cục khớp ngang nhau thì không đoán.
+- **Theo nghĩa** (cần LLM):
+  - Ghép bảng theo tên file; tên file khác thì theo **mô tả cột trong README** ("mã đơn", "thành tiền sau giảm"…, cần ≥ 50% và hơn bảng thứ hai 10 điểm). Mẫu cùng tên file được thử trước.
+  - Với mỗi bảng, LLM chọn cột tương ứng trong các cột thật của cửa hàng mới (enum). LLM được thấy mẫu giá trị và mô tả README của cả hai bên ([assets/mappings/signatures.json](../../assets/mappings/signatures.json), sinh bằng `tools/mapping_signatures.py`).
+  - Cột ngày bắt buộc mà LLM bỏ sót thì lấy cột duy nhất còn lại đọc được là ngày.
+  - Chốt chặn (R43): hai cột mẫu khác nghĩa không được chung một cột mới; cột mã đơn của dòng hàng phải gom dòng thành đơn.
+- **Trạng thái:** từ điển gộp từ mọi mapping tay, sau đó đến từ khoá; chữ có từ khoá của hai trạng thái thì không đọc.
+- **Hằng số của cửa hàng mẫu được tính lại:**
+  - ngày ảnh tồn = ngày cuối dữ liệu, nhưng chỉ khi README cửa hàng mới ghi "tồn cuối ngày cuối có dữ liệu"; không ghi thì bỏ bảng tồn (R45);
+  - `has_time` theo dữ liệu.
+- **Sổ không mã đơn:** mẫu kiểu này chỉ dùng cho cửa hàng mà không cột nào gom dòng thành đơn (`_groups_rows`).
+- **Dựng dữ liệu chuẩn (mọi mapping):**
+  - gộp các cách viết của một tên: hoa / thường, dấu cách đôi, mất dấu (`unify_keys`);
+  - dòng "Phí phục vụ" không phải mặt hàng (`mark_fee_lines`);
+  - dòng tổng giữa sheet bị bỏ dù nhãn nằm ở cột nào;
+  - cho phép ≤ 0,5% đơn không rõ trạng thái; mọi số liệu đơn đó có thể làm thay đổi thì bỏ trống.
+- **Đo:** `python -m datamate.eval.mapping [--llm-url …]` (mapping của chính cửa hàng bị bỏ khỏi ví dụ, plan LLM đã lưu, chấm với đáp án train); `python -m datamate.eval.oracle --all --auto-mapping --llm-url …` (cả chuỗi).
+- **Mapping tay thêm cho T5:** biz_115 (họ `So_chi_tiet_ban_hang`), biz_111 (họ csv `don_hang / chi_tiet_don`).
+
 **Việc cần làm:**
 1. ~~Cài 8 biến đổi~~ (xong 04/11).
 2. ~~Điền ô trống của cùng một đơn (§8), dùng `year_hint`~~ (xong 04/11).

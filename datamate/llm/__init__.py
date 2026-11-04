@@ -5,8 +5,10 @@ external API. Every call has a timeout (H12) and greedy decoding with a fixed se
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import urllib.request
+from pathlib import Path
 from typing import Protocol
 
 
@@ -63,3 +65,36 @@ class LlamaServerLLM:
                 return resp.status == 200
         except Exception:
             return False
+
+
+class CachedLLM:
+    """Development only (`--llm-cache`): another client's answers kept in a jsonl file under the hash of the request,
+    so a run over the train questions can be repeated after a metric fix without asking the model again. The server
+    decodes greedily with a fixed seed, so the cache changes the time a run takes, not its answers. Failed calls are
+    not kept."""
+
+    def __init__(self, inner, path: str | Path):
+        self.inner, self.path = inner, Path(path)
+        self.answers: dict[str, dict] = {}
+        if self.path.exists():
+            for line in self.path.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    e = json.loads(line)
+                    self.answers[e["key"]] = e["answer"]
+
+    @staticmethod
+    def key(messages: list[dict], schema: dict) -> str:
+        return hashlib.sha256(json.dumps([messages, schema], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+    def generate_json(self, messages: list[dict], schema: dict) -> dict:
+        k = self.key(messages, schema)
+        if k not in self.answers:
+            answer = self.inner.generate_json(messages, schema)
+            self.answers[k] = answer
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with self.path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps({"key": k, "answer": answer}, ensure_ascii=False) + "\n")
+        return self.answers[k]
+
+    def healthy(self) -> bool:
+        return self.inner.healthy()

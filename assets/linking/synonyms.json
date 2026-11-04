@@ -1,0 +1,19 @@
+{
+  "_doc": "Cách viết kênh bán và hình thức thanh toán -> mã. Dữ liệu ghi bằng mã (store, cash…) hoặc bằng chữ (Tiền mặt, Thu hộ (COD)…), có cột trộn cả hai; câu hỏi viết bằng chữ. Mỗi từ đều có nguồn từ train: giá trị trong dữ liệu (biz_120, biz_123, biz_124, biz_111) hoặc cách viết trong câu hỏi train. Thêm từ mới phải dựa trên câu train đo được (docs/research/linking.md).",
+  "_nguon": {
+    "channel": "dữ liệu: store / phone / zalo_oa ở 20+ cửa hàng; câu hỏi: 'tại quầy' (13 câu), 'qua điện thoại' (15), 'qua zalo / Zalo OA' (14); 'trực tiếp' theo kế hoạch §10 T2",
+    "payment_method": "dữ liệu: cash, transfer, ewallet, cod, debt và Tiền mặt, Chuyển khoản, Ví điện tử, Thu hộ (COD), Ghi nợ; câu hỏi: 'tiền mặt' (7), 'tm' (3), 'tiền tươi' (1), 'chuyển khoản' (7), 'ck' (2), 'ví điện tử' (7), 'COD' (12), 'ghi nợ'"
+  },
+  "channel": {
+    "store": ["tại quầy", "trực tiếp"],
+    "phone": ["điện thoại"],
+    "zalo_oa": ["zalo", "zalo oa"]
+  },
+  "payment_method": {
+    "cash": ["tiền mặt", "tm", "tiền tươi"],
+    "transfer": ["chuyển khoản", "ck"],
+    "ewallet": ["ví điện tử"],
+    "cod": ["thu hộ"],
+    "debt": ["ghi nợ"]
+  }
+}

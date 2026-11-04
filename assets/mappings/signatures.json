@@ -1,0 +1,9712 @@
+{
+ "biz_101": {
+  "ban_hang.csv": {
+   "columns": [
+    "Giá bán",
+    "Kết quả",
+    "Nội dung",
+    "Ngày tháng",
+    "Đơn vị (tính)",
+    "so_luong",
+    "Thanh tien",
+    "Quy ra ĐV lẻ",
+    "Mã hóa đơn",
+    "Đối tác"
+   ],
+   "samples": {
+    "Giá bán": [
+     "560,000",
+     "4,000",
+     "12,000"
+    ],
+    "Kết quả": [
+     "Xong",
+     "Đã hủy",
+     "Đổi trả"
+    ],
+    "Nội dung": [
+     "Bột ngọt Ajinomoto 400g",
+     "Mì 3 Miền tôm hùm",
+     "Trứng gà so"
+    ],
+    "Ngày tháng": [
+     "1 thg 6 2025",
+     "2 thg 6 2025",
+     "3 thg 6 2025"
+    ],
+    "Đơn vị (tính)": [
+     "thùng",
+     "gói",
+     "quả"
+    ],
+    "so_luong": [
+     "1",
+     "4",
+     "3"
+    ],
+    "Thanh tien": [
+     "560,000",
+     "4,000",
+     "48,000"
+    ],
+    "Quy ra ĐV lẻ": [
+     "20",
+     "1",
+     "4"
+    ],
+    "Mã hóa đơn": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "Đối tác": [
+     "Khách lẻ",
+     "Nghiêm Hằng Quân",
+     "Vương Trung Lan"
+    ]
+   },
+   "notes": {
+    "Giá bán": "đơn giá",
+    "Kết quả": "trạng thái đơn",
+    "Nội dung": "tên hàng",
+    "Ngày tháng": "ngày bán",
+    "Đơn vị (tính)": "đơn vị tính",
+    "so_luong": "số lượng",
+    "Thanh tien": "thành tiền sau giảm",
+    "Quy ra ĐV lẻ": "số lượng đã đổi ra đơn vị cơ bản",
+    "Mã hóa đơn": "mã đơn",
+    "Đối tác": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  }
+ },
+ "biz_103": {
+  "DanhSachQuyDoi.xlsx::Sheet1": {
+   "columns": [
+    "Tên sản phẩm",
+    "Đơn vị quy đổi",
+    "Tỉ lệ quy đổi",
+    "Đơn vị cơ bản"
+   ],
+   "samples": {
+    "Tên sản phẩm": [
+     "Coca Cola 330ml",
+     "Pepsi 330ml",
+     "Sting dâu 330ml"
+    ],
+    "Đơn vị quy đổi": [
+     "lốc",
+     "thùng",
+     "bao"
+    ],
+    "Tỉ lệ quy đổi": [
+     "6",
+     "24",
+     "12"
+    ],
+    "Đơn vị cơ bản": [
+     "lon",
+     "chai",
+     "hộp"
+    ]
+   },
+   "notes": {
+    "Tên sản phẩm": "tên hàng (file chỉ có mặt hàng có đơn vị lớn)",
+    "Đơn vị quy đổi": "đơn vị lớn (thùng, hộp, tấn...)",
+    "Tỉ lệ quy đổi": "hệ số: số đơn vị cơ bản trong 1 đơn vị lớn",
+    "Đơn vị cơ bản": "đơn vị cơ bản"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::04.2025": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "Ngày đặt hàng": [
+     "01/04/2025",
+     "02/04/2025",
+     "03/04/2025"
+    ],
+    "Trạng thái đơn hàng": [
+     "đã lấy",
+     "hủy đơn",
+     "hàng trả về"
+    ],
+    "Tên khách hàng": [
+     "Doãn Dũng Bình",
+     "Doãn Huy Trang",
+     "Tăng Ngọc Loan"
+    ],
+    "Tên sản phẩm": [
+     "Dầu ăn Tường An 1L",
+     "Bánh Chocopie 12 cái",
+     "Sữa đặc Ông Thọ 380g"
+    ],
+    "Số lượng sản phẩm": [
+     "3 chai",
+     "3",
+     "2"
+    ],
+    "Giá sản phẩm": [
+     "52000",
+     "55,000",
+     "25,000"
+    ],
+    "Tổng tiền": [
+     "156000",
+     "165,000",
+     "50,000"
+    ],
+    "Đơn vị tính": [
+     "chai",
+     "hộp",
+     "lon"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::05.2025": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD001099",
+     "ORD001100",
+     "ORD001101"
+    ],
+    "Ngày đặt hàng": [
+     "01/05/2025",
+     "02/05/2025",
+     "03/05/2025"
+    ],
+    "Trạng thái đơn hàng": [
+     "đã lấy",
+     "hủy đơn",
+     "hàng trả về"
+    ],
+    "Tên khách hàng": [
+     "Doãn Dũng Bình",
+     "Khách lẻ",
+     "Từ Hà Lan"
+    ],
+    "Tên sản phẩm": [
+     "Đường Biên Hòa 1kg",
+     "Gạo thơm Jasmine",
+     "Nước lau sàn Sunlight 1L"
+    ],
+    "Số lượng sản phẩm": [
+     "4",
+     "2",
+     "1"
+    ],
+    "Giá sản phẩm": [
+     "26000",
+     "20000",
+     "35000"
+    ],
+    "Tổng tiền": [
+     "104,000",
+     "40,000",
+     "35,000"
+    ],
+    "Đơn vị tính": [
+     "gói",
+     "kg",
+     "chai"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::06.2025": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD002225",
+     "ORD002226",
+     "ORD002227"
+    ],
+    "Ngày đặt hàng": [
+     "01/06/2025",
+     "02/06/2025",
+     "03/06/2025"
+    ],
+    "Trạng thái đơn hàng": [
+     "đã lấy",
+     "hàng trả về",
+     "hủy đơn"
+    ],
+    "Tên khách hàng": [
+     "Võ Hà Dương",
+     "Khách lẻ",
+     "Cao Nhung Hương"
+    ],
+    "Tên sản phẩm": [
+     "Bánh Chocopie 12 cái",
+     "Snack Oishi tôm cay 40g",
+     "Dầu ăn Tường An 1L"
+    ],
+    "Số lượng sản phẩm": [
+     "1 hộp",
+     "1",
+     "3"
+    ],
+    "Giá sản phẩm": [
+     "55,000",
+     "6,000",
+     "52,000"
+    ],
+    "Tổng tiền": [
+     "55,000",
+     "6,000",
+     "156,000"
+    ],
+    "Đơn vị tính": [
+     "hộp",
+     "gói",
+     "chai"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::07.2025": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD003296",
+     "ORD003297",
+     "ORD003298"
+    ],
+    "Ngày đặt hàng": [
+     "01/07/2025",
+     "02/07/2025",
+     "03/07/2025"
+    ],
+    "Trạng thái đơn hàng": [
+     "đã lấy",
+     "hủy đơn",
+     "hàng trả về"
+    ],
+    "Tên khách hàng": [
+     "Khách lẻ",
+     "Ngô Hoa Quang",
+     "Huỳnh Hiếu Dũng"
+    ],
+    "Tên sản phẩm": [
+     "Mì Hảo Hảo tôm chua cay",
+     "Coca Cola 330ml",
+     "Nước mắm Nam Ngư 750ml"
+    ],
+    "Số lượng sản phẩm": [
+     "1 gói",
+     "1",
+     "1 chai"
+    ],
+    "Giá sản phẩm": [
+     "4500",
+     "10,500",
+     "38000"
+    ],
+    "Tổng tiền": [
+     "4,500",
+     "10500",
+     "38000"
+    ],
+    "Đơn vị tính": [
+     "gói",
+     "lon",
+     "chai"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::08.2025": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD004402",
+     "ORD004403",
+     "ORD004404"
+    ],
+    "Ngày đặt hàng": [
+     "01/08/2025",
+     "02/08/2025",
+     "03/08/2025"
+    ],
+    "Trạng thái đơn hàng": [
+     "đã lấy",
+     "hàng trả về",
+     "hủy đơn"
+    ],
+    "Tên khách hàng": [
+     "Quách Long Cường",
+     "Vương Hương Hoa",
+     "Bùi Hương Hạnh"
+    ],
+    "Tên sản phẩm": [
+     "Bánh Oreo 133g",
+     "Xúc xích Vissan 5 cây",
+     "Mì 3 Miền tôm hùm"
+    ],
+    "Số lượng sản phẩm": [
+     "4 gói",
+     "1",
+     "3"
+    ],
+    "Giá sản phẩm": [
+     "15,000",
+     "25,000",
+     "4000"
+    ],
+    "Tổng tiền": [
+     "60000",
+     "25,000",
+     "4000"
+    ],
+    "Đơn vị tính": [
+     "gói",
+     "thùng",
+     "chai"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::09.2025": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD005537",
+     "ORD005538",
+     "ORD005539"
+    ],
+    "Ngày đặt hàng": [
+     "01/09/2025",
+     "02/09/2025",
+     "03/09/2025"
+    ],
+    "Trạng thái đơn hàng": [
+     "đã lấy",
+     "hủy đơn",
+     "hàng trả về"
+    ],
+    "Tên khách hàng": [
+     "Hồ Hạnh Tâm",
+     "Đặng Huy Quang",
+     "Khách lẻ"
+    ],
+    "Tên sản phẩm": [
+     "Sữa tắm Lifebuoy 850g",
+     "Bia Sài Gòn Special 330ml",
+     "Snack Lay's vị tự nhiên 56g"
+    ],
+    "Số lượng sản phẩm": [
+     "2 chai",
+     "3",
+     "2 gói"
+    ],
+    "Giá sản phẩm": [
+     "120000",
+     "15,000",
+     "12500"
+    ],
+    "Tổng tiền": [
+     "240,000",
+     "45000",
+     "25000"
+    ],
+    "Đơn vị tính": [
+     "chai",
+     "lon",
+     "gói"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::10.2025": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD006665",
+     "ORD006666",
+     "ORD006667"
+    ],
+    "Ngày đặt hàng": [
+     "01/10/2025",
+     "02/10/2025",
+     "03/10/2025"
+    ],
+    "Trạng thái đơn hàng": [
+     "đã lấy",
+     "hàng trả về",
+     "hủy đơn"
+    ],
+    "Tên khách hàng": [
+     "Lâm Phương Trung",
+     "Nguyễn Hiếu Khánh",
+     "Khách lẻ"
+    ],
+    "Tên sản phẩm": [
+     "Xà bông Lifebuoy 90g",
+     "Bia Tiger 330ml",
+     "Nước suối Aquafina 500ml"
+    ],
+    "Số lượng sản phẩm": [
+     "1",
+     "5",
+     "1 vỉ"
+    ],
+    "Giá sản phẩm": [
+     "12,000",
+     "18000",
+     "5200"
+    ],
+    "Tổng tiền": [
+     "12000",
+     "18,000",
+     "26000"
+    ],
+    "Đơn vị tính": [
+     "cục",
+     "lon",
+     "chai"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::11.2025": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD007809",
+     "ORD007810",
+     "ORD007811"
+    ],
+    "Ngày đặt hàng": [
+     "01/11/2025",
+     "02/11/2025",
+     "03/11/2025"
+    ],
+    "Trạng thái đơn hàng": [
+     "hủy đơn",
+     "đã lấy",
+     "hàng trả về"
+    ],
+    "Tên khách hàng": [
+     "Khách lẻ",
+     "Tô Phương Nhung",
+     "Phạm Dũng Minh"
+    ],
+    "Tên sản phẩm": [
+     "Mì Hảo Hảo tôm chua cay",
+     "Gạo ST25",
+     "Pepsi 330ml"
+    ],
+    "Số lượng sản phẩm": [
+     "10",
+     "1 kg",
+     "1 lon"
+    ],
+    "Giá sản phẩm": [
+     "4,500",
+     "32000",
+     "10,000"
+    ],
+    "Tổng tiền": [
+     "45,000",
+     "32000",
+     "10,000"
+    ],
+    "Đơn vị tính": [
+     "gói",
+     "kg",
+     "lon"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::12.2025": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD008992",
+     "ORD008993",
+     "ORD008994"
+    ],
+    "Ngày đặt hàng": [
+     "01/12/2025",
+     "02/12/2025",
+     "03/12/2025"
+    ],
+    "Trạng thái đơn hàng": [
+     "đã lấy",
+     "hàng trả về",
+     "hủy đơn"
+    ],
+    "Tên khách hàng": [
+     "Khách lẻ",
+     "Hồ Hạnh Tâm",
+     "Lý Nhung Khánh"
+    ],
+    "Tên sản phẩm": [
+     "Sting dâu 330ml",
+     "Mì Omachi sườn hầm",
+     "Trà xanh 0 độ 455ml"
+    ],
+    "Số lượng sản phẩm": [
+     "4",
+     "1",
+     "1 chai"
+    ],
+    "Giá sản phẩm": [
+     "10,000",
+     "8,000",
+     "115,000"
+    ],
+    "Tổng tiền": [
+     "40000",
+     "8000",
+     "10000"
+    ],
+    "Đơn vị tính": [
+     "chai",
+     "gói",
+     "lon"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::01.2026": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD010100",
+     "ORD010101",
+     "ORD010102"
+    ],
+    "Ngày đặt hàng": [
+     "01/01/2026",
+     "02/01/2026",
+     "03/01/2026"
+    ],
+    "Trạng thái đơn hàng": [
+     "đã lấy",
+     "hủy đơn",
+     "hàng trả về"
+    ],
+    "Tên khách hàng": [
+     "Khách lẻ",
+     "Hứa Châu Hùng",
+     "Phùng Thắng Quân"
+    ],
+    "Tên sản phẩm": [
+     "Nước lau sàn Sunlight 1L",
+     "Trứng gà so",
+     "Mì Hảo Hảo tôm chua cay"
+    ],
+    "Số lượng sản phẩm": [
+     "1",
+     "3 quả",
+     "2"
+    ],
+    "Giá sản phẩm": [
+     "37,000",
+     "4,000",
+     "4,500"
+    ],
+    "Tổng tiền": [
+     "37,000",
+     "12,000",
+     "9,000"
+    ],
+    "Đơn vị tính": [
+     "chai",
+     "quả",
+     "gói"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::02.2026": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD011307",
+     "ORD011308",
+     "ORD011309"
+    ],
+    "Ngày đặt hàng": [
+     "01/02/2026",
+     "02/02/2026",
+     "03/02/2026"
+    ],
+    "Trạng thái đơn hàng": [
+     "đã lấy",
+     "hủy đơn",
+     "Thành công"
+    ],
+    "Tên khách hàng": [
+     "Đinh Huy Bích",
+     "Huỳnh Tâm Tâm",
+     "Khách lẻ"
+    ],
+    "Tên sản phẩm": [
+     "Bia Sài Gòn Special 330ml",
+     "Bàn chải Colgate",
+     "Nước rửa chén Sunlight 750g"
+    ],
+    "Số lượng sản phẩm": [
+     "2",
+     "1 cái",
+     "1 chai"
+    ],
+    "Giá sản phẩm": [
+     "15000",
+     "28,000",
+     "32000"
+    ],
+    "Tổng tiền": [
+     "30,000",
+     "15000",
+     "28000"
+    ],
+    "Đơn vị tính": [
+     "lon",
+     "cái",
+     "chai"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::03.2026": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD013179",
+     "ORD013180",
+     "ORD013181"
+    ],
+    "Ngày đặt hàng": [
+     "01/03/2026",
+     "02/03/2026",
+     "03/03/2026"
+    ],
+    "Trạng thái đơn hàng": [
+     "Thành công",
+     "Đã hủy đơn",
+     "Hoàn trả"
+    ],
+    "Tên khách hàng": [
+     "Khách lẻ",
+     "Đặng Hoàng Mai",
+     "Vương Hằng Hồng"
+    ],
+    "Tên sản phẩm": [
+     "Sting dâu 330ml",
+     "Bàn chải Colgate",
+     "Mì Omachi sườn hầm"
+    ],
+    "Số lượng sản phẩm": [
+     "10",
+     "1",
+     "4"
+    ],
+    "Giá sản phẩm": [
+     "10,000",
+     "15,000",
+     "8000"
+    ],
+    "Tổng tiền": [
+     "100,000",
+     "15,000",
+     "32,000"
+    ],
+    "Đơn vị tính": [
+     "chai",
+     "cái",
+     "gói"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::04.2026": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD014354",
+     "ORD014355",
+     "ORD014356"
+    ],
+    "Ngày đặt hàng": [
+     "01/04/2026",
+     "02/04/2026",
+     "03/04/2026"
+    ],
+    "Trạng thái đơn hàng": [
+     "Thành công",
+     "Đã hủy đơn",
+     "Hoàn trả"
+    ],
+    "Tên khách hàng": [
+     "Tăng Hoàng Đức",
+     "Khách lẻ",
+     "Đinh Hiếu Châu"
+    ],
+    "Tên sản phẩm": [
+     "Sữa đặc Ông Thọ 380g",
+     "Sữa tươi Vinamilk 180ml",
+     "Sữa TH true MILK 180ml"
+    ],
+    "Số lượng sản phẩm": [
+     "2",
+     "1",
+     "1 quả"
+    ],
+    "Giá sản phẩm": [
+     "25000",
+     "8400",
+     "8500"
+    ],
+    "Tổng tiền": [
+     "50,000",
+     "8400",
+     "8,500"
+    ],
+    "Đơn vị tính": [
+     "hộp",
+     "lon",
+     "quả"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::05.2026": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD015519",
+     "ORD015520",
+     "ORD015521"
+    ],
+    "Ngày đặt hàng": [
+     "01/05/2026",
+     "02/05/2026",
+     "03/05/2026"
+    ],
+    "Trạng thái đơn hàng": [
+     "Thành công",
+     "Đã hủy đơn",
+     "Hoàn trả"
+    ],
+    "Tên khách hàng": [
+     "Trần Đức Hải",
+     "Trần Dũng Hoàng",
+     "Khách lẻ"
+    ],
+    "Tên sản phẩm": [
+     "Đậu phộng rang muối 200g",
+     "Đường Biên Hòa 1kg",
+     "Dầu ăn Tường An 1L"
+    ],
+    "Số lượng sản phẩm": [
+     "1 gói",
+     "2",
+     "1 chai"
+    ],
+    "Giá sản phẩm": [
+     "20,000",
+     "26,000",
+     "52,000"
+    ],
+    "Tổng tiền": [
+     "20000",
+     "52000",
+     "52,000"
+    ],
+    "Đơn vị tính": [
+     "gói",
+     "chai",
+     "cái"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::06.2026": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD016662",
+     "ORD016663",
+     "ORD016664"
+    ],
+    "Ngày đặt hàng": [
+     "01/06/2026",
+     "02/06/2026",
+     "03/06/2026"
+    ],
+    "Trạng thái đơn hàng": [
+     "Thành công",
+     "Đã hủy đơn",
+     "Hoàn trả"
+    ],
+    "Tên khách hàng": [
+     "Khách lẻ",
+     "Đỗ Duy Khánh",
+     "Đinh Huy Bích"
+    ],
+    "Tên sản phẩm": [
+     "Sữa tắm Lifebuoy 850g",
+     "Coca Cola 330ml",
+     "Red Bull 250ml"
+    ],
+    "Số lượng sản phẩm": [
+     "3 chai",
+     "1",
+     "1 thùng"
+    ],
+    "Giá sản phẩm": [
+     "120000",
+     "11,000",
+     "72,000"
+    ],
+    "Tổng tiền": [
+     "360000",
+     "10,000",
+     "72,000"
+    ],
+    "Đơn vị tính": [
+     "chai",
+     "lon",
+     "lốc"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  },
+  "DonHang_ChiTiet.xlsx::07.2026": {
+   "columns": [
+    "Mã đơn hàng",
+    "Ngày đặt hàng",
+    "Trạng thái đơn hàng",
+    "Tên khách hàng",
+    "Tên sản phẩm",
+    "Số lượng sản phẩm",
+    "Giá sản phẩm",
+    "Tổng tiền",
+    "Đơn vị tính"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD017760",
+     "ORD017761",
+     "ORD017762"
+    ],
+    "Ngày đặt hàng": [
+     "01/07/2026",
+     "02/07/2026",
+     "03/07/2026"
+    ],
+    "Trạng thái đơn hàng": [
+     "Thành công",
+     "Đã hủy đơn",
+     "Hoàn trả"
+    ],
+    "Tên khách hàng": [
+     "Khách lẻ",
+     "Đinh Mai Đức",
+     "Vũ Châu Đạt"
+    ],
+    "Tên sản phẩm": [
+     "Mì Hảo Hảo tôm chua cay",
+     "Sting dâu 330ml",
+     "Xà bông Lifebuoy 90g"
+    ],
+    "Số lượng sản phẩm": [
+     "2 gói",
+     "10",
+     "1 cục"
+    ],
+    "Giá sản phẩm": [
+     "4,500",
+     "10500",
+     "12,000"
+    ],
+    "Tổng tiền": [
+     "9,000",
+     "100,000",
+     "11,000"
+    ],
+    "Đơn vị tính": [
+     "gói",
+     "chai",
+     "cục"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Ngày đặt hàng": "ngày bán",
+    "Trạng thái đơn hàng": "trạng thái đơn",
+    "Tên khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tên sản phẩm": "tên hàng",
+    "Số lượng sản phẩm": "số lượng",
+    "Giá sản phẩm": "đơn giá",
+    "Tổng tiền": "thành tiền sau giảm",
+    "Đơn vị tính": "đơn vị tính"
+   }
+  }
+ },
+ "biz_105": {
+  "BangGia.xlsx::Sheet1": {
+   "columns": [
+    "Ngày áp dụng",
+    "ten_hang",
+    "Giá mới",
+    "Giá cũ"
+   ],
+   "samples": {
+    "Ngày áp dụng": [
+     "2025-02-01",
+     "2025-03-23",
+     "2025-09-21"
+    ],
+    "ten_hang": [
+     "Cà phê đen (M)",
+     "Cà phê đen (L)",
+     "Cà phê sữa (M)"
+    ],
+    "Giá mới": [
+     "25.000đ",
+     "31.000đ",
+     "29.000đ"
+    ],
+    "Giá cũ": [
+     "29.000đ",
+     "35.000đ",
+     "41.000đ"
+    ]
+   },
+   "notes": {
+    "Ngày áp dụng": "ngày bắt đầu áp dụng giá",
+    "ten_hang": "tên hàng",
+    "Giá mới": "giá bán áp dụng từ ngày đó (đơn vị cơ bản)",
+    "Giá cũ": "giá trước lần đổi (trống ở dòng đầu mỗi mặt hàng)"
+   }
+  },
+  "DanhMuc.xlsx::Sheet1": {
+   "columns": [
+    "Tên món",
+    "Đơn vị gốc",
+    "ĐV nhập",
+    "Hệ số"
+   ],
+   "samples": {
+    "Tên món": [
+     "Bánh croissant",
+     "Bánh tiramisu"
+    ],
+    "Đơn vị gốc": [
+     "cái"
+    ],
+    "ĐV nhập": [
+     "hộp"
+    ],
+    "Hệ số": [
+     "6"
+    ]
+   },
+   "notes": {
+    "Tên món": "tên hàng (file chỉ có mặt hàng có đơn vị lớn)",
+    "Đơn vị gốc": "đơn vị cơ bản",
+    "ĐV nhập": "đơn vị lớn (thùng, hộp, tấn...)",
+    "Hệ số": "hệ số: số đơn vị cơ bản trong 1 đơn vị lớn"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 02 2025": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Đá xay cookie (M)",
+     "Cà phê đen (M)",
+     "Nước ép dưa hấu (L)"
+    ],
+    "so_luong": [
+     "1",
+     "3",
+     "2"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "55.000đ",
+     "25.000đ",
+     "41.000đ"
+    ],
+    "Status": [
+     "đã lấy",
+     "đã xong",
+     "Đã hủy đơn"
+    ],
+    "Giá lẻ": [
+     "55.000đ",
+     "25k",
+     "41k"
+    ],
+    "Giờ": [
+     "2025-02-01 06:00:25",
+     "2025-02-01 06:46:58",
+     "2025-02-01 07:05:24"
+    ],
+    "Mã hóa đơn": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "Ngày giao dịch": [
+     "01/02/2025",
+     "45689",
+     "02/02/2025"
+    ],
+    "Khách": [
+     "Vương Sơn Thảo",
+     "Khách lẻ",
+     "Cao Giang Duy"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 03 2025": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Espresso (single)",
+     "Cà phê sữa (M)",
+     "Trà chanh (L)"
+    ],
+    "so_luong": [
+     "1",
+     "3",
+     "2"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "35.000đ",
+     "29.000đ",
+     "31k"
+    ],
+    "Status": [
+     "đã lấy",
+     "đã xong",
+     "Đổi trả"
+    ],
+    "Giá lẻ": [
+     "35.000đ",
+     "29.000đ",
+     "31.000đ"
+    ],
+    "Giờ": [
+     "2025-03-01 06:01:04",
+     "2025-03-01 06:03:07",
+     "2025-03-01 06:07:53"
+    ],
+    "Mã hóa đơn": [
+     "ORD003982",
+     "ORD003983",
+     "ORD003984"
+    ],
+    "Ngày giao dịch": [
+     "45717",
+     "01/03/2025",
+     "02/03/2025"
+    ],
+    "Khách": [
+     "Đàm Hoa Dũng",
+     "Dương Thảo Hải",
+     "Doãn Thắng Giang"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 04 2025": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Bạc xỉu (L)",
+     "Trà vải (M)",
+     "Trà chanh (L)"
+    ],
+    "so_luong": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "38.000đ",
+     "78.000đ",
+     "32.500đ"
+    ],
+    "Status": [
+     "đã xong",
+     "đã lấy",
+     "hủy"
+    ],
+    "Giá lẻ": [
+     "38.000đ",
+     "39.000đ",
+     "32.500đ"
+    ],
+    "Giờ": [
+     "2025-04-01 06:06:05",
+     "2025-04-01 06:30:43",
+     "2025-04-01 06:34:43"
+    ],
+    "Mã hóa đơn": [
+     "ORD008975",
+     "ORD008976",
+     "ORD008977"
+    ],
+    "Ngày giao dịch": [
+     "01/04/2025",
+     "45748",
+     "45749"
+    ],
+    "Khách": [
+     "Khách lẻ",
+     "Đàm Phong Loan",
+     "Đặng Lan Hằng"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 05 2025": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Matcha latte (M)",
+     "Trà chanh (M)",
+     "Latte (M)"
+    ],
+    "so_luong": [
+     "1",
+     "3",
+     "2"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "49k",
+     "24.000đ",
+     "45k"
+    ],
+    "Status": [
+     "đã xong",
+     "đã lấy",
+     "hủy"
+    ],
+    "Giá lẻ": [
+     "49.000đ",
+     "25.000đ",
+     "45.000đ"
+    ],
+    "Giờ": [
+     "2025-05-01 06:03:16",
+     "2025-05-01 06:05:50",
+     "2025-05-01 06:12:42"
+    ],
+    "Mã hóa đơn": [
+     "ORD013732",
+     "ORD013733",
+     "ORD013734"
+    ],
+    "Ngày giao dịch": [
+     "01/05/2025",
+     "45778",
+     "45779"
+    ],
+    "Khách": [
+     "Đoàn Hạnh Hoàng",
+     "Phùng Thảo Khánh",
+     "Lý Bảo Ngọc"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 06 2025": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Sinh tố bơ (M)",
+     "Nước ép cam (L)",
+     "Cà phê đen (M)"
+    ],
+    "so_luong": [
+     "-1",
+     "1",
+     "2"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "-45k",
+     "45k",
+     "25.000đ"
+    ],
+    "Status": [
+     "Đổi trả",
+     "đã xong",
+     "đã lấy"
+    ],
+    "Giá lẻ": [
+     "45.000đ",
+     "25.000đ",
+     "39.000đ"
+    ],
+    "Giờ": [
+     "2025-06-01 16:09:26",
+     "2025-06-01 06:06:50",
+     "2025-06-01 06:06:54"
+    ],
+    "Mã hóa đơn": [
+     "ORD018046",
+     "ORD018716",
+     "ORD018717"
+    ],
+    "Ngày giao dịch": [
+     "45809",
+     "01/06/2025",
+     "02/06/2025"
+    ],
+    "Khách": [
+     "Khách lẻ",
+     "Bạch Phương Long",
+     "Đỗ Giang Dương"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 07 2025": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Cà phê sữa (M)",
+     "Trà đào cam sả (M)",
+     "Matcha latte (M)"
+    ],
+    "so_luong": [
+     "-1",
+     "1",
+     "2"
+    ],
+    "Unit": [
+     "ly",
+     "cái",
+     "phần"
+    ],
+    "Trị giá": [
+     "-30.500đ",
+     "39.000đ",
+     "49.000đ"
+    ],
+    "Status": [
+     "hàng trả về",
+     "đã lấy",
+     "đã xong"
+    ],
+    "Giá lẻ": [
+     "30.500đ",
+     "39.000đ",
+     "49.000đ"
+    ],
+    "Giờ": [
+     "2025-07-01 10:05:37",
+     "2025-07-01 06:04:41",
+     "2025-07-01 06:16:32"
+    ],
+    "Mã hóa đơn": [
+     "ORD023162",
+     "ORD023660",
+     "ORD023661"
+    ],
+    "Ngày giao dịch": [
+     "01/07/2025",
+     "45839",
+     "02/07/2025"
+    ],
+    "Khách": [
+     "Khách lẻ",
+     "Phùng Minh Dũng",
+     "Chung Hoàng Phúc"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 08 2025": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Cà phê đen (L)",
+     "Topping Trân châu đen",
+     "Bạc xỉu (M)"
+    ],
+    "so_luong": [
+     "1",
+     "3",
+     "2"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "31k",
+     "7.000đ",
+     "32.000đ"
+    ],
+    "Status": [
+     "đã xong",
+     "đã lấy",
+     "hủy"
+    ],
+    "Giá lẻ": [
+     "31.000đ",
+     "7k",
+     "32.000đ"
+    ],
+    "Giờ": [
+     "2025-08-01 06:05:00",
+     "2025-08-01 06:13:30",
+     "2025-08-01 06:44:12"
+    ],
+    "Mã hóa đơn": [
+     "ORD028751",
+     "ORD028752",
+     "ORD028753"
+    ],
+    "Ngày giao dịch": [
+     "01/08/2025",
+     "45870",
+     "02/08/2025"
+    ],
+    "Khách": [
+     "Khách lẻ",
+     "Lý Phong Hoa",
+     "Lý Minh Ngọc"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 09 2025": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Cà phê đen (L)",
+     "Trà sữa trân châu (M)",
+     "Cà phê muối (M)"
+    ],
+    "so_luong": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "31.000đ",
+     "42k",
+     "35.000đ"
+    ],
+    "Status": [
+     "đã lấy",
+     "đã xong",
+     "Đã hủy đơn"
+    ],
+    "Giá lẻ": [
+     "31.000đ",
+     "42.000đ",
+     "35.000đ"
+    ],
+    "Giờ": [
+     "2025-09-01 06:11:34",
+     "2025-09-01 06:20:15",
+     "2025-09-01 06:40:15"
+    ],
+    "Mã hóa đơn": [
+     "ORD034075",
+     "ORD034076",
+     "ORD034077"
+    ],
+    "Ngày giao dịch": [
+     "45901",
+     "01/09/2025",
+     "45902"
+    ],
+    "Khách": [
+     "Khách lẻ",
+     "Đinh Bích Trung",
+     "Lương Phương Hoa"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 10 2025": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Cà phê sữa (M)",
+     "Cappuccino (L)",
+     "Trà sữa ô long (M)"
+    ],
+    "so_luong": [
+     "-1",
+     "1",
+     "2"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "-30.500đ",
+     "53.500đ",
+     "47.000đ"
+    ],
+    "Status": [
+     "Trả hàng",
+     "đã lấy",
+     "đã xong"
+    ],
+    "Giá lẻ": [
+     "30.500đ",
+     "53.500đ",
+     "47.000đ"
+    ],
+    "Giờ": [
+     "2025-10-01 14:10:46",
+     "2025-10-01 06:10:04",
+     "2025-10-01 06:12:16"
+    ],
+    "Mã hóa đơn": [
+     "ORD038783",
+     "ORD039118",
+     "ORD039119"
+    ],
+    "Ngày giao dịch": [
+     "01/10/2025",
+     "45931",
+     "45932"
+    ],
+    "Khách": [
+     "Khách lẻ",
+     "Bùi Hương Hùng",
+     "Trịnh Hạnh Giang"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 11 2025": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Trà chanh (M)",
+     "Sinh tố bơ (M)",
+     "Topping Thạch cà phê"
+    ],
+    "so_luong": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "25.000đ",
+     "45k",
+     "7.400đ"
+    ],
+    "Status": [
+     "đã xong",
+     "đã lấy",
+     "Đã hủy đơn"
+    ],
+    "Giá lẻ": [
+     "25.000đ",
+     "45.000đ",
+     "7.400đ"
+    ],
+    "Giờ": [
+     "2025-11-01 06:01:54",
+     "2025-11-01 06:12:46",
+     "2025-11-01 06:13:55"
+    ],
+    "Mã hóa đơn": [
+     "ORD044583",
+     "ORD044584",
+     "ORD044585"
+    ],
+    "Ngày giao dịch": [
+     "45962",
+     "01/11/2025",
+     "45963"
+    ],
+    "Khách": [
+     "Lương Quân Thắng",
+     "Khách lẻ",
+     "Lý Bảo Ngọc"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 12 2025": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Hồng trà sữa (M)",
+     "Trà sữa trân châu (L)",
+     "Trà vải (L)"
+    ],
+    "so_luong": [
+     "2",
+     "1",
+     "3"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "78.000đ",
+     "48k",
+     "45.000đ"
+    ],
+    "Status": [
+     "đã lấy",
+     "đã xong",
+     "hủy"
+    ],
+    "Giá lẻ": [
+     "39.000đ",
+     "48k",
+     "45.000đ"
+    ],
+    "Giờ": [
+     "2025-12-01 06:05:06",
+     "2025-12-01 06:06:07",
+     "2025-12-01 06:08:24"
+    ],
+    "Mã hóa đơn": [
+     "ORD049804",
+     "ORD049805",
+     "ORD049806"
+    ],
+    "Ngày giao dịch": [
+     "01/12/2025",
+     "45992",
+     "02/12/2025"
+    ],
+    "Khách": [
+     "Khách lẻ",
+     "Đỗ Phương Hải",
+     "Quách Lan Hoa"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_1.xlsx::Thang 01 2026": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Cà phê sữa (M)",
+     "Cà phê đen (M)",
+     "Espresso (single)"
+    ],
+    "so_luong": [
+     "-1",
+     "1",
+     "2"
+    ],
+    "Unit": [
+     "ly",
+     "cái",
+     "phần"
+    ],
+    "Trị giá": [
+     "-30.500đ",
+     "25k",
+     "82.000đ"
+    ],
+    "Status": [
+     "hàng trả về",
+     "đã xong",
+     "đã lấy"
+    ],
+    "Giá lẻ": [
+     "30.500đ",
+     "25k",
+     "41k"
+    ],
+    "Giờ": [
+     "2026-01-01 14:58:08",
+     "2026-01-01 06:03:16",
+     "2026-01-01 06:03:53"
+    ],
+    "Mã hóa đơn": [
+     "ORD054396",
+     "ORD055193",
+     "ORD055194"
+    ],
+    "Ngày giao dịch": [
+     "46023",
+     "01/01/2026",
+     "02/01/2026"
+    ],
+    "Khách": [
+     "Tăng Đức Giang",
+     "Tô Hương Anh",
+     "Đàm Nam Hùng"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_2026.xlsx::Thang 02 2026": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Cappuccino (L)",
+     "Trà chanh (M)",
+     "Trà đào cam sả (L)"
+    ],
+    "so_luong": [
+     "-1",
+     "3",
+     "1"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "-53.500đ",
+     "75.000đ",
+     "24.000đ"
+    ],
+    "Status": [
+     "Đổi trả",
+     "đã xong",
+     "đã lấy"
+    ],
+    "Giá lẻ": [
+     "53.500đ",
+     "25.000đ",
+     "45.000đ"
+    ],
+    "Giờ": [
+     "2026-02-01 08:47:28",
+     "2026-02-01 06:04:33",
+     "2026-02-01 06:05:17"
+    ],
+    "Mã hóa đơn": [
+     "ORD059865",
+     "ORD060804",
+     "ORD060805"
+    ],
+    "Ngày giao dịch": [
+     "01/02/2026",
+     "46054",
+     "46055"
+    ],
+    "Khách": [
+     "Đinh Tâm Khoa",
+     "Khách lẻ",
+     "Trương Hạnh Hồng"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_2026.xlsx::Thang 03 2026": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Hồng trà sữa (M)",
+     "Topping Pudding trứng",
+     "Cold brew (M)"
+    ],
+    "so_luong": [
+     "-1",
+     "1",
+     "3"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "-39.000đ",
+     "10.500đ",
+     "45.000đ"
+    ],
+    "Status": [
+     "Trả hàng",
+     "đã lấy",
+     "đã xong"
+    ],
+    "Giá lẻ": [
+     "39k",
+     "10.500đ",
+     "45k"
+    ],
+    "Giờ": [
+     "2026-03-01 19:10:13",
+     "2026-03-01 06:03:00",
+     "2026-03-01 06:05:40"
+    ],
+    "Mã hóa đơn": [
+     "ORD063794",
+     "ORD064652",
+     "ORD064653"
+    ],
+    "Ngày giao dịch": [
+     "46082",
+     "01/03/2026",
+     "46083"
+    ],
+    "Khách": [
+     "Khách lẻ",
+     "Trương Thảo Thảo",
+     "Võ Minh Thắng"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_2026.xlsx::Thang 04 2026": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Hồng trà sữa (L)",
+     "Cà phê đen (M)",
+     "Trà sữa ô long (L)"
+    ],
+    "so_luong": [
+     "-1",
+     "1",
+     "2"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "-45.000đ",
+     "25.000đ",
+     "102.000đ"
+    ],
+    "Status": [
+     "hàng trả về",
+     "đã lấy",
+     "đã xong"
+    ],
+    "Giá lẻ": [
+     "45k",
+     "25k",
+     "51.000đ"
+    ],
+    "Giờ": [
+     "2026-04-01 15:00:37",
+     "2026-04-01 06:01:03",
+     "2026-04-01 06:18:13"
+    ],
+    "Mã hóa đơn": [
+     "ORD070246",
+     "ORD070299",
+     "ORD070300"
+    ],
+    "Ngày giao dịch": [
+     "01/04/2026",
+     "46113",
+     "46114"
+    ],
+    "Khách": [
+     "Đặng Đạt Trang",
+     "Khách lẻ",
+     "Lý Bình Dũng"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_2026.xlsx::Thang 05 2026": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Cà phê sữa (M)",
+     "Bánh croissant",
+     "Cà phê sữa (L)"
+    ],
+    "so_luong": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Unit": [
+     "ly",
+     "cái",
+     "phần"
+    ],
+    "Trị giá": [
+     "30.500đ",
+     "37.000đ",
+     "49.500đ"
+    ],
+    "Status": [
+     "đã xong",
+     "đã lấy",
+     "hủy"
+    ],
+    "Giá lẻ": [
+     "30.500đ",
+     "37.000đ",
+     "49.500đ"
+    ],
+    "Giờ": [
+     "2026-05-01 06:07:33",
+     "2026-05-01 06:12:05",
+     "2026-05-01 06:22:54"
+    ],
+    "Mã hóa đơn": [
+     "ORD075794",
+     "ORD075795",
+     "ORD075796"
+    ],
+    "Ngày giao dịch": [
+     "46143",
+     "01/05/2026",
+     "46144"
+    ],
+    "Khách": [
+     "Tạ Minh Minh",
+     "Khách lẻ",
+     "Doãn Phong Thanh"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoBanHang_2026.xlsx::Thang 06 2026": {
+   "columns": [
+    "Hàng",
+    "so_luong",
+    "Unit",
+    "Trị giá",
+    "Status",
+    "Giá lẻ",
+    "Giờ",
+    "Mã hóa đơn",
+    "Ngày giao dịch",
+    "Khách"
+   ],
+   "samples": {
+    "Hàng": [
+     "Trà đào cam sả (L)",
+     "Trà đào cam sả (M)",
+     "Cà phê đen (M)"
+    ],
+    "so_luong": [
+     "-1",
+     "1",
+     "2"
+    ],
+    "Unit": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Trị giá": [
+     "-45k",
+     "45k",
+     "39.000đ"
+    ],
+    "Status": [
+     "Trả hàng",
+     "đã xong",
+     "đã lấy"
+    ],
+    "Giá lẻ": [
+     "45.000đ",
+     "41k",
+     "25.000đ"
+    ],
+    "Giờ": [
+     "2026-06-01 10:50:42",
+     "2026-06-01 06:21:35",
+     "2026-06-01 06:21:57"
+    ],
+    "Mã hóa đơn": [
+     "ORD080911",
+     "ORD081718",
+     "ORD081719"
+    ],
+    "Ngày giao dịch": [
+     "01/06/2026",
+     "46174",
+     "02/06/2026"
+    ],
+    "Khách": [
+     "Khách lẻ",
+     "Doãn Dương Hải",
+     "Phạm Đức Dũng"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng",
+    "so_luong": "số lượng",
+    "Unit": "đơn vị tính",
+    "Trị giá": "thành tiền sau giảm",
+    "Status": "trạng thái đơn",
+    "Giá lẻ": "đơn giá",
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã hóa đơn": "mã đơn",
+    "Ngày giao dịch": "ngày bán",
+    "Khách": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "SoNhapHang.xlsx::Sheet1": {
+   "columns": [
+    "Số phiếu",
+    "Ngày nhập",
+    "Ghi chu",
+    "Thành tiền",
+    "Nhà cung cấp",
+    "Tên mặt hàng",
+    "Giá nhập",
+    "ĐVT",
+    "SL nhập"
+   ],
+   "samples": {
+    "Số phiếu": [
+     "PN00001",
+     "PN00002",
+     "PN00003"
+    ],
+    "Ngày nhập": [
+     "2025-02-01",
+     "2025-02-18",
+     "2025-02-19"
+    ],
+    "Ghi chu": [
+     "nhập đầu kỳ"
+    ],
+    "Thành tiền": [
+     "2131200",
+     "1317200",
+     "3219000"
+    ],
+    "Nhà cung cấp": [
+     "Cty Hoàng Bình",
+     "Cty Dương An",
+     "Cty Vũ Tâm"
+    ],
+    "Tên mặt hàng": [
+     "Cà phê đen (M)",
+     "Cà phê đen (L)",
+     "Cà phê sữa (M)"
+    ],
+    "Giá nhập": [
+     "7200",
+     "8900",
+     "8700"
+    ],
+    "ĐVT": [
+     "ly",
+     "phần",
+     "hộp"
+    ],
+    "SL nhập": [
+     "296",
+     "148",
+     "370"
+    ]
+   },
+   "notes": {
+    "Số phiếu": "mã phiếu nhập",
+    "Ngày nhập": "ngày nhập",
+    "Ghi chu": "ghi chú",
+    "Thành tiền": "tiền nhập của cả dòng",
+    "Nhà cung cấp": "nhà cung cấp",
+    "Tên mặt hàng": "tên hàng",
+    "Giá nhập": "giá nhập một đơn vị (theo đơn vị nhập của dòng)",
+    "ĐVT": "đơn vị nhập",
+    "SL nhập": "số lượng nhập"
+   }
+  },
+  "TonKho.xlsx::Sheet1": {
+   "columns": [
+    "Hàng hóa",
+    "Đơn vị tính",
+    "Tồn cuối"
+   ],
+   "samples": {
+    "Hàng hóa": [
+     "Cà phê đen (M)",
+     "Cà phê đen (L)",
+     "Cà phê sữa (M)"
+    ],
+    "Đơn vị tính": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Tồn cuối": [
+     "197",
+     "132",
+     "173"
+    ]
+   },
+   "notes": {
+    "Hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị cơ bản",
+    "Tồn cuối": "tồn kho (đơn vị cơ bản)"
+   }
+  }
+ },
+ "biz_111": {
+  "chi_tiet_don.csv": {
+   "columns": [
+    "SL quy đổi",
+    "Thứ tự",
+    "Giá đơn vị",
+    "SL",
+    "T.Tiền",
+    "ID SP",
+    "Ma don",
+    "Đơn vị (tính)"
+   ],
+   "samples": {
+    "SL quy đổi": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Thứ tự": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Giá đơn vị": [
+     "7000",
+     "32000",
+     "42000"
+    ],
+    "SL": [
+     "1",
+     "1 ly",
+     "2 ly"
+    ],
+    "T.Tiền": [
+     "7000",
+     "32000",
+     "42000"
+    ],
+    "ID SP": [
+     "SP0046",
+     "SP0005",
+     "SP0021"
+    ],
+    "Ma don": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "Đơn vị (tính)": [
+     "phần",
+     "ly",
+     "cái"
+    ]
+   },
+   "notes": {
+    "SL quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Thứ tự": "số thứ tự dòng trong đơn",
+    "Giá đơn vị": "đơn giá",
+    "SL": "số lượng",
+    "T.Tiền": "thành tiền sau giảm",
+    "ID SP": "mã hàng",
+    "Ma don": "mã đơn",
+    "Đơn vị (tính)": "đơn vị tính"
+   }
+  },
+  "don_hang.csv": {
+   "columns": [
+    "Số KH",
+    "Xử lý",
+    "NgayBan",
+    "Bán qua",
+    "Còn lại",
+    "Khách trả",
+    "Tổng bill",
+    "Phương thức TT",
+    "Mã chứng từ"
+   ],
+   "samples": {
+    "Số KH": [
+     "KH0114",
+     "KH0078",
+     "KH0065"
+    ],
+    "Xử lý": [
+     "completed",
+     "cancelled",
+     "returned"
+    ],
+    "NgayBan": [
+     "1 thg 1 2025",
+     "45658",
+     "01/01/2025"
+    ],
+    "Bán qua": [
+     "zalo_oa",
+     "store",
+     "phone"
+    ],
+    "Còn lại": [
+     "0",
+     "28500",
+     "10966"
+    ],
+    "Khách trả": [
+     "22000",
+     "32000",
+     "67000"
+    ],
+    "Tổng bill": [
+     "22000",
+     "32000",
+     "67000"
+    ],
+    "Phương thức TT": [
+     "transfer",
+     "ewallet",
+     "cash"
+    ],
+    "Mã chứng từ": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ]
+   },
+   "notes": {
+    "Số KH": "mã khách (trống nếu khách lẻ)",
+    "Xử lý": "trạng thái đơn",
+    "NgayBan": "ngày bán",
+    "Bán qua": "kênh bán",
+    "Còn lại": "còn nợ",
+    "Khách trả": "đã thanh toán",
+    "Tổng bill": "tổng tiền đơn",
+    "Phương thức TT": "hình thức thanh toán của đơn: cash tiền mặt, transfer chuyển khoản, ewallet ví điện tử, cod giao hàng thu tiền, debt ghi nợ",
+    "Mã chứng từ": "mã đơn"
+   }
+  },
+  "khach_hang.csv": {
+   "columns": [
+    "ma_kh",
+    "Điểm tích lũy",
+    "Nhóm",
+    "Trạng thái",
+    "Email",
+    "Ghi chú KH",
+    "Mã số thuế",
+    "Loại hình khách",
+    "Ngày sinh",
+    "CCCD",
+    "Phone",
+    "Người tạo",
+    "Addr",
+    "Khách lẻ/sỉ",
+    "Tổng điểm"
+   ],
+   "samples": {
+    "ma_kh": [
+     "KH0001",
+     "KH0002",
+     "KH0003"
+    ],
+    "Điểm tích lũy": [
+     "0"
+    ],
+    "Nhóm": [
+     "thân thiết",
+     "lẻ",
+     "sỉ"
+    ],
+    "Trạng thái": [
+     "Đang hoạt động"
+    ],
+    "Email": [],
+    "Ghi chú KH": [],
+    "Mã số thuế": [
+     "0185121074"
+    ],
+    "Loại hình khách": [
+     "Cá nhân"
+    ],
+    "Ngày sinh": [
+     "10/02/2001",
+     "29/04/1981",
+     "03/08/1992"
+    ],
+    "CCCD": [],
+    "Phone": [
+     "0328548455",
+     "0799064476",
+     "0913885954"
+    ],
+    "Người tạo": [
+     "admin"
+    ],
+    "Addr": [
+     "264 Lương Định Của",
+     "243 Nguyễn Tất Thành",
+     "93 Nguyễn Huệ"
+    ],
+    "Khách lẻ/sỉ": [
+     "Dương Hùng Trung - 0328 548 455",
+     "Chung Hương Nam - 0799 064 476",
+     "Đặng Hải Nhung (0913885954)"
+    ],
+    "Tổng điểm": [
+     "0"
+    ]
+   },
+   "notes": {
+    "ma_kh": "mã khách",
+    "Nhóm": "nhóm khách",
+    "Phone": "số điện thoại",
+    "Addr": "địa chỉ",
+    "Khách lẻ/sỉ": "tên"
+   }
+  },
+  "san_pham.csv": {
+   "columns": [
+    "Thuộc tính",
+    "Được bán trực tiếp",
+    "Mã barcode",
+    "SKU",
+    "Hình ảnh",
+    "Giá",
+    "Đơn vị",
+    "Loại hàng hóa",
+    "Thương hiệu",
+    "Nhom hang",
+    "Trọng lượng",
+    "Vị trí",
+    "Mẫu ghi chú",
+    "Mô tả sản phẩm",
+    "Bảo hành",
+    "Tồn nhỏ nhất",
+    "Mã HH Liên quan",
+    "Sản phẩm"
+   ],
+   "samples": {
+    "Thuộc tính": [],
+    "Được bán trực tiếp": [
+     "1"
+    ],
+    "Mã barcode": [
+     "8934789659628",
+     "8933790321616",
+     "8934789197205"
+    ],
+    "SKU": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "Hình ảnh": [],
+    "Giá": [
+     "25000",
+     "31000",
+     "29000"
+    ],
+    "Đơn vị": [
+     "ly",
+     "phần",
+     "cái"
+    ],
+    "Loại hàng hóa": [
+     "Hàng hóa"
+    ],
+    "Thương hiệu": [],
+    "Nhom hang": [
+     "cà phê",
+     "trà",
+     "trà sữa"
+    ],
+    "Trọng lượng": [],
+    "Vị trí": [],
+    "Mẫu ghi chú": [],
+    "Mô tả sản phẩm": [],
+    "Bảo hành": [],
+    "Tồn nhỏ nhất": [
+     "0"
+    ],
+    "Mã HH Liên quan": [],
+    "Sản phẩm": [
+     "Cà phê đen (M)",
+     "Cà phê đen (L)",
+     "Cà phê sữa (M)"
+    ]
+   },
+   "notes": {
+    "SKU": "mã hàng",
+    "Giá": "giá bán hiện tại",
+    "Đơn vị": "đơn vị cơ bản",
+    "Nhom hang": "nhóm hàng",
+    "Sản phẩm": "tên"
+   }
+  },
+  "thanh_toan.csv": {
+   "columns": [
+    "Thời gian thu",
+    "Phương thức",
+    "Tiền",
+    "Mã phiếu thu",
+    "Số HĐ"
+   ],
+   "samples": {
+    "Thời gian thu": [
+     "2025-01-01 06:03:59",
+     "2025-01-01 06:56:27",
+     "2025-01-01 07:04:26"
+    ],
+    "Phương thức": [
+     "transfer",
+     "ewallet",
+     "cash"
+    ],
+    "Tiền": [
+     "22000",
+     "32000",
+     "67000"
+    ],
+    "Mã phiếu thu": [
+     "PAY000001",
+     "PAY000002",
+     "PAY000003"
+    ],
+    "Số HĐ": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ]
+   },
+   "notes": {
+    "Thời gian thu": "thời điểm thu",
+    "Phương thức": "hình thức thanh toán",
+    "Tiền": "số tiền",
+    "Mã phiếu thu": "mã phiếu thu",
+    "Số HĐ": "mã đơn"
+   }
+  }
+ },
+ "biz_115": {
+  "Bảng kê phiếu giao hàng.xlsx::Sheet1": {
+   "columns": [
+    "Ngày giao hàng",
+    "Mã đơn hàng",
+    "Lần giao",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng giao",
+    "Biển số xe",
+    "Người giao hàng"
+   ],
+   "samples": {
+    "Ngày giao hàng": [
+     "01/02/2025",
+     "03/02/2025",
+     "08/02/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD000001",
+     "ORD000003",
+     "ORD000004"
+    ],
+    "Lần giao": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Tên hàng hóa": [
+     "Thép Pomina D10 cây 11.7m",
+     "Dây điện Cadivi CV 1.5 cuộn 100m",
+     "Sơn Dulux Weathershield Powerflexx 5L"
+    ],
+    "Đơn vị tính": [
+     "cây",
+     "cuộn",
+     "thùng"
+    ],
+    "Số lượng giao": [
+     "1",
+     "10",
+     "2"
+    ],
+    "Biển số xe": [
+     "61C-750.95",
+     "51D-663.78",
+     "51C-410.47"
+    ],
+    "Người giao hàng": [
+     "Hồ Linh",
+     "Vương Dũng",
+     "Kiều Thắng"
+    ]
+   },
+   "notes": {
+    "Ngày giao hàng": "ngày giao",
+    "Mã đơn hàng": "mã đơn",
+    "Lần giao": "đợt giao (1, 2, 3)",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị cơ bản",
+    "Số lượng giao": "số lượng đã đổi ra đơn vị cơ bản",
+    "Biển số xe": "biển số xe",
+    "Người giao hàng": "tài xế"
+   }
+  },
+  "Chi tiết công nợ theo hạn.xlsx::Sheet1": {
+   "columns": [
+    "Mã đơn hàng",
+    "Số ngày được nợ",
+    "Hạn thanh toán"
+   ],
+   "samples": {
+    "Mã đơn hàng": [
+     "ORD000001",
+     "ORD000011",
+     "ORD000019"
+    ],
+    "Số ngày được nợ": [
+     "30",
+     "60"
+    ],
+    "Hạn thanh toán": [
+     "03/03/2025",
+     "02/04/2025",
+     "04/03/2025"
+    ]
+   },
+   "notes": {
+    "Mã đơn hàng": "mã đơn",
+    "Số ngày được nợ": "số ngày được nợ",
+    "Hạn thanh toán": "hạn thanh toán"
+   }
+  },
+  "Danh sách hàng hóa.xlsx::Sheet1": {
+   "columns": [
+    "Mã hàng hóa",
+    "Được bán trực tiếp",
+    "Thương hiệu",
+    "Tên hàng hóa",
+    "Nhóm hàng hóa",
+    "Vị trí",
+    "Mẫu ghi chú",
+    "Loại hàng hóa",
+    "Ghi chú",
+    "Đơn vị tính",
+    "Bảo hành",
+    "Giá vốn",
+    "Mô tả sản phẩm",
+    "Định mức tồn tối thiểu",
+    "Trọng lượng"
+   ],
+   "samples": {
+    "Mã hàng hóa": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "Được bán trực tiếp": [
+     "1"
+    ],
+    "Thương hiệu": [],
+    "Tên hàng hóa": [
+     "Xi măng Hà Tiên PCB40 bao 50kg",
+     "Xi măng INSEE Power-S bao 50kg",
+     "Cát xây tô"
+    ],
+    "Nhóm hàng hóa": [
+     "xi măng",
+     "cát đá",
+     "gạch"
+    ],
+    "Vị trí": [],
+    "Mẫu ghi chú": [],
+    "Loại hàng hóa": [
+     "Hàng hóa"
+    ],
+    "Ghi chú": [],
+    "Đơn vị tính": [
+     "bao",
+     "m3",
+     "viên"
+    ],
+    "Bảo hành": [],
+    "Giá vốn": [
+     "92,286.0000",
+     "86,320.0000",
+     "250,505.0000"
+    ],
+    "Mô tả sản phẩm": [],
+    "Định mức tồn tối thiểu": [
+     "0"
+    ],
+    "Trọng lượng": []
+   },
+   "notes": {
+    "Mã hàng hóa": "mã hàng",
+    "Tên hàng hóa": "tên",
+    "Nhóm hàng hóa": "nhóm hàng",
+    "Đơn vị tính": "đơn vị cơ bản",
+    "Giá vốn": "giá vốn"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::02.2025": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/02/2025",
+     "02/02/2025",
+     "03/02/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "Tên hàng hóa": [
+     "Thép Pomina D10 cây 11.7m",
+     "Dây điện Cadivi CV 1.5 cuộn 100m",
+     "Sơn Dulux Weathershield Powerflexx 5L"
+    ],
+    "Đơn vị tính": [
+     "cây",
+     "cuộn",
+     "thùng"
+    ],
+    "Số lượng": [
+     "1 cây",
+     "1",
+     "1 m3"
+    ],
+    "Đơn giá": [
+     "115,000.0000",
+     "790,000.0000",
+     "1,550,000.0000"
+    ],
+    "Thành tiền": [
+     "115,000.0000",
+     "790,000.0000",
+     "1,550,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã hủy",
+     "Đã trả hàng"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "10",
+     "2"
+    ],
+    "Khách hàng": [
+     "Đinh Huy Huy",
+     "kl",
+     "khách lẻ"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::03.2025": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/03/2025",
+     "02/03/2025",
+     "03/03/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD000685",
+     "ORD000686",
+     "ORD000687"
+    ],
+    "Tên hàng hóa": [
+     "Gạch ống 8x8x18 Tuynel",
+     "Gas Petrolimex 12kg",
+     "Dây điện Cadivi CV 2.5 cuộn 100m"
+    ],
+    "Đơn vị tính": [
+     "viên",
+     "bình",
+     "cuộn"
+    ],
+    "Số lượng": [
+     "5 viên",
+     "2 bình",
+     "1"
+    ],
+    "Đơn giá": [
+     "1,300.0000",
+     "520,000.0000",
+     "1,270,000.0000"
+    ],
+    "Thành tiền": [
+     "6,500.0000",
+     "1,040,000.0000",
+     "1,270,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã hủy",
+     "Đã trả hàng"
+    ],
+    "Số lượng quy đổi": [
+     "5",
+     "2",
+     "1"
+    ],
+    "Khách hàng": [
+     "khách lẻ",
+     "Triệu Hoa Khoa",
+     "Khách lẻ"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::04.2025": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/04/2025",
+     "02/04/2025",
+     "03/04/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD001608",
+     "ORD001609",
+     "ORD001610"
+    ],
+    "Tên hàng hóa": [
+     "Đá 1x2",
+     "Băng keo điện Nano 20 yard",
+     "Nước tinh khiết Bidrico 20L"
+    ],
+    "Đơn vị tính": [
+     "m3",
+     "cuộn",
+     "bình"
+    ],
+    "Số lượng": [
+     "5",
+     "2",
+     "1 bình"
+    ],
+    "Đơn giá": [
+     "380,000.0000",
+     "9,000.0000",
+     "45,000.0000"
+    ],
+    "Thành tiền": [
+     "1,900,000.0000",
+     "18,000.0000",
+     "45,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã hủy",
+     "Đã trả hàng"
+    ],
+    "Số lượng quy đổi": [
+     "5",
+     "2",
+     "1"
+    ],
+    "Khách hàng": [
+     "Đoàn Thanh Duy",
+     "Nguyễn Phương Hoa",
+     "Tống Thảo Hoàng"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::05.2025": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/05/2025",
+     "02/05/2025",
+     "03/05/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD002496",
+     "ORD002497",
+     "ORD002498"
+    ],
+    "Tên hàng hóa": [
+     "Keo dán ống PVC Bình Minh 200g",
+     "Ống PVC Bình Minh D32 cây 4m",
+     "Gas Petrolimex 12kg"
+    ],
+    "Đơn vị tính": [
+     "lon",
+     "cây",
+     "bình"
+    ],
+    "Số lượng": [
+     "1",
+     "2",
+     "10"
+    ],
+    "Đơn giá": [
+     "35,000.0000",
+     "65,000.0000",
+     "520,000.0000"
+    ],
+    "Thành tiền": [
+     "35,000.0000",
+     "130,000.0000",
+     "5,200,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã trả hàng",
+     "Đã hủy"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "2",
+     "10"
+    ],
+    "Khách hàng": [
+     "khách lẻ",
+     "Lương Hằng Thắng",
+     "Lý Chi Anh"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::06.2025": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/06/2025",
+     "02/06/2025",
+     "03/06/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD003402",
+     "ORD003403",
+     "ORD003404"
+    ],
+    "Tên hàng hóa": [
+     "Sơn lót Jotun Jotashield chống kiềm 5L",
+     "Xi măng INSEE Power-S bao 50kg",
+     "Thép Pomina D10 cây 11.7m"
+    ],
+    "Đơn vị tính": [
+     "thùng",
+     "bao",
+     "cây"
+    ],
+    "Số lượng": [
+     "1",
+     "3",
+     "5"
+    ],
+    "Đơn giá": [
+     "720,000.0000",
+     "100,000.0000",
+     "115,000.0000"
+    ],
+    "Thành tiền": [
+     "720,000.0000",
+     "300,000.0000",
+     "575,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã hủy",
+     "Đã trả hàng"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "3",
+     "5"
+    ],
+    "Khách hàng": [
+     "khách lẻ",
+     "Ngô Thu Khoa",
+     "Từ Khoa Dũng"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::07.2025": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/07/2025",
+     "02/07/2025",
+     "03/07/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD004250",
+     "ORD004251",
+     "ORD004252"
+    ],
+    "Tên hàng hóa": [
+     "Xi măng Hà Tiên PCB40 bao 50kg",
+     "Đinh 5 phân",
+     "Công tắc 1 chiều Panasonic Wide kèm mặt"
+    ],
+    "Đơn vị tính": [
+     "bao",
+     "kg",
+     "bộ"
+    ],
+    "Số lượng": [
+     "1 bao",
+     "1",
+     "3"
+    ],
+    "Đơn giá": [
+     "105,000.0000",
+     "20,000.0000",
+     "35,000.0000"
+    ],
+    "Thành tiền": [
+     "105,000.0000",
+     "20,000.0000",
+     "35,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã hủy",
+     "Đã trả hàng"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "12",
+     "3"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "Quách Châu Hà",
+     "Kiều Linh Lan"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::08.2025": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/08/2025",
+     "02/08/2025",
+     "03/08/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD005123",
+     "ORD005124",
+     "ORD005125"
+    ],
+    "Tên hàng hóa": [
+     "Ống PVC Bình Minh D32 cây 4m",
+     "Bộ van dây gas Namilux",
+     "Lưới B40 mạ kẽm khổ 1.5m"
+    ],
+    "Đơn vị tính": [
+     "cây",
+     "bộ",
+     "m"
+    ],
+    "Số lượng": [
+     "1",
+     "5",
+     "2"
+    ],
+    "Đơn giá": [
+     "65,000.0000",
+     "250,000.0000",
+     "50,500.0000"
+    ],
+    "Thành tiền": [
+     "65,000.0000",
+     "1,250,000.0000",
+     "101,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã hủy",
+     "Đã trả hàng"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "5",
+     "2"
+    ],
+    "Khách hàng": [
+     "khách lẻ",
+     "lẻ",
+     "kl"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::09.2025": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/09/2025",
+     "02/09/2025",
+     "03/09/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD005970",
+     "ORD005971",
+     "ORD005972"
+    ],
+    "Tên hàng hóa": [
+     "Máy bơm nước Panasonic GP-129JXK 125W",
+     "Bóng LED bulb Rạng Đông A60 9W",
+     "Bộ van dây gas Namilux"
+    ],
+    "Đơn vị tính": [
+     "cái",
+     "bộ",
+     "m2"
+    ],
+    "Số lượng": [
+     "1 cái",
+     "1",
+     "2"
+    ],
+    "Đơn giá": [
+     "1,250,000.0000",
+     "45,000.0000",
+     "250,000.0000"
+    ],
+    "Thành tiền": [
+     "1,250,000.0000",
+     "45,000.0000",
+     "500,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã hủy",
+     "Đã trả hàng"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Khách hàng": [
+     "kl",
+     "khách lẻ",
+     "Lưu Linh Thảo"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::10.2025": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/10/2025",
+     "02/10/2025",
+     "03/10/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD006855",
+     "ORD006856",
+     "ORD006857"
+    ],
+    "Tên hàng hóa": [
+     "Gạch ống 8x8x18 Tuynel",
+     "Bột trét Jotun nội thất 40kg",
+     "Công tắc 1 chiều Panasonic Wide kèm mặt"
+    ],
+    "Đơn vị tính": [
+     "viên",
+     "bao",
+     "bộ"
+    ],
+    "Số lượng": [
+     "2",
+     "3",
+     "1 bao"
+    ],
+    "Đơn giá": [
+     "1,300.0000",
+     "315,000.0000",
+     "35,000.0000"
+    ],
+    "Thành tiền": [
+     "2,600.0000",
+     "945,000.0000",
+     "70,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã hủy",
+     "Đã trả hàng"
+    ],
+    "Số lượng quy đổi": [
+     "2",
+     "3",
+     "1"
+    ],
+    "Khách hàng": [
+     "Đặng Thắng Quân",
+     "Nguyễn Bình Nhung",
+     "lẻ"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::11.2025": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/11/2025",
+     "02/11/2025",
+     "03/11/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD007734",
+     "ORD007735",
+     "ORD007736"
+    ],
+    "Tên hàng hóa": [
+     "Thước thủy nhôm Total 60cm",
+     "Băng keo điện Nano 20 yard",
+     "Bộ đèn tuýp LED T8 1.2m 18W Rạng Đông"
+    ],
+    "Đơn vị tính": [
+     "cái",
+     "cuộn",
+     "bộ"
+    ],
+    "Số lượng": [
+     "1",
+     "2 cuộn",
+     "2"
+    ],
+    "Đơn giá": [
+     "100,000.0000",
+     "9,000.0000",
+     "155,000.0000"
+    ],
+    "Thành tiền": [
+     "100,000.0000",
+     "18,000.0000",
+     "294,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã hủy",
+     "Đã trả hàng"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "2",
+     "10"
+    ],
+    "Khách hàng": [
+     "Lý Hoàng Thắng",
+     "Triệu Phong Hằng",
+     "Lương Hằng Thắng"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::12.2025": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/12/2025",
+     "02/12/2025",
+     "03/12/2025"
+    ],
+    "Mã đơn hàng": [
+     "ORD008594",
+     "ORD008595",
+     "ORD008596"
+    ],
+    "Tên hàng hóa": [
+     "Ổ cắm đôi 3 chấu Panasonic Wide WEV1582SW",
+     "Thép Pomina D10 cây 11.7m",
+     "Keo chà ron Weber 1kg"
+    ],
+    "Đơn vị tính": [
+     "cái",
+     "cây",
+     "gói"
+    ],
+    "Số lượng": [
+     "1 cái",
+     "3",
+     "2 gói"
+    ],
+    "Đơn giá": [
+     "68,000.0000",
+     "121,000.0000",
+     "40,000.0000"
+    ],
+    "Thành tiền": [
+     "68,000.0000",
+     "363,000.0000",
+     "80,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã trả hàng",
+     "Đã hủy"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "3",
+     "2"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "lẻ",
+     "Đặng Sơn Hoa"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::01.2026": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/01/2026",
+     "02/01/2026",
+     "03/01/2026"
+    ],
+    "Mã đơn hàng": [
+     "ORD009492",
+     "ORD009493",
+     "ORD009494"
+    ],
+    "Tên hàng hóa": [
+     "Kẽm buộc 1mm",
+     "Gas Saigon Petro 12kg",
+     "Nước khoáng Lavie 19L"
+    ],
+    "Đơn vị tính": [
+     "kg",
+     "bình",
+     "xe 4m3"
+    ],
+    "Số lượng": [
+     "1",
+     "2",
+     "1 bình"
+    ],
+    "Đơn giá": [
+     "22,000.0000",
+     "560,000.0000",
+     "68,000.0000"
+    ],
+    "Thành tiền": [
+     "22,000.0000",
+     "1,064,000.0000",
+     "68,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã hủy",
+     "Đã trả hàng"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "2",
+     "20"
+    ],
+    "Khách hàng": [
+     "Nguyễn Bình Nhung",
+     "Lương Phương Bình",
+     "lẻ"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::02.2026": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/02/2026",
+     "02/02/2026",
+     "03/02/2026"
+    ],
+    "Mã đơn hàng": [
+     "ORD010347",
+     "ORD010348",
+     "ORD010349"
+    ],
+    "Tên hàng hóa": [
+     "Sơn Maxilite trong nhà 18L",
+     "Gas Saigon Petro 12kg",
+     "Xi măng Hà Tiên PCB40 bao 50kg"
+    ],
+    "Đơn vị tính": [
+     "thùng",
+     "bình",
+     "bao"
+    ],
+    "Số lượng": [
+     "3 thùng",
+     "1",
+     "5"
+    ],
+    "Đơn giá": [
+     "827,000.0000",
+     "560,000.0000",
+     "105,000.0000"
+    ],
+    "Thành tiền": [
+     "2,481,000.0000",
+     "560,000.0000",
+     "105,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã trả hàng",
+     "Đã hủy"
+    ],
+    "Số lượng quy đổi": [
+     "3",
+     "1",
+     "5"
+    ],
+    "Khách hàng": [
+     "Bạch Đạt Phong",
+     "Lý Hoa Thắng",
+     "Vũ Chi Quang"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::03.2026": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/03/2026",
+     "02/03/2026",
+     "03/03/2026"
+    ],
+    "Mã đơn hàng": [
+     "ORD010914",
+     "ORD010915",
+     "ORD010916"
+    ],
+    "Tên hàng hóa": [
+     "Băng keo điện Nano 20 yard",
+     "Nước tinh khiết Bidrico 20L",
+     "Keo dán gạch Weber.tai fix xám 25kg"
+    ],
+    "Đơn vị tính": [
+     "cuộn",
+     "bình",
+     "bao"
+    ],
+    "Số lượng": [
+     "2",
+     "3 bình",
+     "2 bao"
+    ],
+    "Đơn giá": [
+     "9,000.0000",
+     "47,000.0000",
+     "331,000.0000"
+    ],
+    "Thành tiền": [
+     "18,000.0000",
+     "141,000.0000",
+     "662,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã trả hàng",
+     "Đã hủy"
+    ],
+    "Số lượng quy đổi": [
+     "2",
+     "3",
+     "1"
+    ],
+    "Khách hàng": [
+     "Tạ Linh Khánh",
+     "kl",
+     "Phan Hoàng Phong"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::04.2026": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/04/2026",
+     "02/04/2026",
+     "03/04/2026"
+    ],
+    "Mã đơn hàng": [
+     "ORD011763",
+     "ORD011764",
+     "ORD011765"
+    ],
+    "Tên hàng hóa": [
+     "Nước kiềm Ion Life 19L",
+     "Cát xây tô",
+     "Keo dán gạch Weber.tai fix xám 25kg"
+    ],
+    "Đơn vị tính": [
+     "bình",
+     "xe 4m3",
+     "bao"
+    ],
+    "Số lượng": [
+     "1 bình",
+     "1",
+     "2"
+    ],
+    "Đơn giá": [
+     "72,000.0000",
+     "1,200,000.0000",
+     "331,000.0000"
+    ],
+    "Thành tiền": [
+     "72,000.0000",
+     "1,200,000.0000",
+     "662,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã trả hàng",
+     "Đã hủy"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "4",
+     "2"
+    ],
+    "Khách hàng": [
+     "khách lẻ",
+     "Đặng Đức Hoàng",
+     "lẻ"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  },
+  "So_chi_tiet_ban_hang.xlsx::05.2026": {
+   "columns": [
+    "Ngày",
+    "Mã đơn hàng",
+    "Tên hàng hóa",
+    "Đơn vị tính",
+    "Số lượng",
+    "Đơn giá",
+    "Thành tiền",
+    "Trạng thái",
+    "Số lượng quy đổi",
+    "Khách hàng"
+   ],
+   "samples": {
+    "Ngày": [
+     "01/05/2026",
+     "02/05/2026",
+     "03/05/2026"
+    ],
+    "Mã đơn hàng": [
+     "ORD012554",
+     "ORD012555",
+     "ORD012556"
+    ],
+    "Tên hàng hóa": [
+     "Gạch ốp tường Viglacera 30x60 thùng 8 viên",
+     "Ổ cắm đôi 3 chấu Panasonic Wide WEV1582SW",
+     "Gas Petrolimex 12kg"
+    ],
+    "Đơn vị tính": [
+     "thùng",
+     "cái",
+     "bình"
+    ],
+    "Số lượng": [
+     "1",
+     "2",
+     "3 bình"
+    ],
+    "Đơn giá": [
+     "280,000.0000",
+     "68,000.0000",
+     "520,000.0000"
+    ],
+    "Thành tiền": [
+     "280,000.0000",
+     "136,000.0000",
+     "1,560,000.0000"
+    ],
+    "Trạng thái": [
+     "Đã hoàn thành",
+     "Đã hủy",
+     "Đã trả hàng"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "lẻ",
+     "Huỳnh Giang Trung"
+    ]
+   },
+   "notes": {
+    "Ngày": "ngày bán",
+    "Mã đơn hàng": "mã đơn",
+    "Tên hàng hóa": "tên hàng",
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Trạng thái": "trạng thái đơn",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)"
+   }
+  }
+ },
+ "biz_117": {
+  "BangGia.xlsx::Sheet1": {
+   "columns": [
+    "Ngày áp dụng",
+    "Giá cũ",
+    "Giá mới",
+    "TenHang"
+   ],
+   "samples": {
+    "Ngày áp dụng": [
+     "45658",
+     "45781",
+     "45846"
+    ],
+    "Giá cũ": [
+     "105.000đ",
+     "110.000đ",
+     "115.500đ"
+    ],
+    "Giá mới": [
+     "105.000đ",
+     "110.000đ",
+     "115.500đ"
+    ],
+    "TenHang": [
+     "Xi măng Hà Tiên PCB40 bao 50kg",
+     "Xi măng INSEE Power-S bao 50kg",
+     "Cát xây tô"
+    ]
+   },
+   "notes": {
+    "Ngày áp dụng": "ngày bắt đầu áp dụng giá",
+    "Giá cũ": "giá trước lần đổi (trống ở dòng đầu mỗi mặt hàng)",
+    "Giá mới": "giá bán áp dụng từ ngày đó (đơn vị cơ bản)",
+    "TenHang": "tên hàng"
+   }
+  },
+  "DanhMuc.xlsx::Sheet1": {
+   "columns": [
+    "Hàng",
+    "ĐV lớn",
+    "ĐV nhỏ",
+    "Hệ số QĐ"
+   ],
+   "samples": {
+    "Hàng": [
+     "Xi măng Hà Tiên PCB40 bao 50kg",
+     "Xi măng INSEE Power-S bao 50kg",
+     "Cát xây tô"
+    ],
+    "ĐV lớn": [
+     "tấn",
+     "xe 4m3",
+     "thiên"
+    ],
+    "ĐV nhỏ": [
+     "bao",
+     "m3",
+     "viên"
+    ],
+    "Hệ số QĐ": [
+     "20",
+     "4",
+     "1000"
+    ]
+   },
+   "notes": {
+    "Hàng": "tên hàng (file chỉ có mặt hàng có đơn vị lớn)",
+    "ĐV lớn": "đơn vị lớn (thùng, hộp, tấn...)",
+    "ĐV nhỏ": "đơn vị cơ bản",
+    "Hệ số QĐ": "hệ số: số đơn vị cơ bản trong 1 đơn vị lớn"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 01-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-01-01 06:13:20",
+     "2025-01-01 06:17:24",
+     "2025-01-01 07:24:03"
+    ],
+    "Mã phiếu": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "TenKH": [
+     "Triệu Đức Duy",
+     "lẻ",
+     "Đào Bình Loan"
+    ],
+    "Ngày lập": [
+     "1/1",
+     "01/01/2025",
+     "1 thg 1 2025"
+    ],
+    "Tiền": [
+     "1tr440",
+     "300.000đ",
+     "55.000đ"
+    ],
+    "Ghi chú TT": [
+     "Thành công",
+     "Đã hoàn thành",
+     "đã lấy"
+    ],
+    "Giá": [
+     "720.000đ",
+     "300.000đ",
+     "55.000đ"
+    ],
+    "DonVi": [
+     "thùng",
+     "bao",
+     "bình"
+    ],
+    "Số lượng hàng": [
+     "2 thùng",
+     "1",
+     "1 bình"
+    ],
+    "Tên SP": [
+     "Sơn lót Jotun Jotashield chống kiềm 5L",
+     "Keo dán gạch Weber.tai fix xám 25kg",
+     "Nước tinh khiết Vihawa 20L"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 02-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-02-01 06:07:13",
+     "2025-02-01 07:17:10",
+     "2025-02-01 07:43:21"
+    ],
+    "Mã phiếu": [
+     "ORD000696",
+     "ORD000697",
+     "ORD000698"
+    ],
+    "TenKH": [
+     "Khách lẻ",
+     "Thái Hồng Hiếu",
+     "Bạch Đạt Hương"
+    ],
+    "Ngày lập": [
+     "45689",
+     "1 thg 2 2025",
+     "01/02/2025"
+    ],
+    "Tiền": [
+     "825.000đ",
+     "1tr050",
+     "380.000đ"
+    ],
+    "Ghi chú TT": [
+     "Thành công",
+     "đã lấy",
+     "trả lại"
+    ],
+    "Giá": [
+     "165.000đ",
+     "350.000đ",
+     "380.000đ"
+    ],
+    "DonVi": [
+     "cây",
+     "m3",
+     "thùng"
+    ],
+    "Số lượng hàng": [
+     "5 cây",
+     "3",
+     "1 m3"
+    ],
+    "Tên SP": [
+     "Thép Pomina D12 cây 11.7m",
+     "Đá 4x6",
+     "Đá 1x2"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 03-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-03-01 06:12:27",
+     "2025-03-01 07:50:58",
+     "2025-03-01 08:03:42"
+    ],
+    "Mã phiếu": [
+     "ORD001397",
+     "ORD001398",
+     "ORD001399"
+    ],
+    "TenKH": [
+     "Đỗ Dương Phong",
+     "Vũ Ngân Huy",
+     "lẻ"
+    ],
+    "Ngày lập": [
+     "45717",
+     "1/3",
+     "01/03/2025"
+    ],
+    "Tiền": [
+     "300.000đ",
+     "144.000đ",
+     "38.000đ"
+    ],
+    "Ghi chú TT": [
+     "đã lấy",
+     "Thành công",
+     "Đã hoàn thành"
+    ],
+    "Giá": [
+     "300.000đ",
+     "72.000đ",
+     "38.000đ"
+    ],
+    "DonVi": [
+     "m3",
+     "bình",
+     "gói"
+    ],
+    "Số lượng hàng": [
+     "1",
+     "2",
+     "1 gói"
+    ],
+    "Tên SP": [
+     "Cát xây tô",
+     "Nước kiềm Ion Life 19L",
+     "Keo chà ron Weber 1kg"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 04-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-04-01 15:07:04",
+     "2025-04-01 07:07:31",
+     "2025-04-01 07:24:57"
+    ],
+    "Mã phiếu": [
+     "ORD002250",
+     "ORD002318",
+     "ORD002319"
+    ],
+    "TenKH": [
+     "Dương Phúc Hương",
+     "Đặng Hà Khoa",
+     "khách lẻ"
+    ],
+    "Ngày lập": [
+     "1/4",
+     "45748",
+     "1 thg 4 2025"
+    ],
+    "Tiền": [
+     "-15.300đ",
+     "520.000đ",
+     "115.000đ"
+    ],
+    "Ghi chú TT": [
+     "trả lại",
+     "đã lấy",
+     "Thành công"
+    ],
+    "Giá": [
+     "15.300đ",
+     "520.000đ",
+     "115.000đ"
+    ],
+    "DonVi": [
+     "kg",
+     "bình",
+     "cây"
+    ],
+    "Số lượng hàng": [
+     "-1 kg",
+     "1",
+     "1 cây"
+    ],
+    "Tên SP": [
+     "Thép cuộn phi 8 Hòa Phát",
+     "Gas Petrolimex 12kg",
+     "Thép Pomina D10 cây 11.7m"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 05-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-05-01 06:10:21",
+     "2025-05-01 06:12:53",
+     "2025-05-01 06:27:31"
+    ],
+    "Mã phiếu": [
+     "ORD003180",
+     "ORD003181",
+     "ORD003182"
+    ],
+    "TenKH": [
+     "khách lẻ",
+     "kl",
+     "Chung Quang Khoa"
+    ],
+    "Ngày lập": [
+     "01/05/2025",
+     "1 thg 5 2025",
+     "45778"
+    ],
+    "Tiền": [
+     "790.000đ",
+     "295.000đ",
+     "75.500đ"
+    ],
+    "Ghi chú TT": [
+     "Thành công",
+     "đã lấy",
+     "Đã hoàn thành"
+    ],
+    "Giá": [
+     "790.000đ",
+     "295.000đ",
+     "75.500đ"
+    ],
+    "DonVi": [
+     "cuộn",
+     "cây",
+     "bình"
+    ],
+    "Số lượng hàng": [
+     "1 cuộn",
+     "1 cây",
+     "1"
+    ],
+    "Tên SP": [
+     "Dây điện Cadivi CV 1.5 cuộn 100m",
+     "Thép hộp 40x80 dày 1.4mm cây 6m",
+     "Nước kiềm Ion Life 19L"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 06-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-06-01 06:25:17",
+     "2025-06-01 07:31:25",
+     "2025-06-01 08:16:27"
+    ],
+    "Mã phiếu": [
+     "ORD004106",
+     "ORD004107",
+     "ORD004108"
+    ],
+    "TenKH": [
+     "khách lẻ",
+     "Hà Nhung Sơn",
+     "Hứa Hải Phong"
+    ],
+    "Ngày lập": [
+     "01/06/2025",
+     "45809",
+     "1/6"
+    ],
+    "Tiền": [
+     "180.000đ",
+     "155.000đ",
+     "42.000đ"
+    ],
+    "Ghi chú TT": [
+     "Thành công",
+     "Đã hoàn thành",
+     "đã lấy"
+    ],
+    "Giá": [
+     "90.000đ",
+     "155.000đ",
+     "21.000đ"
+    ],
+    "DonVi": [
+     "cây",
+     "bộ",
+     "kg"
+    ],
+    "Số lượng hàng": [
+     "2",
+     "1 bộ",
+     "3 thùng"
+    ],
+    "Tên SP": [
+     "Băng keo điện Nano 20 yard",
+     "Bộ đèn tuýp LED T8 1.2m 18W Rạng Đông",
+     "Kẽm buộc 1mm"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 07-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-07-01 07:34:30",
+     "2025-07-01 07:56:44",
+     "2025-07-01 08:00:13"
+    ],
+    "Mã phiếu": [
+     "ORD005051",
+     "ORD005052",
+     "ORD005053"
+    ],
+    "TenKH": [
+     "lẻ",
+     "Lâm Anh Cường",
+     "Đặng Sơn Khánh"
+    ],
+    "Ngày lập": [
+     "45839",
+     "1/7",
+     "01/07/2025"
+    ],
+    "Tiền": [
+     "295.000đ",
+     "220.000đ",
+     "38.000đ"
+    ],
+    "Ghi chú TT": [
+     "đã lấy",
+     "Đã hoàn thành",
+     "Thành công"
+    ],
+    "Giá": [
+     "295.000đ",
+     "110.000đ",
+     "38.000đ"
+    ],
+    "DonVi": [
+     "cây",
+     "bao",
+     "gói"
+    ],
+    "Số lượng hàng": [
+     "1 cây",
+     "2",
+     "1 gói"
+    ],
+    "Tên SP": [
+     "Thép Pomina D16 cây 11.7m",
+     "Xi măng Hà Tiên PCB40 bao 50kg",
+     "Keo chà ron Weber 1kg"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 08-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-08-01 07:14:37",
+     "2025-08-01 07:17:45",
+     "2025-08-01 07:22:04"
+    ],
+    "Mã phiếu": [
+     "ORD005961",
+     "ORD005962",
+     "ORD005963"
+    ],
+    "TenKH": [
+     "lẻ",
+     "Quách Hạnh Nam",
+     "Đỗ Ngân Bình"
+    ],
+    "Ngày lập": [
+     "1 thg 8 2025",
+     "45870",
+     "1/8"
+    ],
+    "Tiền": [
+     "20.000đ",
+     "85.000đ",
+     "399.000đ"
+    ],
+    "Ghi chú TT": [
+     "Thành công",
+     "Đã hoàn thành",
+     "đã lấy"
+    ],
+    "Giá": [
+     "20.000đ",
+     "85.000đ",
+     "399.000đ"
+    ],
+    "DonVi": [
+     "kg",
+     "m",
+     "m3"
+    ],
+    "Số lượng hàng": [
+     "1 kg",
+     "1",
+     "3 cây"
+    ],
+    "Tên SP": [
+     "Đinh 5 phân",
+     "Tôn lạnh Hoa Sen 0.4mm",
+     "Đá 1x2"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 09-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-09-01 06:16:23",
+     "2025-09-01 07:13:50",
+     "2025-09-01 07:51:17"
+    ],
+    "Mã phiếu": [
+     "ORD006881",
+     "ORD006882",
+     "ORD006883"
+    ],
+    "TenKH": [
+     "lẻ",
+     "Phạm Thắng Long",
+     "Khách lẻ"
+    ],
+    "Ngày lập": [
+     "45901",
+     "01/09/2025",
+     "1/9"
+    ],
+    "Tiền": [
+     "1tr995",
+     "825.000đ",
+     "295.000đ"
+    ],
+    "Ghi chú TT": [
+     "đã lấy",
+     "Đã hoàn thành",
+     "Thành công"
+    ],
+    "Giá": [
+     "399.000đ",
+     "165.000đ",
+     "295.000đ"
+    ],
+    "DonVi": [
+     "m3",
+     "cây",
+     "bình"
+    ],
+    "Số lượng hàng": [
+     "5 m3",
+     "5",
+     "1"
+    ],
+    "Tên SP": [
+     "Đá 1x2",
+     "Thép Pomina D12 cây 11.7m",
+     "Thép hộp 40x80 dày 1.4mm cây 6m"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 10-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-10-01 06:02:30",
+     "2025-10-01 06:27:13",
+     "2025-10-01 06:36:41"
+    ],
+    "Mã phiếu": [
+     "ORD007788",
+     "ORD007789",
+     "ORD007790"
+    ],
+    "TenKH": [
+     "Tạ Ngọc Hoa",
+     "Phạm Hoa Hạnh",
+     "kl"
+    ],
+    "Ngày lập": [
+     "01/10/2025",
+     "1/10",
+     "45931"
+    ],
+    "Tiền": [
+     "155.000đ",
+     "300.000đ",
+     "15.500đ"
+    ],
+    "Ghi chú TT": [
+     "đã lấy",
+     "Đã hoàn thành",
+     "Thành công"
+    ],
+    "Giá": [
+     "155.000đ",
+     "100.000đ",
+     "15.500đ"
+    ],
+    "DonVi": [
+     "bộ",
+     "cái",
+     "kg"
+    ],
+    "Số lượng hàng": [
+     "1 bộ",
+     "3 cái",
+     "1 kg"
+    ],
+    "Tên SP": [
+     "Bộ đèn tuýp LED T8 1.2m 18W Rạng Đông",
+     "Thước thủy nhôm Total 60cm",
+     "Thép cuộn phi 6 Hòa Phát"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 11-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-11-01 06:16:00",
+     "2025-11-01 06:51:35",
+     "2025-11-01 07:05:48"
+    ],
+    "Mã phiếu": [
+     "ORD008699",
+     "ORD008700",
+     "ORD008701"
+    ],
+    "TenKH": [
+     "kl",
+     "Thái Hồng Hiếu",
+     "Đặng Sơn Khánh"
+    ],
+    "Ngày lập": [
+     "01/11/2025",
+     "45962",
+     "1/11"
+    ],
+    "Tiền": [
+     "2tr",
+     "300.000đ",
+     "345.000đ"
+    ],
+    "Ghi chú TT": [
+     "Thành công",
+     "Đã hoàn thành",
+     "hủy"
+    ],
+    "Giá": [
+     "100.000đ",
+     "300.000đ",
+     "115.000đ"
+    ],
+    "DonVi": [
+     "bao",
+     "m3",
+     "cây"
+    ],
+    "Số lượng hàng": [
+     "20 bao",
+     "1 m3",
+     "3"
+    ],
+    "Tên SP": [
+     "Xi măng INSEE Power-S bao 50kg",
+     "Cát xây tô",
+     "Thép Pomina D10 cây 11.7m"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 12-2025": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2025-12-01 06:04:05",
+     "2025-12-01 06:11:55",
+     "2025-12-01 06:12:13"
+    ],
+    "Mã phiếu": [
+     "ORD009591",
+     "ORD009592",
+     "ORD009593"
+    ],
+    "TenKH": [
+     "khách lẻ",
+     "Phạm Minh Hồng",
+     "kl"
+    ],
+    "Ngày lập": [
+     "01/12/2025",
+     "1 thg 12 2025",
+     "45992"
+    ],
+    "Tiền": [
+     "47.000đ",
+     "115.000đ",
+     "16.000đ"
+    ],
+    "Ghi chú TT": [
+     "Thành công",
+     "đã lấy",
+     "Đã hoàn thành"
+    ],
+    "Giá": [
+     "47.000đ",
+     "115.000đ",
+     "16.000đ"
+    ],
+    "DonVi": [
+     "bình",
+     "cây",
+     "kg"
+    ],
+    "Số lượng hàng": [
+     "1 bình",
+     "1 cây",
+     "1 kg"
+    ],
+    "Tên SP": [
+     "Nước tinh khiết Bidrico 20L",
+     "Thép Pomina D10 cây 11.7m",
+     "Thép cuộn phi 8 Hòa Phát"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 01-2026": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2026-01-01 18:57:42",
+     "2026-01-01 06:49:39",
+     "2026-01-01 06:57:16"
+    ],
+    "Mã phiếu": [
+     "ORD010355",
+     "ORD010533",
+     "ORD010534"
+    ],
+    "TenKH": [
+     "lẻ",
+     "Đinh Hải Hương",
+     "Phạm Hoa Hạnh"
+    ],
+    "Ngày lập": [
+     "1/1",
+     "1 thg 1 2026",
+     "46023"
+    ],
+    "Tiền": [
+     "-1.400đ",
+     "347.500đ",
+     "46.500đ"
+    ],
+    "Ghi chú TT": [
+     "Đã trả hàng",
+     "Thành công",
+     "đã lấy"
+    ],
+    "Giá": [
+     "1.400đ",
+     "347.500đ",
+     "15.500đ"
+    ],
+    "DonVi": [
+     "viên",
+     "thùng",
+     "kg"
+    ],
+    "Số lượng hàng": [
+     "-1 viên",
+     "1",
+     "3 kg"
+    ],
+    "Tên SP": [
+     "Gạch ống 8x8x18 Tuynel",
+     "Gạch lát nền Prime 60x60 thùng 4 viên",
+     "Thép cuộn phi 6 Hòa Phát"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 02-2026": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2026-02-01 06:15:58",
+     "2026-02-01 06:44:06",
+     "2026-02-01 06:57:07"
+    ],
+    "Mã phiếu": [
+     "ORD011587",
+     "ORD011588",
+     "ORD011589"
+    ],
+    "TenKH": [
+     "lẻ",
+     "Tống Nam Loan",
+     "khách lẻ"
+    ],
+    "Ngày lập": [
+     "1/2",
+     "46054",
+     "01/02/2026"
+    ],
+    "Tiền": [
+     "310.000đ",
+     "110.000đ",
+     "65.000đ"
+    ],
+    "Ghi chú TT": [
+     "Thành công",
+     "đã lấy",
+     "Đã trả hàng"
+    ],
+    "Giá": [
+     "155.000đ",
+     "55.000đ",
+     "65.000đ"
+    ],
+    "DonVi": [
+     "bộ",
+     "bình",
+     "thùng"
+    ],
+    "Số lượng hàng": [
+     "2",
+     "1",
+     "1 thùng"
+    ],
+    "Tên SP": [
+     "Bộ đèn tuýp LED T8 1.2m 18W Rạng Đông",
+     "Nước tinh khiết Vihawa 20L",
+     "Nước khoáng Lavie 19L"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 03-2026": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2026-03-01 06:16:20",
+     "2026-03-01 06:29:34",
+     "2026-03-01 07:02:09"
+    ],
+    "Mã phiếu": [
+     "ORD012251",
+     "ORD012252",
+     "ORD012253"
+    ],
+    "TenKH": [
+     "Khách lẻ",
+     "Bạch An Hoàng",
+     "Bùi Dương Hải"
+    ],
+    "Ngày lập": [
+     "46082",
+     "1 thg 3 2026",
+     "01/03/2026"
+    ],
+    "Tiền": [
+     "130.000đ",
+     "2.800đ",
+     "6tr090"
+    ],
+    "Ghi chú TT": [
+     "Thành công",
+     "Đã hoàn thành",
+     "đã lấy"
+    ],
+    "Giá": [
+     "65.000đ",
+     "1.400đ",
+     "3tr045"
+    ],
+    "DonVi": [
+     "bình",
+     "viên",
+     "cái"
+    ],
+    "Số lượng hàng": [
+     "2",
+     "2 bao",
+     "1"
+    ],
+    "Tên SP": [
+     "Nước khoáng Lavie 19L",
+     "Gạch ống 8x8x18 Tuynel",
+     "Bồn nước inox Sơn Hà 1000L ngang"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 04-2026": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2026-04-01 06:01:33",
+     "2026-04-01 06:31:25",
+     "2026-04-01 07:04:56"
+    ],
+    "Mã phiếu": [
+     "ORD013291",
+     "ORD013292",
+     "ORD013293"
+    ],
+    "TenKH": [
+     "Bùi Long Thắng",
+     "kl",
+     "Võ Bảo Bích"
+    ],
+    "Ngày lập": [
+     "1/4",
+     "46113",
+     "1 thg 4 2026"
+    ],
+    "Tiền": [
+     "504.000đ",
+     "230.000đ",
+     "13tr800"
+    ],
+    "Ghi chú TT": [
+     "Thành công",
+     "đã lấy",
+     "Đã hoàn thành"
+    ],
+    "Giá": [
+     "252.000đ",
+     "115.000đ",
+     "2tr760"
+    ],
+    "DonVi": [
+     "m3",
+     "cây",
+     "cuộn"
+    ],
+    "Số lượng hàng": [
+     "2 m3",
+     "2",
+     "5"
+    ],
+    "Tên SP": [
+     "Cát san lấp",
+     "Thép Pomina D10 cây 11.7m",
+     "Dây điện Cadivi VCmd 2x2.5 cuộn 100m"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoBanHang.xlsx::Tháng 05-2026": {
+   "columns": [
+    "Giờ",
+    "Mã phiếu",
+    "TenKH",
+    "Ngày lập",
+    "Tiền",
+    "Ghi chú TT",
+    "Giá",
+    "DonVi",
+    "Số lượng hàng",
+    "Tên SP"
+   ],
+   "samples": {
+    "Giờ": [
+     "2026-05-01 06:37:35",
+     "2026-05-01 07:03:08",
+     "2026-05-01 07:06:34"
+    ],
+    "Mã phiếu": [
+     "ORD014314",
+     "ORD014315",
+     "ORD014316"
+    ],
+    "TenKH": [
+     "Quách Hiếu Hoa",
+     "khách lẻ",
+     "lẻ"
+    ],
+    "Ngày lập": [
+     "1 thg 5 2026",
+     "01/05/2026",
+     "1/5"
+    ],
+    "Tiền": [
+     "575.000đ",
+     "68.000đ",
+     "70.000đ"
+    ],
+    "Ghi chú TT": [
+     "đã lấy",
+     "Đã hoàn thành",
+     "Thành công"
+    ],
+    "Giá": [
+     "115.000đ",
+     "68.000đ",
+     "35.000đ"
+    ],
+    "DonVi": [
+     "cây",
+     "cái",
+     "bộ"
+    ],
+    "Số lượng hàng": [
+     "5",
+     "1",
+     "2"
+    ],
+    "Tên SP": [
+     "Thép Pomina D10 cây 11.7m",
+     "Ổ cắm đôi 3 chấu Panasonic Wide WEV1582SW",
+     "Công tắc 1 chiều Panasonic Wide kèm mặt"
+    ]
+   },
+   "notes": {
+    "Giờ": "giờ đặt đơn (dòng trả hàng: lúc trả)",
+    "Mã phiếu": "mã đơn",
+    "TenKH": "tên khách (Khách lẻ nếu không lưu)",
+    "Ngày lập": "ngày bán",
+    "Tiền": "thành tiền sau giảm",
+    "Ghi chú TT": "trạng thái đơn",
+    "Giá": "đơn giá",
+    "DonVi": "đơn vị tính",
+    "Số lượng hàng": "số lượng",
+    "Tên SP": "tên hàng"
+   }
+  },
+  "SoGiaoHang.xlsx::Sheet1": {
+   "columns": [
+    "ĐV gốc",
+    "Biển số xe",
+    "Mã bill",
+    "Lượt giao",
+    "SL thực giao",
+    "Tên hàng",
+    "Ngày chở",
+    "Người chở"
+   ],
+   "samples": {
+    "ĐV gốc": [
+     "cây",
+     "viên",
+     "cái"
+    ],
+    "Biển số xe": [
+     "61C-873.50",
+     "51C-887.85",
+     "51D-130.73"
+    ],
+    "Mã bill": [
+     "ORD000006",
+     "ORD000007",
+     "ORD000009"
+    ],
+    "Lượt giao": [
+     "1",
+     "2",
+     "3"
+    ],
+    "SL thực giao": [
+     "3",
+     "8",
+     "1"
+    ],
+    "Tên hàng": [
+     "Thép Pomina D12 cây 11.7m",
+     "Gạch ống 8x8x18 Tuynel",
+     "Bay thợ hồ Total 160mm"
+    ],
+    "Ngày chở": [
+     "2 thg 1 2025",
+     "8 thg 1 2025",
+     "10 thg 1 2025"
+    ],
+    "Người chở": [
+     "Chung Ngân",
+     "Tô Loan",
+     "Ông Anh"
+    ]
+   },
+   "notes": {
+    "ĐV gốc": "đơn vị cơ bản",
+    "Biển số xe": "biển số xe",
+    "Mã bill": "mã đơn",
+    "Lượt giao": "đợt giao (1, 2, 3)",
+    "SL thực giao": "số lượng đã đổi ra đơn vị cơ bản",
+    "Tên hàng": "tên hàng",
+    "Ngày chở": "ngày giao",
+    "Người chở": "tài xế"
+   }
+  },
+  "SoHanNo.xlsx::Sheet1": {
+   "columns": [
+    "So hoa don",
+    "Hạn nợ (ngày)",
+    "Han tra"
+   ],
+   "samples": {
+    "So hoa don": [
+     "ORD000001",
+     "ORD000004",
+     "ORD000008"
+    ],
+    "Hạn nợ (ngày)": [
+     "30",
+     "60"
+    ],
+    "Han tra": [
+     "31/01/2025",
+     "45688",
+     "45718"
+    ]
+   },
+   "notes": {
+    "So hoa don": "mã đơn",
+    "Hạn nợ (ngày)": "số ngày được nợ",
+    "Han tra": "hạn thanh toán"
+   }
+  },
+  "SoNhapHang.xlsx::Sheet1": {
+   "columns": [
+    "Số phiếu",
+    "Product",
+    "Ngày nhập",
+    "ĐVT",
+    "Thành tiền",
+    "Nội dung",
+    "Nhà cung cấp",
+    "SL nhập",
+    "Giá nhập"
+   ],
+   "samples": {
+    "Số phiếu": [
+     "PN00001",
+     "PN00002",
+     "PN00003"
+    ],
+    "Product": [
+     "Xi măng Hà Tiên PCB40 bao 50kg",
+     "Xi măng INSEE Power-S bao 50kg",
+     "Cát xây tô"
+    ],
+    "Ngày nhập": [
+     "45658",
+     "01/01/2025",
+     "45660"
+    ],
+    "ĐVT": [
+     "tấn",
+     "xe 4m3",
+     "thiên"
+    ],
+    "Thành tiền": [
+     "16,56tr",
+     "9tr960",
+     "35,56tr"
+    ],
+    "Nội dung": [
+     "nhập đầu kỳ"
+    ],
+    "Nhà cung cấp": [
+     "Cty Châu Linh",
+     "Cty Phạm Giang",
+     "Cty Cao Bích"
+    ],
+    "SL nhập": [
+     "9",
+     "6",
+     "35"
+    ],
+    "Giá nhập": [
+     "1,84tr",
+     "1,66tr",
+     "1.016.000đ"
+    ]
+   },
+   "notes": {
+    "Số phiếu": "mã phiếu nhập",
+    "Product": "tên hàng",
+    "Ngày nhập": "ngày nhập",
+    "ĐVT": "đơn vị nhập",
+    "Thành tiền": "tiền nhập của cả dòng",
+    "Nội dung": "ghi chú",
+    "Nhà cung cấp": "nhà cung cấp",
+    "SL nhập": "số lượng nhập",
+    "Giá nhập": "giá nhập một đơn vị (theo đơn vị nhập của dòng)"
+   }
+  },
+  "TonKho.xlsx::Sheet1": {
+   "columns": [
+    "Tồn thực",
+    "Đơn vị",
+    "Product"
+   ],
+   "samples": {
+    "Tồn thực": [
+     "169",
+     "36",
+     "78"
+    ],
+    "Đơn vị": [
+     "bao",
+     "m3",
+     "viên"
+    ],
+    "Product": [
+     "Xi măng Hà Tiên PCB40 bao 50kg",
+     "Xi măng INSEE Power-S bao 50kg",
+     "Cát xây tô"
+    ]
+   },
+   "notes": {
+    "Tồn thực": "tồn kho (đơn vị cơ bản)",
+    "Đơn vị": "đơn vị cơ bản",
+    "Product": "tên hàng"
+   }
+  }
+ },
+ "biz_120": {
+  "BaoCaoTonKho.xlsx::Sheet1": {
+   "columns": [
+    "Mã hàng",
+    "Tên hàng",
+    "ĐVT",
+    "Tồn cuối kỳ"
+   ],
+   "samples": {
+    "Mã hàng": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "Tên hàng": [
+     "PANADOL EXTRA HỘP 15 VỈ X 12 VIÊN",
+     "Hapacol 250 hộp 24 gói",
+     "Panadol 500mg hộp 10 vỉ x 12 viên"
+    ],
+    "ĐVT": [
+     "viên",
+     "gói",
+     "chai"
+    ],
+    "Tồn cuối kỳ": [
+     "392",
+     "0",
+     "105"
+    ]
+   },
+   "notes": {
+    "Mã hàng": "mã hàng",
+    "Tên hàng": "tên hàng",
+    "ĐVT": "đơn vị cơ bản",
+    "Tồn cuối kỳ": "tồn kho (đơn vị cơ bản)"
+   }
+  },
+  "DanhSachChiTietNhapHang.xlsx::Sheet1": {
+   "columns": [
+    "Mã nhập hàng",
+    "STT",
+    "Mã hàng",
+    "ĐVT",
+    "Số lượng",
+    "Đơn giá",
+    "Lô",
+    "Hạn sử dụng"
+   ],
+   "samples": {
+    "Mã nhập hàng": [
+     "PN00001",
+     "PN00002",
+     "PN00003"
+    ],
+    "STT": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Mã hàng": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "ĐVT": [
+     "hộp",
+     "chai",
+     "tuýp"
+    ],
+    "Số lượng": [
+     "2",
+     "10",
+     "3"
+    ],
+    "Đơn giá": [
+     "198,000",
+     "38,400",
+     "96,000"
+    ],
+    "Lô": [
+     "T2501293",
+     "E2501838",
+     "B2501356"
+    ],
+    "Hạn sử dụng": [
+     "2025-04-17",
+     "2025-03-17",
+     "2027-06-16"
+    ]
+   },
+   "notes": {
+    "Mã nhập hàng": "mã phiếu nhập",
+    "STT": "số thứ tự dòng trong phiếu nhập",
+    "Mã hàng": "mã hàng",
+    "ĐVT": "đơn vị tính",
+    "Số lượng": "số lượng",
+    "Đơn giá": "giá nhập một đơn vị (theo đơn vị nhập của dòng)",
+    "Lô": "số lô",
+    "Hạn sử dụng": "hạn sử dụng"
+   }
+  },
+  "DanhSachHoaDon.xlsx::01.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "Thời gian": [
+     "01/01/2025",
+     "02/01/2025",
+     "03/01/2025"
+    ],
+    "Mã KH": [
+     "KH0344",
+     "KH0040",
+     "KH0002"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "Mai Minh Dũng",
+     "Phạm Dương Hà"
+    ],
+    "Tổng tiền hàng": [
+     "12,900",
+     "114,000",
+     "1,600"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "12,900",
+     "114,000",
+     "1,600"
+    ],
+    "Trạng thái": [
+     "ok",
+     "trả hàng",
+     "hủy đơn"
+    ],
+    "Thời gian tạo": [
+     "2025-01-01 07:05:17",
+     "2025-01-01 07:22:22",
+     "2025-01-01 07:22:49"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "phone",
+     "zalo_oa"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::02.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD002585",
+     "ORD002586",
+     "ORD002587"
+    ],
+    "Thời gian": [
+     "01/02/2025",
+     "02/02/2025",
+     "03/02/2025"
+    ],
+    "Mã KH": [
+     "KH0008",
+     "KH0131",
+     "KH0323"
+    ],
+    "Khách hàng": [
+     "Thái Minh Giang",
+     "Đỗ Thanh An",
+     "Khách lẻ"
+    ],
+    "Tổng tiền hàng": [
+     "122,500",
+     "5,600",
+     "101,800"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "122,500",
+     "5,600",
+     "101,800"
+    ],
+    "Trạng thái": [
+     "ok",
+     "trả hàng",
+     "hủy đơn"
+    ],
+    "Thời gian tạo": [
+     "2025-02-01 06:43:23",
+     "2025-02-01 07:01:06",
+     "2025-02-01 07:08:58"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "phone",
+     "zalo_oa"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::03.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD005044",
+     "ORD005045",
+     "ORD005046"
+    ],
+    "Thời gian": [
+     "01/03/2025",
+     "02/03/2025",
+     "03/03/2025"
+    ],
+    "Mã KH": [
+     "KH0055",
+     "KH0259",
+     "KH0098"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "Thái An Châu",
+     "Triệu Quang Sơn"
+    ],
+    "Tổng tiền hàng": [
+     "110,000",
+     "8,000",
+     "36,000"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "110,000",
+     "8,000",
+     "36,000"
+    ],
+    "Trạng thái": [
+     "ok",
+     "hủy đơn",
+     "trả hàng"
+    ],
+    "Thời gian tạo": [
+     "2025-03-01 06:20:12",
+     "2025-03-01 07:07:39",
+     "2025-03-01 07:09:27"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "phone",
+     "zalo_oa"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::04.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD007804",
+     "ORD007805",
+     "ORD007806"
+    ],
+    "Thời gian": [
+     "01/04/2025",
+     "02/04/2025",
+     "03/04/2025"
+    ],
+    "Mã KH": [
+     "KH0305",
+     "KH0187",
+     "KH0284"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "Đoàn Phong Hương",
+     "Ngô An Hà"
+    ],
+    "Tổng tiền hàng": [
+     "4,800",
+     "110,000",
+     "1,104,500"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "0",
+     "110,000",
+     "1,094,500"
+    ],
+    "Trạng thái": [
+     "hủy đơn",
+     "ok",
+     "trả hàng"
+    ],
+    "Thời gian tạo": [
+     "2025-04-01 06:20:10",
+     "2025-04-01 06:31:48",
+     "2025-04-01 07:05:38"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "zalo_oa",
+     "phone"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::05.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD010381",
+     "ORD010382",
+     "ORD010383"
+    ],
+    "Thời gian": [
+     "01/05/2025",
+     "02/05/2025",
+     "03/05/2025"
+    ],
+    "Mã KH": [
+     "KH0295",
+     "KH0270",
+     "KH0049"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "Tống Bình Ngọc",
+     "Cao Hoàng Ngọc"
+    ],
+    "Tổng tiền hàng": [
+     "2,100",
+     "49,300",
+     "122,000"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "2,100",
+     "49,300",
+     "122,000"
+    ],
+    "Trạng thái": [
+     "ok",
+     "trả hàng",
+     "hủy đơn"
+    ],
+    "Thời gian tạo": [
+     "2025-05-01 06:25:14",
+     "2025-05-01 07:04:40",
+     "2025-05-01 07:09:06"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "phone",
+     "zalo_oa"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::06.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD013079",
+     "ORD013080",
+     "ORD013081"
+    ],
+    "Thời gian": [
+     "01/06/2025",
+     "02/06/2025",
+     "03/06/2025"
+    ],
+    "Mã KH": [
+     "KH0337",
+     "KH0186",
+     "KH0285"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "La Sơn Lan",
+     "Đoàn Châu Minh"
+    ],
+    "Tổng tiền hàng": [
+     "27,800",
+     "2,600",
+     "65,000"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "42,800",
+     "17,600",
+     "65,000"
+    ],
+    "Trạng thái": [
+     "ok",
+     "trả hàng",
+     "hủy đơn"
+    ],
+    "Thời gian tạo": [
+     "2025-06-01 06:47:45",
+     "2025-06-01 07:00:03",
+     "2025-06-01 07:36:38"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "phone",
+     "zalo_oa",
+     "store"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::07.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD015732",
+     "ORD015733",
+     "ORD015734"
+    ],
+    "Thời gian": [
+     "01/07/2025",
+     "02/07/2025",
+     "03/07/2025"
+    ],
+    "Mã KH": [
+     "KH0307",
+     "KH0261",
+     "KH0002"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "Mai Hiếu Thu",
+     "Tống Hùng Khoa"
+    ],
+    "Tổng tiền hàng": [
+     "3,900",
+     "240,500",
+     "43,500"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "3,900",
+     "240,500",
+     "58,500"
+    ],
+    "Trạng thái": [
+     "ok",
+     "trả hàng",
+     "hủy đơn"
+    ],
+    "Thời gian tạo": [
+     "2025-07-01 06:23:36",
+     "2025-07-01 06:28:16",
+     "2025-07-01 07:06:13"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "phone",
+     "zalo_oa"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::08.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD018515",
+     "ORD018516",
+     "ORD018517"
+    ],
+    "Thời gian": [
+     "01/08/2025",
+     "02/08/2025",
+     "03/08/2025"
+    ],
+    "Mã KH": [
+     "KH0067",
+     "KH0110",
+     "KH0018"
+    ],
+    "Khách hàng": [
+     "Diệp Duy Hải",
+     "Thân Quân Hà",
+     "Kiều Hùng Lan"
+    ],
+    "Tổng tiền hàng": [
+     "16,000",
+     "76,800",
+     "3,300"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "16,000",
+     "76,800",
+     "3,300"
+    ],
+    "Trạng thái": [
+     "Thành công",
+     "Huỷ đơn",
+     "Đã trả hàng"
+    ],
+    "Thời gian tạo": [
+     "2025-08-01 06:27:21",
+     "2025-08-01 06:38:04",
+     "2025-08-01 07:27:44"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "zalo_oa",
+     "phone"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::09.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD021224",
+     "ORD021225",
+     "ORD021226"
+    ],
+    "Thời gian": [
+     "01/09/2025",
+     "02/09/2025",
+     "03/09/2025"
+    ],
+    "Mã KH": [
+     "KH0042",
+     "KH0164",
+     "KH0286"
+    ],
+    "Khách hàng": [
+     "Trần Tâm Ngân",
+     "Khách lẻ",
+     "Đoàn Ngọc Thanh"
+    ],
+    "Tổng tiền hàng": [
+     "152,000",
+     "5,800",
+     "1,200"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "152,000",
+     "5,800",
+     "1,200"
+    ],
+    "Trạng thái": [
+     "Thành công",
+     "Huỷ đơn",
+     "Đã trả hàng"
+    ],
+    "Thời gian tạo": [
+     "2025-09-01 06:26:39",
+     "2025-09-01 06:58:51",
+     "2025-09-01 07:18:27"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "zalo_oa",
+     "phone"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::10.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD024021",
+     "ORD024022",
+     "ORD024023"
+    ],
+    "Thời gian": [
+     "01/10/2025",
+     "02/10/2025",
+     "03/10/2025"
+    ],
+    "Mã KH": [
+     "KH0078",
+     "KH0277",
+     "KH0312"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "Giang Phong Trung",
+     "Đàm Hà Duy"
+    ],
+    "Tổng tiền hàng": [
+     "3,000",
+     "4,500",
+     "164,300"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "3,000",
+     "4,500",
+     "164,300"
+    ],
+    "Trạng thái": [
+     "Thành công",
+     "Đã trả hàng",
+     "Huỷ đơn"
+    ],
+    "Thời gian tạo": [
+     "2025-10-01 06:29:22",
+     "2025-10-01 07:14:23",
+     "2025-10-01 07:20:47"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "phone",
+     "zalo_oa"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::11.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD026806",
+     "ORD026807",
+     "ORD026808"
+    ],
+    "Thời gian": [
+     "01/11/2025",
+     "02/11/2025",
+     "03/11/2025"
+    ],
+    "Mã KH": [
+     "KH0348",
+     "KH0171",
+     "KH0325"
+    ],
+    "Khách hàng": [
+     "Dương Ngọc Bình",
+     "Lương Thu Đức",
+     "Khách lẻ"
+    ],
+    "Tổng tiền hàng": [
+     "99,000",
+     "60,000",
+     "13,000"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "99,000",
+     "60,000",
+     "13,000"
+    ],
+    "Trạng thái": [
+     "Thành công",
+     "Huỷ đơn",
+     "Đã trả hàng"
+    ],
+    "Thời gian tạo": [
+     "2025-11-01 06:18:50",
+     "2025-11-01 06:20:37",
+     "2025-11-01 06:37:35"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "zalo_oa",
+     "phone"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::12.2025": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD029626",
+     "ORD029627",
+     "ORD029628"
+    ],
+    "Thời gian": [
+     "01/12/2025",
+     "02/12/2025",
+     "03/12/2025"
+    ],
+    "Mã KH": [
+     "KH0231",
+     "KH0023",
+     "KH0291"
+    ],
+    "Khách hàng": [
+     "Đào Nam Huy",
+     "Châu Hương Khoa",
+     "Đoàn Khoa Đạt"
+    ],
+    "Tổng tiền hàng": [
+     "2,100",
+     "10,500",
+     "18,000"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "2,100",
+     "10,500",
+     "18,000"
+    ],
+    "Trạng thái": [
+     "Thành công",
+     "Đã trả hàng",
+     "Huỷ đơn"
+    ],
+    "Thời gian tạo": [
+     "2025-12-01 06:21:50",
+     "2025-12-01 06:45:11",
+     "2025-12-01 07:03:58"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "zalo_oa",
+     "phone"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::01.2026": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD032510",
+     "ORD032511",
+     "ORD032512"
+    ],
+    "Thời gian": [
+     "01/01/2026",
+     "02/01/2026",
+     "03/01/2026"
+    ],
+    "Mã KH": [
+     "KH0016",
+     "KH0109",
+     "KH0206"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "Ông Bình Nam",
+     "Doãn Dương Cường"
+    ],
+    "Tổng tiền hàng": [
+     "87,000",
+     "16,000",
+     "151,700"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "87,000",
+     "16,000",
+     "151,700"
+    ],
+    "Trạng thái": [
+     "Thành công",
+     "Huỷ đơn",
+     "Đã trả hàng"
+    ],
+    "Thời gian tạo": [
+     "2026-01-01 06:00:00",
+     "2026-01-01 06:01:24",
+     "2026-01-01 06:58:42"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "zalo_oa",
+     "phone"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::02.2026": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD035513",
+     "ORD035514",
+     "ORD035515"
+    ],
+    "Thời gian": [
+     "01/02/2026",
+     "02/02/2026",
+     "03/02/2026"
+    ],
+    "Mã KH": [
+     "KH0225",
+     "KH0230",
+     "KH0005"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "Phan Hà Lan",
+     "Đinh Ngọc Minh"
+    ],
+    "Tổng tiền hàng": [
+     "16,800",
+     "11,000",
+     "122,800"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "16,800",
+     "11,000",
+     "0"
+    ],
+    "Trạng thái": [
+     "Thành công",
+     "Huỷ đơn",
+     "Đã trả hàng"
+    ],
+    "Thời gian tạo": [
+     "2026-02-01 07:03:42",
+     "2026-02-01 07:07:46",
+     "2026-02-01 07:15:43"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "zalo_oa",
+     "phone"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::03.2026": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD038330",
+     "ORD038331",
+     "ORD038332"
+    ],
+    "Thời gian": [
+     "01/03/2026",
+     "02/03/2026",
+     "03/03/2026"
+    ],
+    "Mã KH": [
+     "KH0115",
+     "KH0240",
+     "KH0074"
+    ],
+    "Khách hàng": [
+     "Tô Hoa Ngân",
+     "Hoàng Linh Bảo",
+     "Lâm Phong Phúc"
+    ],
+    "Tổng tiền hàng": [
+     "28,000",
+     "178,000",
+     "8,900"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "28,000",
+     "178,000",
+     "8,900"
+    ],
+    "Trạng thái": [
+     "Thành công",
+     "Đã trả hàng",
+     "Huỷ đơn"
+    ],
+    "Thời gian tạo": [
+     "2026-03-01 06:33:02",
+     "2026-03-01 06:37:21",
+     "2026-03-01 06:43:29"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "phone",
+     "zalo_oa"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::04.2026": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD041331",
+     "ORD041332",
+     "ORD041333"
+    ],
+    "Thời gian": [
+     "01/04/2026",
+     "02/04/2026",
+     "03/04/2026"
+    ],
+    "Mã KH": [
+     "KH0209",
+     "KH0328",
+     "KH0303"
+    ],
+    "Khách hàng": [
+     "Hà Hải Dương",
+     "Đào Hiếu Duy",
+     "Đinh Long Thanh"
+    ],
+    "Tổng tiền hàng": [
+     "17,500",
+     "5,400",
+     "4,100"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "17,500",
+     "5,400",
+     "4,100"
+    ],
+    "Trạng thái": [
+     "Thành công",
+     "Huỷ đơn",
+     "Đã trả hàng"
+    ],
+    "Thời gian tạo": [
+     "2026-04-01 06:05:19",
+     "2026-04-01 06:41:47",
+     "2026-04-01 07:04:14"
+    ],
+    "Còn nợ": [
+     "0"
+    ],
+    "Kênh bán": [
+     "store",
+     "zalo_oa",
+     "phone"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::05.2026": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD044240",
+     "ORD044241",
+     "ORD044242"
+    ],
+    "Thời gian": [
+     "01/05/2026",
+     "02/05/2026",
+     "03/05/2026"
+    ],
+    "Mã KH": [
+     "KH0043",
+     "KH0202",
+     "KH0200"
+    ],
+    "Khách hàng": [
+     "Trần Long Dương",
+     "Doãn Long Quang",
+     "Ngô Bình Hà"
+    ],
+    "Tổng tiền hàng": [
+     "4,200",
+     "11,200",
+     "8,300"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "4,200",
+     "11,200",
+     "8,300"
+    ],
+    "Trạng thái": [
+     "Thành công",
+     "Huỷ đơn",
+     "Đã trả hàng"
+    ],
+    "Thời gian tạo": [
+     "2026-05-01 06:05:13",
+     "2026-05-01 06:18:01",
+     "2026-05-01 06:25:26"
+    ],
+    "Còn nợ": [
+     "0",
+     "56,334",
+     "68,500"
+    ],
+    "Kênh bán": [
+     "store",
+     "zalo_oa",
+     "phone"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDon.xlsx::06.2026": {
+   "columns": [
+    "Mã hóa đơn",
+    "Thời gian",
+    "Mã KH",
+    "Khách hàng",
+    "Tổng tiền hàng",
+    "Giảm giá",
+    "Khách đã trả",
+    "Trạng thái",
+    "Thời gian tạo",
+    "Còn nợ",
+    "Kênh bán",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD047294",
+     "ORD047295",
+     "ORD047296"
+    ],
+    "Thời gian": [
+     "01/06/2026",
+     "02/06/2026",
+     "03/06/2026"
+    ],
+    "Mã KH": [
+     "KH0248",
+     "KH0054",
+     "KH0275"
+    ],
+    "Khách hàng": [
+     "Khách lẻ",
+     "Doãn Quân Huy",
+     "Lê Hải Hà"
+    ],
+    "Tổng tiền hàng": [
+     "94,500",
+     "1,400",
+     "522,000"
+    ],
+    "Giảm giá": [
+     "0",
+     "10,000"
+    ],
+    "Khách đã trả": [
+     "94,500",
+     "1,400",
+     "512,000"
+    ],
+    "Trạng thái": [
+     "Thành công",
+     "Đã trả hàng",
+     "Huỷ đơn"
+    ],
+    "Thời gian tạo": [
+     "2026-06-01 06:43:05",
+     "2026-06-01 07:06:14",
+     "2026-06-01 07:11:42"
+    ],
+    "Còn nợ": [
+     "0",
+     "800",
+     "80,867"
+    ],
+    "Kênh bán": [
+     "store",
+     "zalo_oa",
+     "phone"
+    ],
+    "Ghi chú": []
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Thời gian": "ngày bán",
+    "Mã KH": "mã khách (trống nếu khách lẻ)",
+    "Khách hàng": "tên khách (Khách lẻ nếu không lưu)",
+    "Tổng tiền hàng": "tổng tiền hàng của đơn (cộng thành tiền các dòng), trước giảm giá của đơn",
+    "Giảm giá": "giảm giá",
+    "Khách đã trả": "đã thanh toán",
+    "Trạng thái": "trạng thái đơn",
+    "Thời gian tạo": "thời điểm đặt đơn (ngày giờ)",
+    "Còn nợ": "còn nợ",
+    "Kênh bán": "kênh bán",
+    "Ghi chú": "cột trống, không có dữ liệu"
+   }
+  },
+  "DanhSachHoaDonChiTiet.xlsx::Sheet1": {
+   "columns": [
+    "Mã hóa đơn",
+    "Mã hàng",
+    "Tên hàng",
+    "Số lượng",
+    "Đơn giá",
+    "Giảm giá",
+    "Thành tiền",
+    "Số lượng quy đổi"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "Mã hàng": [
+     "SP0070",
+     "SP0039",
+     "SP0066"
+    ],
+    "Tên hàng": [
+     "Bisolvon 8mg hộp 3 vỉ x 10 viên",
+     "Efticol 0,9% lốc 10 lọ x 10ml",
+     "Boganic Traphaco hộp 5 vỉ x 20 viên"
+    ],
+    "Số lượng": [
+     "1",
+     "4",
+     "2"
+    ],
+    "Đơn giá": [
+     "2,100",
+     "2,700",
+     "800"
+    ],
+    "Giảm giá": [
+     "0",
+     "6,000",
+     "13,000"
+    ],
+    "Thành tiền": [
+     "2,100",
+     "10,800",
+     "800"
+    ],
+    "Số lượng quy đổi": [
+     "1",
+     "4",
+     "2"
+    ]
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "Mã hàng": "mã hàng",
+    "Tên hàng": "tên hàng",
+    "Số lượng": "số lượng",
+    "Đơn giá": "đơn giá",
+    "Giảm giá": "giảm giá",
+    "Thành tiền": "thành tiền sau giảm",
+    "Số lượng quy đổi": "số lượng đã đổi ra đơn vị cơ bản"
+   }
+  },
+  "DanhSachHoaDonChiTietLo.xlsx::Sheet1": {
+   "columns": [
+    "Mã hóa đơn",
+    "STT",
+    "Lô",
+    "Số lượng (ĐVT cơ bản)",
+    "Số lượng trả (ĐVT cơ bản)"
+   ],
+   "samples": {
+    "Mã hóa đơn": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "STT": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Lô": [
+     "O2501749",
+     "M2501980",
+     "T2501295"
+    ],
+    "Số lượng (ĐVT cơ bản)": [
+     "1",
+     "4",
+     "2"
+    ],
+    "Số lượng trả (ĐVT cơ bản)": [
+     "0",
+     "4",
+     "1"
+    ]
+   },
+   "notes": {
+    "Mã hóa đơn": "mã đơn",
+    "STT": "số thứ tự dòng trong đơn",
+    "Lô": "số lô",
+    "Số lượng (ĐVT cơ bản)": "số lượng bán lấy từ lô (đơn vị cơ bản)",
+    "Số lượng trả (ĐVT cơ bản)": "số lượng khách trả lại (đơn vị cơ bản); lớn hơn 0: đơn đó có trả hàng"
+   }
+  },
+  "DanhSachKhachHang.xlsx::Sheet1": {
+   "columns": [
+    "Mã khách hàng",
+    "Ghi chú",
+    "Mã số thuế",
+    "Tên khách hàng",
+    "Người tạo",
+    "CCCD",
+    "Ngày sinh",
+    "E-mail",
+    "Đối tượng KH",
+    "Tên công ty",
+    "Điện thoại",
+    "Địa chỉ"
+   ],
+   "samples": {
+    "Mã khách hàng": [
+     "KH0001",
+     "KH0002",
+     "KH0003"
+    ],
+    "Ghi chú": [],
+    "Mã số thuế": [
+     "0684273281",
+     "0770952289",
+     "0191061571"
+    ],
+    "Tên khách hàng": [
+     "Tăng Bình Huy",
+     "Ngô Hùng Nhung",
+     "Tăng Minh Anh"
+    ],
+    "Người tạo": [
+     "admin"
+    ],
+    "CCCD": [],
+    "Ngày sinh": [
+     "15/02/2000",
+     "27/10/1969",
+     "11/08/1995"
+    ],
+    "E-mail": [],
+    "Đối tượng KH": [
+     "Cá nhân"
+    ],
+    "Tên công ty": [],
+    "Điện thoại": [
+     "0352658809",
+     "0794954090",
+     "0326798056"
+    ],
+    "Địa chỉ": [
+     "285 Tên Lửa",
+     "92 Trần Não",
+     "262 Bình Long"
+    ]
+   },
+   "notes": {
+    "Mã khách hàng": "mã khách",
+    "Tên khách hàng": "tên",
+    "Điện thoại": "số điện thoại",
+    "Địa chỉ": "địa chỉ"
+   }
+  },
+  "DanhSachLoHang.xlsx::Sheet1": {
+   "columns": [
+    "Mã nhập hàng",
+    "Mã hàng",
+    "Lô",
+    "Hạn sử dụng",
+    "Số lượng (ĐVT cơ bản)"
+   ],
+   "samples": {
+    "Mã nhập hàng": [
+     "PN00121",
+     "PN00134",
+     "PN00381"
+    ],
+    "Mã hàng": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "Lô": [
+     "A2505314",
+     "A2505854",
+     "A2601477"
+    ],
+    "Hạn sử dụng": [
+     "14/05/2026",
+     "31/07/2025",
+     "25/03/2026"
+    ],
+    "Số lượng (ĐVT cơ bản)": [
+     "360",
+     "216",
+     "240"
+    ]
+   },
+   "notes": {
+    "Mã nhập hàng": "mã phiếu nhập",
+    "Mã hàng": "mã hàng",
+    "Lô": "số lô",
+    "Hạn sử dụng": "hạn sử dụng",
+    "Số lượng (ĐVT cơ bản)": "số lượng nhập (đơn vị cơ bản)"
+   }
+  },
+  "DanhSachNhapHang.xlsx::Sheet1": {
+   "columns": [
+    "Mã nhập hàng",
+    "Thời gian",
+    "Mã NCC",
+    "Cần trả NCC",
+    "Trạng thái",
+    "Ghi chú"
+   ],
+   "samples": {
+    "Mã nhập hàng": [
+     "PN00001",
+     "PN00002",
+     "PN00003"
+    ],
+    "Thời gian": [
+     "01/01/2025",
+     "02/01/2025",
+     "03/01/2025"
+    ],
+    "Mã NCC": [
+     "NCC002",
+     "NCC004",
+     "NCC001"
+    ],
+    "Cần trả NCC": [
+     "211,648,300",
+     "180,000",
+     "200,000"
+    ],
+    "Trạng thái": [
+     "Đã nhập hàng"
+    ],
+    "Ghi chú": [
+     "nhập đầu kỳ"
+    ]
+   },
+   "notes": {
+    "Mã nhập hàng": "mã phiếu nhập",
+    "Thời gian": "ngày nhập",
+    "Mã NCC": "mã nhà cung cấp",
+    "Cần trả NCC": "tổng tiền phiếu nhập",
+    "Trạng thái": "trạng thái phiếu nhập",
+    "Ghi chú": "ghi chú"
+   }
+  },
+  "DanhSachSanPham.xlsx::Sheet1": {
+   "columns": [
+    "Trọng lượng",
+    "Mã hàng",
+    "Định mức tồn tối thiểu",
+    "Tên hàng",
+    "Mô tả chi tiết",
+    "Nhóm hàng(3 Cấp)",
+    "Mẫu ghi chú",
+    "Định mức tồn tối đa",
+    "Được bán trực tiếp",
+    "Bảo hành",
+    "Mã HH Liên quan",
+    "Giá bán",
+    "Loại hàng hóa",
+    "ĐVT",
+    "Giá vốn",
+    "Hình ảnh",
+    "Thời gian tạo"
+   ],
+   "samples": {
+    "Trọng lượng": [],
+    "Mã hàng": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "Định mức tồn tối thiểu": [
+     "0"
+    ],
+    "Tên hàng": [
+     "Panadol Extra hộp 15 vỉ x 12 viên",
+     "Hapacol 250 hộp 24 gói",
+     "Panadol 500mg hộp 10 vỉ x 12 viên"
+    ],
+    "Mô tả chi tiết": [],
+    "Nhóm hàng(3 Cấp)": [
+     "giảm đau hạ sốt",
+     "ho cảm cúm",
+     "dùng ngoài"
+    ],
+    "Mẫu ghi chú": [],
+    "Định mức tồn tối đa": [
+     "999999999"
+    ],
+    "Được bán trực tiếp": [
+     "1"
+    ],
+    "Bảo hành": [],
+    "Mã HH Liên quan": [],
+    "Giá bán": [
+     "1400",
+     "2000",
+     "1000"
+    ],
+    "Loại hàng hóa": [
+     "Hàng hóa"
+    ],
+    "ĐVT": [
+     "viên",
+     "gói",
+     "chai"
+    ],
+    "Giá vốn": [
+     "1012",
+     "1512",
+     "800"
+    ],
+    "Hình ảnh": [],
+    "Thời gian tạo": [
+     "2024-11-29",
+     "2024-11-17",
+     "2024-04-01"
+    ]
+   },
+   "notes": {
+    "Mã hàng": "mã hàng",
+    "Tên hàng": "tên",
+    "Nhóm hàng(3 Cấp)": "nhóm hàng",
+    "Giá bán": "giá bán hiện tại",
+    "ĐVT": "đơn vị cơ bản",
+    "Giá vốn": "giá vốn",
+    "Thời gian tạo": "ngày tạo mặt hàng trên phần mềm"
+   }
+  },
+  "DanhSachThuoc.xlsx::Sheet1": {
+   "columns": [
+    "Mã hàng",
+    "Hoạt chất",
+    "Thuốc kê đơn"
+   ],
+   "samples": {
+    "Mã hàng": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "Hoạt chất": [
+     "Paracetamol + Cafein",
+     "Paracetamol",
+     "Paracetamol + Phenylephrin + Clorpheniramin"
+    ],
+    "Thuốc kê đơn": [
+     "False",
+     "True"
+    ]
+   },
+   "notes": {
+    "Mã hàng": "mã hàng",
+    "Hoạt chất": "hoạt chất (trống với thực phẩm chức năng, vật tư)",
+    "Thuốc kê đơn": "thuốc kê đơn"
+   }
+  }
+ },
+ "biz_123": {
+  "pos.sqlite::chi_nhanh": {
+   "columns": [
+    "IDCuaHang",
+    "MaChiNhanh",
+    "TenGoi",
+    "DiaChiLienHe",
+    "NgayKhaiTruong"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaChiNhanh": [
+     "CN1"
+    ],
+    "TenGoi": [
+     "Nhà thuốc Lan"
+    ],
+    "DiaChiLienHe": [
+     "126 Lê Đức Thọ"
+    ],
+    "NgayKhaiTruong": [
+     "2021-08-15"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::nhan_vien": {
+   "columns": [
+    "IDCuaHang",
+    "MaNhanVien",
+    "TenGoi",
+    "MaChiNhanh",
+    "ChucVu",
+    "NgayNhanViec",
+    "NgayThoiViec"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaNhanVien": [
+     "NV001",
+     "NV002",
+     "NV003"
+    ],
+    "TenGoi": [
+     "La Thu Quân",
+     "Phùng Thu Trang",
+     "Bùi Dũng Lan"
+    ],
+    "MaChiNhanh": [
+     "CN1"
+    ],
+    "ChucVu": [
+     "owner",
+     "cashier",
+     "sales"
+    ],
+    "NgayNhanViec": [
+     "2024-01-31",
+     "2024-03-24",
+     "2022-08-28"
+    ],
+    "NgayThoiViec": []
+   },
+   "notes": {}
+  },
+  "pos.sqlite::khach_hang": {
+   "columns": [
+    "trang_thai_kh",
+    "cccd",
+    "IDCuaHang",
+    "diem_hien_tai",
+    "MaKhachHang",
+    "ghi_chu_kh",
+    "ngay_sinh",
+    "email",
+    "TenGoi",
+    "SoDienThoai",
+    "NamNu",
+    "nguoi_tao",
+    "LoaiKhachHang",
+    "cong_ty",
+    "tong_diem",
+    "TaoLuc",
+    "loai_hinh_kh",
+    "DiaChiLienHe"
+   ],
+   "samples": {
+    "trang_thai_kh": [
+     "Đang hoạt động"
+    ],
+    "cccd": [],
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "diem_hien_tai": [
+     "0"
+    ],
+    "MaKhachHang": [
+     "KH0001",
+     "KH0002",
+     "KH0003"
+    ],
+    "ghi_chu_kh": [],
+    "ngay_sinh": [
+     "27/06/1972",
+     "12/02/1991",
+     "22/09/1995"
+    ],
+    "email": [],
+    "TenGoi": [
+     "Triệu Lan Đức",
+     "Bùi Phương Dương",
+     "Đoàn Long Thảo"
+    ],
+    "SoDienThoai": [
+     "0790921597",
+     "0977966909",
+     "0938593909"
+    ],
+    "NamNu": [],
+    "nguoi_tao": [
+     "admin"
+    ],
+    "LoaiKhachHang": [
+     "lẻ",
+     "sỉ",
+     "thân thiết"
+    ],
+    "cong_ty": [],
+    "tong_diem": [
+     "0"
+    ],
+    "TaoLuc": [
+     "2024-05-08",
+     "2024-10-19",
+     "2024-10-24"
+    ],
+    "loai_hinh_kh": [
+     "Cá nhân"
+    ],
+    "DiaChiLienHe": [
+     "199 Nguyễn Oanh",
+     "80 Phạm Văn Đồng",
+     "123 Đinh Bộ Lĩnh"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::nha_cung_cap": {
+   "columns": [
+    "IDCuaHang",
+    "MaNhaCungCap",
+    "TenGoi",
+    "SoDienThoai",
+    "DiaChiLienHe"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaNhaCungCap": [
+     "NCC001",
+     "NCC002",
+     "NCC003"
+    ],
+    "TenGoi": [
+     "Cty Trịnh Thắng",
+     "Cty Tăng Giang",
+     "Cty Chung Khoa"
+    ],
+    "SoDienThoai": [
+     "0351807815",
+     "0939278825",
+     "0938341869"
+    ],
+    "DiaChiLienHe": [
+     "608 Mai Chí Thọ",
+     "997 Tỉnh Lộ 10",
+     "71 Tên Lửa"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::san_pham": {
+   "columns": [
+    "hinh_anh",
+    "ma_vach_ean",
+    "bao_hanh",
+    "ban_truc_tiep",
+    "IDCuaHang",
+    "MaHangHoa",
+    "ghi_chu_hh",
+    "vi_tri",
+    "TenGoi",
+    "DanhMuc",
+    "loai_hang_hoa",
+    "ton_nho_nhat",
+    "thuong_hieu",
+    "DonViCoSo",
+    "GiaBanLe",
+    "GiaVonHang",
+    "mau_ghi_chu",
+    "mo_ta",
+    "TyLeThue",
+    "ConKinhDoanh",
+    "TaoLuc",
+    "ton_lon_nhat"
+   ],
+   "samples": {
+    "hinh_anh": [],
+    "ma_vach_ean": [
+     "8937439774399",
+     "8930259999492",
+     "8931373812797"
+    ],
+    "bao_hanh": [],
+    "ban_truc_tiep": [
+     "1"
+    ],
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaHangHoa": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "ghi_chu_hh": [],
+    "vi_tri": [],
+    "TenGoi": [
+     "Panadol Extra hộp 15 vỉ x 12 viên",
+     "Hapacol 250 hộp 24 gói",
+     "Panadol 500mg hộp 10 vỉ x 12 viên"
+    ],
+    "DanhMuc": [
+     "giảm đau hạ sốt",
+     "ho cảm cúm",
+     "dùng ngoài"
+    ],
+    "loai_hang_hoa": [
+     "Hàng hóa"
+    ],
+    "ton_nho_nhat": [
+     "0"
+    ],
+    "thuong_hieu": [],
+    "DonViCoSo": [
+     "viên",
+     "gói",
+     "chai"
+    ],
+    "GiaBanLe": [
+     "1400",
+     "2000",
+     "1000"
+    ],
+    "GiaVonHang": [
+     "1100",
+     "1516",
+     "800"
+    ],
+    "mau_ghi_chu": [],
+    "mo_ta": [],
+    "TyLeThue": [
+     "0",
+     "8",
+     "10"
+    ],
+    "ConKinhDoanh": [
+     "1"
+    ],
+    "TaoLuc": [
+     "2024-03-01",
+     "2023-02-21",
+     "2023-05-04"
+    ],
+    "ton_lon_nhat": [
+     "999999999"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::don_vi_sp": {
+   "columns": [
+    "IDCuaHang",
+    "MaHangHoa",
+    "DonViTinh",
+    "HeSoQuyDoi",
+    "GiaDonVi"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaHangHoa": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "DonViTinh": [
+     "hộp",
+     "vỉ",
+     "chai"
+    ],
+    "HeSoQuyDoi": [
+     "180",
+     "12",
+     "24"
+    ],
+    "GiaDonVi": [
+     "252000",
+     "16800",
+     "48000"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::phieu_nhap": {
+   "columns": [
+    "IDCuaHang",
+    "MaPhieuNhap",
+    "MaNhaCungCap",
+    "MaChiNhanh",
+    "NgayNhapKho",
+    "TinhTrang",
+    "TongGiaTriNhap",
+    "DienGiai"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaPhieuNhap": [
+     "PN00001",
+     "PN00002",
+     "PN00003"
+    ],
+    "MaNhaCungCap": [
+     "NCC003",
+     "NCC001",
+     "NCC002"
+    ],
+    "MaChiNhanh": [
+     "CN1"
+    ],
+    "NgayNhapKho": [
+     "2025-01-01",
+     "2025-01-02",
+     "2025-01-03"
+    ],
+    "TinhTrang": [
+     "received"
+    ],
+    "TongGiaTriNhap": [
+     "171276600",
+     "200000",
+     "120000"
+    ],
+    "DienGiai": [
+     "nhập đầu kỳ"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::chi_tiet_nhap": {
+   "columns": [
+    "IDCuaHang",
+    "MaPhieuNhap",
+    "SoThuTu",
+    "MaHangHoa",
+    "DonViTinh",
+    "SL",
+    "DonGiaNhap",
+    "MaLo",
+    "HanSuDung"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaPhieuNhap": [
+     "PN00001",
+     "PN00002",
+     "PN00003"
+    ],
+    "SoThuTu": [
+     "1",
+     "2",
+     "3"
+    ],
+    "MaHangHoa": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "DonViTinh": [
+     "hộp",
+     "chai",
+     "tuýp"
+    ],
+    "SL": [
+     "2",
+     "9",
+     "194"
+    ],
+    "DonGiaNhap": [
+     "198000",
+     "36000",
+     "96000"
+    ],
+    "MaLo": [
+     "U2501782",
+     "I2501228",
+     "O2501135"
+    ],
+    "HanSuDung": [
+     "2027-02-07",
+     "2027-05-14",
+     "2026-06-20"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::don_hang": {
+   "columns": [
+    "IDCuaHang",
+    "MaHoaDon",
+    "MaChiNhanh",
+    "MaKhachHang",
+    "MaNhanVien",
+    "MaCaLam",
+    "KenhBanHang",
+    "ThoiGianLap",
+    "NgayLap",
+    "TinhTrang",
+    "TongTienHang",
+    "ChietKhau",
+    "PhiVanChuyen",
+    "ThueGTGT",
+    "TongThanhToan",
+    "KhachDaTra",
+    "ConPhaiThu",
+    "PhuongThucTT",
+    "SoHoaDonDienTu",
+    "TinhTrangHDDT",
+    "MaKhuyenMai",
+    "DienGiai"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaHoaDon": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "MaChiNhanh": [
+     "CN1"
+    ],
+    "MaKhachHang": [
+     "KH0109",
+     "KH0045",
+     "KH0283"
+    ],
+    "MaNhanVien": [
+     "NV002",
+     "NV003",
+     "NV001"
+    ],
+    "MaCaLam": [
+     "CA202501011",
+     "CA202501012",
+     "CA202501021"
+    ],
+    "KenhBanHang": [
+     "store",
+     "phone",
+     "zalo_oa"
+    ],
+    "ThoiGianLap": [
+     "2025-01-01 06:03:04",
+     "2025-01-01 06:28:42",
+     "2025-01-01 06:42:54"
+    ],
+    "NgayLap": [
+     "01/01/2025",
+     "1 thg 1 2025",
+     "45658"
+    ],
+    "TinhTrang": [
+     "completed",
+     "returned",
+     "cancelled"
+    ],
+    "TongTienHang": [
+     "545000",
+     "65000",
+     "131200"
+    ],
+    "ChietKhau": [
+     "10000",
+     "0"
+    ],
+    "PhiVanChuyen": [
+     "0",
+     "15000"
+    ],
+    "ThueGTGT": [
+     "0"
+    ],
+    "TongThanhToan": [
+     "535000",
+     "65000",
+     "131200"
+    ],
+    "KhachDaTra": [
+     "535000",
+     "65000",
+     "131200"
+    ],
+    "ConPhaiThu": [
+     "0",
+     "5850",
+     "14400"
+    ],
+    "PhuongThucTT": [
+     "transfer",
+     "cash",
+     "cod"
+    ],
+    "SoHoaDonDienTu": [],
+    "TinhTrangHDDT": [],
+    "MaKhuyenMai": [
+     "KM01"
+    ],
+    "DienGiai": []
+   },
+   "notes": {}
+  },
+  "pos.sqlite::chi_tiet_don": {
+   "columns": [
+    "IDCuaHang",
+    "MaHoaDon",
+    "SoThuTu",
+    "MaHangHoa",
+    "DonViTinh",
+    "SL",
+    "SLQuyDoi",
+    "GiaDonVi",
+    "ChietKhau",
+    "TriGia",
+    "GiaVonLucBan"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaHoaDon": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "SoThuTu": [
+     "1",
+     "2",
+     "3"
+    ],
+    "MaHangHoa": [
+     "SP0080",
+     "SP0038",
+     "SP0058"
+    ],
+    "DonViTinh": [
+     "hộp",
+     "chai",
+     "ống"
+    ],
+    "SL": [
+     "1",
+     "3",
+     "2"
+    ],
+    "SLQuyDoi": [
+     "1",
+     "3",
+     "2"
+    ],
+    "GiaDonVi": [
+     "371000",
+     "58000",
+     "65000"
+    ],
+    "ChietKhau": [
+     "0",
+     "2000",
+     "10000"
+    ],
+    "TriGia": [
+     "371000",
+     "174000",
+     "65000"
+    ],
+    "GiaVonLucBan": [
+     "238000",
+     "47000",
+     "43000"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::thanh_toan": {
+   "columns": [
+    "IDCuaHang",
+    "MaPhieuThu",
+    "MaHoaDon",
+    "NgayGioThu",
+    "SoTienThu",
+    "PhuongThuc",
+    "DienGiai"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaPhieuThu": [
+     "PAY000001",
+     "PAY000002",
+     "PAY000003"
+    ],
+    "MaHoaDon": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "NgayGioThu": [
+     "2025-01-01 06:03:04",
+     "2025-01-01 06:28:42",
+     "2025-01-01 06:42:54"
+    ],
+    "SoTienThu": [
+     "535000",
+     "65000",
+     "131200"
+    ],
+    "PhuongThuc": [
+     "transfer",
+     "cash",
+     "ewallet"
+    ],
+    "DienGiai": []
+   },
+   "notes": {}
+  },
+  "pos.sqlite::tra_hang": {
+   "columns": [
+    "IDCuaHang",
+    "MaPhieuTra",
+    "MaHoaDon",
+    "NgayGioTra",
+    "NguyenNhan",
+    "TienHoanTra",
+    "CachHoanTien"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaPhieuTra": [
+     "TH00001",
+     "TH00002",
+     "TH00003"
+    ],
+    "MaHoaDon": [
+     "ORD000047",
+     "ORD000265",
+     "ORD000278"
+    ],
+    "NgayGioTra": [
+     "2025-01-05 08:52:25",
+     "2025-01-06 18:36:32",
+     "2025-01-10 12:52:10"
+    ],
+    "NguyenNhan": [
+     "gần hết hạn",
+     "hàng lỗi",
+     "mua nhầm"
+    ],
+    "TienHoanTra": [
+     "1200",
+     "80400",
+     "800"
+    ],
+    "CachHoanTien": [
+     "cash"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::the_kho": {
+   "columns": [
+    "IDCuaHang",
+    "MaGiaoDichKho",
+    "MaHangHoa",
+    "MaChiNhanh",
+    "NgayGioPhatSinh",
+    "LoaiGiaoDich",
+    "SLQuyDoi",
+    "KieuChungTu",
+    "MaChungTu",
+    "TonCuoi"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaGiaoDichKho": [
+     "MV0000001",
+     "MV0000002",
+     "MV0000003"
+    ],
+    "MaHangHoa": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "MaChiNhanh": [
+     "CN1"
+    ],
+    "NgayGioPhatSinh": [
+     "2025-01-01 06:00:00",
+     "2025-01-01 06:03:04",
+     "2025-01-01 06:28:42"
+    ],
+    "LoaiGiaoDich": [
+     "in_purchase",
+     "out_sale",
+     "in_return"
+    ],
+    "SLQuyDoi": [
+     "360",
+     "216",
+     "240"
+    ],
+    "KieuChungTu": [
+     "purchase",
+     "order",
+     "return"
+    ],
+    "MaChungTu": [
+     "PN00001",
+     "ORD000001",
+     "ORD000002"
+    ],
+    "TonCuoi": [
+     "360",
+     "216",
+     "240"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::lich_su_gia": {
+   "columns": [
+    "IDCuaHang",
+    "MaHangHoa",
+    "NgayApDung",
+    "GiaBanLe"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaHangHoa": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "NgayApDung": [
+     "2025-01-01",
+     "2026-05-13",
+     "2026-02-22"
+    ],
+    "GiaBanLe": [
+     "1400",
+     "2000",
+     "1000"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::lo_hang": {
+   "columns": [
+    "IDCuaHang",
+    "MaHangHoa",
+    "MaLo",
+    "MaPhieuNhap",
+    "HanSuDung",
+    "SLNhapQuyDoi",
+    "DonGiaNhap"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaHangHoa": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "MaLo": [
+     "B2506748",
+     "B2601174",
+     "B2604235"
+    ],
+    "MaPhieuNhap": [
+     "PN00164",
+     "PN00365",
+     "PN00473"
+    ],
+    "HanSuDung": [
+     "2027-04-15",
+     "2026-06-26",
+     "2028-01-07"
+    ],
+    "SLNhapQuyDoi": [
+     "360",
+     "180",
+     "192"
+    ],
+    "DonGiaNhap": [
+     "1000",
+     "1100",
+     "1600"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::chi_tiet_don_lo": {
+   "columns": [
+    "IDCuaHang",
+    "MaHoaDon",
+    "SoThuTu",
+    "MaLo",
+    "SLQuyDoi",
+    "SLTraQuyDoi"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaHoaDon": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "SoThuTu": [
+     "1",
+     "2",
+     "3"
+    ],
+    "MaLo": [
+     "J2501289",
+     "E2501445",
+     "N2501218"
+    ],
+    "SLQuyDoi": [
+     "1",
+     "3",
+     "2"
+    ],
+    "SLTraQuyDoi": [
+     "0",
+     "2",
+     "12"
+    ]
+   },
+   "notes": {}
+  },
+  "pos.sqlite::thong_tin_thuoc": {
+   "columns": [
+    "IDCuaHang",
+    "MaHangHoa",
+    "ThanhPhanChinh",
+    "BanTheoDon"
+   ],
+   "samples": {
+    "IDCuaHang": [
+     "biz_123"
+    ],
+    "MaHangHoa": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "ThanhPhanChinh": [
+     "Paracetamol + Cafein",
+     "Paracetamol",
+     "Paracetamol + Phenylephrin + Clorpheniramin"
+    ],
+    "BanTheoDon": [
+     "0",
+     "1"
+    ]
+   },
+   "notes": {}
+  }
+ },
+ "biz_124": {
+  "BanHang_BanTheoLo.xlsx::Sheet1": {
+   "columns": [
+    "Lô",
+    "SL quy ra lẻ",
+    "SL trả (ĐVT cơ bản)",
+    "No.",
+    "Mã hóa đơn"
+   ],
+   "samples": {
+    "Lô": [
+     "H2501745",
+     "Y2501823",
+     "D2501692"
+    ],
+    "SL quy ra lẻ": [
+     "1",
+     "20",
+     "10"
+    ],
+    "SL trả (ĐVT cơ bản)": [
+     "1",
+     "0",
+     "2"
+    ],
+    "No.": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Mã hóa đơn": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ]
+   },
+   "notes": {}
+  },
+  "BanHang_ChiTietHoaDon.xlsx::Sheet1": {
+   "columns": [
+    "Giá vốn lúc bán",
+    "SL cơ bản",
+    "Khuyến mãi",
+    "Giá niêm yết",
+    "Thanh tien",
+    "Mã giao dịch",
+    "Chi tiết hàng",
+    "Slg",
+    "TT dòng",
+    "Ma hang",
+    "Đ.vị"
+   ],
+   "samples": {
+    "Giá vốn lúc bán": [
+     "61,000",
+     "86,000",
+     "1,100"
+    ],
+    "SL cơ bản": [
+     "1",
+     "20",
+     "10"
+    ],
+    "Khuyến mãi": [
+     "0",
+     "17,000",
+     "2,000"
+    ],
+    "Giá niêm yết": [
+     "75,000",
+     "106,000",
+     "1,300"
+    ],
+    "Thanh tien": [
+     "75,000",
+     "106,000",
+     "13,000"
+    ],
+    "Mã giao dịch": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "Chi tiết hàng": [
+     "Betadine Gargle súc họng chai 125ml",
+     "Yumangel Hộp 20 Gói",
+     "Decolgen Forte hộp 30 vỉ x 4 viên"
+    ],
+    "Slg": [
+     "1",
+     "10",
+     "2"
+    ],
+    "TT dòng": [
+     "1",
+     "2",
+     "3"
+    ],
+    "Ma hang": [
+     "SP0063",
+     "SP0017",
+     "SP0010"
+    ],
+    "Đ.vị": [
+     "chai",
+     "hộp",
+     "viên"
+    ]
+   },
+   "notes": {}
+  },
+  "BanHang_DonViQuyDoi.xlsx::Sheet1": {
+   "columns": [
+    "Đơn vị",
+    "Bằng",
+    "Giá bán theo đơn vị quy đổi",
+    "Mã sp"
+   ],
+   "samples": {
+    "Đơn vị": [
+     "hộp",
+     "vỉ",
+     "chai"
+    ],
+    "Bằng": [
+     "180",
+     "12",
+     "24"
+    ],
+    "Giá bán theo đơn vị quy đổi": [
+     "270000",
+     "18000",
+     "48000"
+    ],
+    "Mã sp": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ]
+   },
+   "notes": {}
+  },
+  "BanHang_HangHoa.xlsx::Sheet1": {
+   "columns": [
+    "Định mức tồn tối thiểu",
+    "Giá vốn hiện tại",
+    "Thương hiệu",
+    "Thuộc tính",
+    "Phân loại",
+    "Món",
+    "Được bán trực tiếp",
+    "Mã HH Liên quan",
+    "ma_sp",
+    "Mô tả sản phẩm",
+    "Mẫu ghi chú",
+    "Giá",
+    "Ghi chú",
+    "Đơn vị",
+    "Trọng lượng",
+    "Loại hàng hóa"
+   ],
+   "samples": {
+    "Định mức tồn tối thiểu": [
+     "0"
+    ],
+    "Giá vốn hiện tại": [
+     "1100",
+     "1600",
+     "800"
+    ],
+    "Thương hiệu": [],
+    "Thuộc tính": [],
+    "Phân loại": [
+     "giảm đau hạ sốt",
+     "ho cảm cúm",
+     "dùng ngoài"
+    ],
+    "Món": [
+     "Panadol Extra hộp 15 vỉ x 12 viên",
+     "Hapacol 250 hộp 24 gói",
+     "Panadol 500mg hộp 10 vỉ x 12 viên"
+    ],
+    "Được bán trực tiếp": [
+     "1"
+    ],
+    "Mã HH Liên quan": [],
+    "ma_sp": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "Mô tả sản phẩm": [],
+    "Mẫu ghi chú": [],
+    "Giá": [
+     "1500",
+     "2000",
+     "1000"
+    ],
+    "Ghi chú": [],
+    "Đơn vị": [
+     "viên",
+     "gói",
+     "chai"
+    ],
+    "Trọng lượng": [],
+    "Loại hàng hóa": [
+     "Hàng hóa"
+    ]
+   },
+   "notes": {}
+  },
+  "BanHang_HoaDon.xlsx::Sheet1": {
+   "columns": [
+    "Đã thu",
+    "Tên KH",
+    "Trạng thái",
+    "Giờ tạo đơn",
+    "Mã NV bán",
+    "Phương thức TT",
+    "Ngày bán",
+    "Nguồn đơn",
+    "Còn nợ",
+    "Mã KH mua",
+    "Tiền hàng trước giảm",
+    "Tong tien",
+    "Order ID",
+    "CK"
+   ],
+   "samples": {
+    "Đã thu": [
+     "75,000",
+     "119,000",
+     "18,000"
+    ],
+    "Tên KH": [
+     "Tạ Bảo Duy",
+     "Từ Thắng Hải",
+     "Khách lẻ"
+    ],
+    "Trạng thái": [
+     "Đổi trả",
+     "Đã giao",
+     "Không giao được"
+    ],
+    "Giờ tạo đơn": [
+     "2025-01-01 06:09:58",
+     "2025-01-01 07:00:31",
+     "2025-01-01 07:26:25"
+    ],
+    "Mã NV bán": [
+     "NV002",
+     "NV003",
+     "NV001"
+    ],
+    "Phương thức TT": [
+     "Tiền mặt",
+     "Chuyển khoản",
+     "Ví điện tử"
+    ],
+    "Ngày bán": [
+     "1 thg 1 2025",
+     "01/01/2025",
+     "45658"
+    ],
+    "Nguồn đơn": [
+     "store",
+     "phone",
+     "zalo_oa"
+    ],
+    "Còn nợ": [
+     "0",
+     "12,000",
+     "2,700"
+    ],
+    "Mã KH mua": [
+     "KH0203",
+     "KH0166",
+     "KH0197"
+    ],
+    "Tiền hàng trước giảm": [
+     "75,000",
+     "119,000",
+     "18,000"
+    ],
+    "Tong tien": [
+     "75,000",
+     "119,000",
+     "18,000"
+    ],
+    "Order ID": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "CK": [
+     "0",
+     "10,000"
+    ]
+   },
+   "notes": {}
+  },
+  "BanHang_KhachHang.xlsx::Sheet1": {
+   "columns": [
+    "Điểm tích lũy",
+    "Công ty",
+    "Hạng",
+    "E-mail",
+    "MST",
+    "Ngày sinh",
+    "CCCD",
+    "Trạng thái",
+    "ten_kh",
+    "Người tạo",
+    "Ghi chú",
+    "Tổng điểm",
+    "Loại hình khách",
+    "Số điện thoại",
+    "Customer ID"
+   ],
+   "samples": {
+    "Điểm tích lũy": [
+     "0"
+    ],
+    "Công ty": [],
+    "Hạng": [
+     "thân thiết",
+     "sỉ",
+     "lẻ"
+    ],
+    "E-mail": [],
+    "MST": [
+     "0660456526",
+     "0146833354",
+     "0611063179"
+    ],
+    "Ngày sinh": [
+     "13/05/1991",
+     "13/04/1977",
+     "11/08/1994"
+    ],
+    "CCCD": [],
+    "Trạng thái": [
+     "Đang hoạt động"
+    ],
+    "ten_kh": [
+     "Trịnh Phúc Phúc",
+     "Quách Loan Bích",
+     "Tăng Trung Hạnh"
+    ],
+    "Người tạo": [
+     "admin"
+    ],
+    "Ghi chú": [],
+    "Tổng điểm": [
+     "0"
+    ],
+    "Loại hình khách": [
+     "Cá nhân"
+    ],
+    "Số điện thoại": [
+     "0325679681",
+     "0351870694",
+     "0910136965"
+    ],
+    "Customer ID": [
+     "KH0001",
+     "KH0002",
+     "KH0003"
+    ]
+   },
+   "notes": {}
+  },
+  "BanHang_LichSuGia.xlsx::Sheet1": {
+   "columns": [
+    "Mã sản phẩm",
+    "Giá mới",
+    "Ngày áp dụng",
+    "Sản phẩm",
+    "Giá cũ"
+   ],
+   "samples": {
+    "Mã sản phẩm": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "Giá mới": [
+     "1400",
+     "1500",
+     "2000"
+    ],
+    "Ngày áp dụng": [
+     "2025-01-01",
+     "2025-12-17",
+     "2025-08-18"
+    ],
+    "Sản phẩm": [
+     "Panadol Extra hộp 15 vỉ x 12 viên",
+     "Hapacol 250 hộp 24 gói",
+     "Panadol 500mg hộp 10 vỉ x 12 viên"
+    ],
+    "Giá cũ": [
+     "1400",
+     "1300",
+     "1600"
+    ]
+   },
+   "notes": {}
+  },
+  "BanHang_LoHang.xlsx::Sheet1": {
+   "columns": [
+    "HSD",
+    "Mã món",
+    "SL nhập (ĐVT cơ bản)",
+    "Mã phiếu nhập",
+    "Lô"
+   ],
+   "samples": {
+    "HSD": [
+     "30/01/2027",
+     "08/04/2027",
+     "13/07/2027"
+    ],
+    "Mã món": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "SL nhập (ĐVT cơ bản)": [
+     "360",
+     "264",
+     "240"
+    ],
+    "Mã phiếu nhập": [
+     "PN00142",
+     "PN00405",
+     "PN00185"
+    ],
+    "Lô": [
+     "A2505116",
+     "A2602802",
+     "B2507439"
+    ]
+   },
+   "notes": {}
+  },
+  "BanHang_PhieuThu.xlsx::Sheet1": {
+   "columns": [
+    "Số tiền thu",
+    "Mã bill",
+    "Phiếu thu",
+    "Thời gian thu",
+    "PTTT"
+   ],
+   "samples": {
+    "Số tiền thu": [
+     "75,000",
+     "119,000",
+     "18,000"
+    ],
+    "Mã bill": [
+     "ORD000001",
+     "ORD000002",
+     "ORD000003"
+    ],
+    "Phiếu thu": [
+     "PAY000001",
+     "PAY000002",
+     "PAY000003"
+    ],
+    "Thời gian thu": [
+     "2025-01-01 06:09:58",
+     "2025-01-01 07:00:31",
+     "2025-01-01 07:26:25"
+    ],
+    "PTTT": [
+     "Tiền mặt",
+     "Chuyển khoản",
+     "Ví điện tử"
+    ]
+   },
+   "notes": {}
+  },
+  "BanHang_Thuoc.xlsx::Sheet1": {
+   "columns": [
+    "Mã HH",
+    "Hoạt chất",
+    "Kê đơn"
+   ],
+   "samples": {
+    "Mã HH": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "Hoạt chất": [
+     "Paracetamol + Cafein",
+     "Paracetamol",
+     "Paracetamol + Phenylephrin + Clorpheniramin"
+    ],
+    "Kê đơn": [
+     "False",
+     "True"
+    ]
+   },
+   "notes": {}
+  },
+  "SoTay_ChiPhi.xlsx::Sheet1": {
+   "columns": [
+    "Ghi chú",
+    "Ngày chi",
+    "Mục",
+    "So tien"
+   ],
+   "samples": {
+    "Ghi chú": [
+     "thưởng Tết"
+    ],
+    "Ngày chi": [
+     "01/01/2025",
+     "05/01/2025",
+     "14/01/2025"
+    ],
+    "Mục": [
+     "thuê",
+     "điện",
+     "nước"
+    ],
+    "So tien": [
+     "25000k",
+     "3950k",
+     "578.000đ"
+    ]
+   },
+   "notes": {}
+  },
+  "SoTay_NhapHang.xlsx::Sheet1": {
+   "columns": [
+    "SL nhập",
+    "Mô tả",
+    "Product",
+    "Thành tiền",
+    "Lô",
+    "HSD",
+    "Ngày nhập",
+    "Nhà cung cấp",
+    "ĐVT nhập",
+    "Số phiếu",
+    "Giá nhập"
+   ],
+   "samples": {
+    "SL nhập": [
+     "2",
+     "11",
+     "3"
+    ],
+    "Mô tả": [
+     "nhập đầu kỳ"
+    ],
+    "Product": [
+     "Panadol Extra hộp 15 vỉ x 12 viên",
+     "Hapacol 250 hộp 24 gói",
+     "Panadol 500mg hộp 10 vỉ x 12 viên"
+    ],
+    "Thành tiền": [
+     "396k",
+     "422.400đ",
+     "288.000đ"
+    ],
+    "Lô": [
+     "E2501244",
+     "I2501674",
+     "Y2501592"
+    ],
+    "HSD": [
+     "2025-05-16",
+     "2025-05-22",
+     "2026-07-19"
+    ],
+    "Ngày nhập": [
+     "01/01/2025",
+     "1 thg 1 2025",
+     "2 thg 1 2025"
+    ],
+    "Nhà cung cấp": [
+     "Cty Mai Tâm",
+     "Cty Ông Hải",
+     "Cty Hồ Lan"
+    ],
+    "ĐVT nhập": [
+     "hộp",
+     "chai",
+     "tuýp"
+    ],
+    "Số phiếu": [
+     "PN00001",
+     "PN00002",
+     "PN00003"
+    ],
+    "Giá nhập": [
+     "198k",
+     "38.400đ",
+     "96k"
+    ]
+   },
+   "notes": {}
+  },
+  "ton_kho.csv": {
+   "columns": [
+    "ID SP",
+    "Đơn vị",
+    "Ton kho",
+    "Hàng hóa"
+   ],
+   "samples": {
+    "ID SP": [
+     "SP0001",
+     "SP0002",
+     "SP0003"
+    ],
+    "Đơn vị": [
+     "viên",
+     "gói",
+     "chai"
+    ],
+    "Ton kho": [
+     "112",
+     "4",
+     "279"
+    ],
+    "Hàng hóa": [
+     "Panadol Extra hộp 15 vỉ x 12 viên",
+     "Hapacol 250 hộp 24 gói",
+     "Panadol 500mg hộp 10 vỉ x 12 viên"
+    ]
+   },
+   "notes": {}
+  }
+ },
+ "biz_126": {
+  "SoBanHang.xlsx::Sheet1": {
+   "columns": [
+    "Đơn vị tính",
+    "Số lượng bán",
+    "Thành tiền (đ)",
+    "Ten hang",
+    "SL lẻ",
+    "Trạng thái đơn",
+    "Ngày tháng",
+    "Price"
+   ],
+   "samples": {
+    "Đơn vị tính": [
+     "đĩa",
+     "phần",
+     "nồi"
+    ],
+    "Số lượng bán": [
+     "1",
+     "2",
+     "4"
+    ],
+    "Thành tiền (đ)": [
+     "99000",
+     "79.000đ",
+     "189000"
+    ],
+    "Ten hang": [
+     "Tôm nướng mọi",
+     "Thịt ba rọi kho tộ",
+     "Lẩu gà lá é"
+    ],
+    "SL lẻ": [
+     "1",
+     "2",
+     "4"
+    ],
+    "Trạng thái đơn": [
+     "Đã giao",
+     "hủy",
+     "Trả hàng"
+    ],
+    "Ngày tháng": [
+     "01/01/2025",
+     "2025-01-01",
+     "02/01/2025"
+    ],
+    "Price": [
+     "99000",
+     "79000",
+     "189,000"
+    ]
+   },
+   "notes": {
+    "Đơn vị tính": "đơn vị tính",
+    "Số lượng bán": "số lượng",
+    "Thành tiền (đ)": "thành tiền sau giảm",
+    "Ten hang": "tên hàng",
+    "SL lẻ": "số lượng đã đổi ra đơn vị cơ bản",
+    "Trạng thái đơn": "trạng thái đơn",
+    "Ngày tháng": "ngày bán",
+    "Price": "đơn giá"
+   }
+  }
+ }
+}

@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
 
-    bank = prompt.ExampleBank()
+    bank = prompt.ExampleBank(prompt.HAND_FILES)  # hand plans only: K3 measures against them
     if args.mock:
         llm = MockLLM([e["plan"] for e in bank.items[:args.limit]])
     else:
