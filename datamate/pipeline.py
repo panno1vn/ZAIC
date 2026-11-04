@@ -115,6 +115,11 @@ def prepare_business(root: Path, rulebook: str, llm: LLMClient | None, map_fn: M
         return BusinessContext(None, None, Mapping(), CanonicalDB(), DataCard(), error=traceback.format_exc())
 
 
+def rule_ids() -> tuple[str, ...]:
+    """Every rulebook row the run relies on, checked by [R]: the metric functions' and the decisions' (§7)."""
+    return tuple(sorted({r for spec in metrics.REGISTRY.values() for r in spec.rules} | set(verify.R_OUTSIDE)))
+
+
 def twin_check(question: str, plan: QueryPlan, ctx: BusinessContext, threshold: float | None, log: dict,
                exclude_ids: frozenset[str] = frozenset()) -> bool | None:
     """T4 gate for a plan read with the LLM: True when the baseline reads the question the same way or a verified
@@ -151,6 +156,10 @@ def answer_question(q: dict, ctx: BusinessContext, calendar: Path, rule_status: 
             result = metrics.execute(resolved, ctx.db) or codegen.solve(q["question"], resolved, ctx.db, rulebook, llm)
         log["result"] = result
         signals = verify.collect_signals(resolved, result, ctx.db, ctx.mapping, rule_status)
+        if result is not None:  # a term only this rulebook defines, which the function does not implement
+            unknown = rules.unverified_terms(q["question"], rulebook, result.rule_ids)
+            signals.terms_known = not unknown
+            log["unverified_terms"] = unknown
         if plan is not None and reader is not None:
             signals.twin_ok = twin_check(q["question"], plan, ctx, twin_threshold, log, exclude_examples)
         log["signals"] = signals
@@ -174,8 +183,7 @@ def run(data_dir: Path, out_dir: Path, config: RunConfig | None = None, llm: LLM
         questions = [q for q in questions if config.question_filter(q)]
     rulebook_path = split_dir / "rulebook.md"
     rulebook = rulebook_path.read_text(encoding="utf-8-sig") if rulebook_path.exists() else ""
-    rule_ids = tuple(sorted({r for spec in metrics.REGISTRY.values() for r in spec.rules}))
-    rule_status = rules.check_rules(rulebook, rule_ids)
+    rule_status = rules.check_rules(rulebook, rule_ids())
     log_dir = out_dir / "logs"
     summary = RunSummary(n_questions=len(questions))
 

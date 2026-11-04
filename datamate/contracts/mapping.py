@@ -92,6 +92,8 @@ class Mapping(_Model):
 
     @property
     def ok(self) -> bool:
-        """Usable for answering: has orders and lines, and every check passed."""
+        """Usable for answering: has orders and lines (or orders alone, each with its goods amount: a shop that records
+        no lines), and every check passed."""
         targets = {t.target for t in self.tables}
-        return {"orders", "lines"} <= targets and bool(self.checks) and all(c.passed for c in self.checks)
+        orders_only = targets == {"orders"} and any(c.target == "goods_amount" for t in self.tables for c in t.columns)
+        return ({"orders", "lines"} <= targets or orders_only) and bool(self.checks)             and all(c.passed for c in self.checks)

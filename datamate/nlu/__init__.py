@@ -15,7 +15,8 @@ from datamate.llm import LLMClient
 from datamate.verify import LINKED_FIELDS, filter_keys
 
 from . import baseline, linking, prompt
-from .grounding import drop_ungrounded_years, ungrounded_dates, ungrounded_filters, ungrounded_measures
+from .grounding import (drop_restated_status, drop_ungrounded_years, ungrounded_dates, ungrounded_filters,
+                        ungrounded_measures)
 
 
 def _fold_value(v):
@@ -62,7 +63,7 @@ def llm_plan(question: str, as_of: date, card: DataCard, llm: LLMClient,
 def accept_plan(question: str, plan: QueryPlan, as_of: date | None = None) -> QueryPlan | None:
     """An LLM plan as the pipeline may use it: years the question does not state dropped, None when a filter or a
     day has no ground in the question (grounding.py)."""
-    plan = drop_implied_filters(drop_ungrounded_years(question, plan, as_of))
+    plan = drop_restated_status(question, drop_implied_filters(drop_ungrounded_years(question, plan, as_of)))
     if ungrounded_filters(question, plan) or ungrounded_dates(question, plan, as_of):
         return None
     return None if ungrounded_measures(question, plan) else plan

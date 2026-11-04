@@ -17,10 +17,10 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from datamate import loader, metrics, rules
+from datamate import loader, rules
 from datamate.contracts import QueryPlan
 from datamate.mapping import transfer
-from datamate.pipeline import prepare_business
+from datamate.pipeline import prepare_business, rule_ids
 from datamate.predict import connect_llm
 
 from .build_bank import PLANS, current_plans
@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
     plans = current_plans(questions, {e["id"]: e["plan"]
                                       for e in map(json.loads, PLANS.read_text(encoding="utf-8").splitlines())})
     rulebook = (split / "rulebook.md").read_text(encoding="utf-8-sig")
-    rule_status = rules.check_rules(rulebook, tuple(sorted({r for s in metrics.REGISTRY.values() for r in s.rules})))
+    rule_status = rules.check_rules(rulebook, rule_ids())
     hand = set(mapping_files("train"))
     by_business: dict[str, list[dict]] = {}
     for q in questions:

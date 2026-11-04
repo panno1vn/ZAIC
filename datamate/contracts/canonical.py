@@ -53,6 +53,8 @@ TABLES: dict[str, TableSpec] = {
         Col("vat", "float"),
         Col("trade_in_amount", "float", doc="tiền thu máy cũ trừ vào đơn (điện thoại, §6)"),
         Col("total_due", "float", doc="số khách phải trả cả đơn: sau giảm giá đơn và máy cũ, gồm phí giao"),
+        Col("goods_amount", "float", doc="tiền hàng của đơn: cộng thành tiền các dòng (§1 doanh thu một đơn), "
+            "trước giảm giá đơn, chưa gồm phí giao; file chỉ có đơn (không dòng hàng) lấy doanh thu từ đây"),
         Col("is_warranty", "bool", doc="phiếu bảo hành, không thu tiền (sửa xe, §6)"),
         Col("vehicle_plate", "str", doc="biển số (sửa xe)"),
         Col("vehicle_model", "str", doc="dòng xe (sửa xe)"),

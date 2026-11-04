@@ -325,6 +325,21 @@ def _ordered(totals: pd.Series, k: int | None) -> list:
     return frame["key"].head(k if k is not None else len(frame)).tolist()
 
 
+TIE = "tie"  # ExecResult.notes: the ranking the answer reads has equal values (verify → Signals.ranking_clear)
+
+
+def _tied(totals: pd.Series, k: int | None, order_matters: bool = True) -> bool:
+    """Equal values where the answer depends on the tie rule: at the top-k boundary (which ones are in), or inside
+    the top k when the answer is an ordered list. No train rank question has one (281 answered right, 05/11), while a
+    month's customers by order count tie at the top 39% of the time: the question generator leaves ties out, so a tie
+    in our figures means they differ from the generator's somewhere (N25)."""
+    v = sorted((round(float(x), 6) for x in totals.values), reverse=True)
+    k = len(v) if k is None else min(k, len(v))
+    if k < len(v) and k > 0 and v[k - 1] == v[k]:
+        return True
+    return order_matters and len(set(v[:k])) < k
+
+
 def rank(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     """Products, customers, employees, days or months ranked by a sales metric; ties by code ascending (§9)."""
     p, r = plan.plan, plan.plan.rank
@@ -342,7 +357,8 @@ def rank(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
             col = {"quantity": "base_qty", "revenue": "line_amount"}.get(r.by)
         if ln is None or col is None or ln[col].isna().any():
             return None
-        keys = _ordered(ln.groupby("product_key")[col].sum(), r.k)
+        totals = ln.groupby("product_key")[col].sum()
+        keys = _ordered(totals, r.k)
         names = _first_name(F.lines(db)["product_key"], F.lines(db)["product_name"])
         labels = [names.get(k, k) for k in keys]
     else:
@@ -380,7 +396,10 @@ def rank(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
             labels = keys
     value = labels[0] if r.k == 1 else labels
     rules = R_RANK + R_METRIC.get(r.by, ()) + R_FILTERS
-    return _result(plan, value, rules, REQ_METRIC.get(r.by, REQ_ORDERS), "rank")
+    out = _result(plan, value, rules, REQ_METRIC.get(r.by, REQ_ORDERS), "rank")
+    if out is not None and _tied(totals, r.k):
+        out.notes.append(TIE)
+    return out
 
 
 # ---------------------------------------------------------------- count over a threshold, unsold products

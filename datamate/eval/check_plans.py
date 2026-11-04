@@ -20,7 +20,7 @@ from pathlib import Path
 from datamate import decide, formatter, metrics, nlu, rules, temporal, verify
 from datamate.contracts import QueryPlan
 from datamate.nlu.templates import plan_shape
-from datamate.pipeline import prepare_business
+from datamate.pipeline import prepare_business, rule_ids
 
 from .oracle import mapping_files, oracle_map_fn
 from .scorer import score_line
@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     refs = {a["id"]: a for a in map(json.loads, (split / "answers.jsonl").read_text(encoding="utf-8").splitlines())}
     plans = load_plans(args.plans)
     rulebook = (split / "rulebook.md").read_text(encoding="utf-8-sig")
-    rule_status = rules.check_rules(rulebook, tuple(sorted({r for s in metrics.REGISTRY.values() for r in s.rules})))
+    rule_status = rules.check_rules(rulebook, rule_ids())
     map_fn = oracle_map_fn("train")
 
     rows = []

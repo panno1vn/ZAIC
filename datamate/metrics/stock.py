@@ -19,7 +19,7 @@ from datamate.nlu import linking
 
 from . import frames as F
 from .registry import metric
-from .sales import _ordered  # one tie rule for every ranking (§9)
+from .sales import TIE, _ordered, _tied  # one tie rule for every ranking (§9)
 
 R_TODAY = ("§0.p_hom_nay_cua_moi_cau_la",)
 R_PURCHASE = ("§5.tien_nhap_hang_trong_ky",) + R_TODAY
@@ -228,7 +228,8 @@ def rank_suppliers(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     keys = _ordered(totals, r.k)
     return ExecResult(value=keys[0] if r.k == 1 else keys, answer_type=expected_answer_type(plan.plan), source="D1",
                       function="stock.rank_suppliers", rule_ids=sorted(set(rules + R_NAMES + R_TIES)),
-                      requires=["purchases.receipt_time", "purchases.supplier", "purchases.receipt_id"])
+                      requires=["purchases.receipt_time", "purchases.supplier", "purchases.receipt_id"],
+                      notes=[TIE] if _tied(totals, r.k) else [])
 
 
 # ---------------------------------------------------------------- registry

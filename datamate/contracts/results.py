@@ -33,6 +33,9 @@ class Signals(BaseModel):
     rules_unchanged: bool = False
     paths_agree: bool | None = None  # D1 vs D2, when both ran
     twin_ok: bool | None = None  # T4: an LLM plan has a verified twin or the baseline's agreement; None = not gated
+    terms_known: bool | None = None  # no rulebook term without a train version the function does not implement
+    ranking_clear: bool | None = None  # False: equal values where the answer depends on the tie rule (N25)
+    outside_data: bool | None = None  # True: the asked or compared period lies wholly outside the shop's data (§7)
     notes: list[str] = []
 
 

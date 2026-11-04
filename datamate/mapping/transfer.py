@@ -125,7 +125,7 @@ def vocabulary() -> dict[tuple[str, str], dict[str, str]]:
 STATUS_WORDS = {
     "cancelled": r"\b(?:huy|khong giao duoc|bom hang|cancel|cancelled|canceled)\b",
     "returned": r"\b(?:tra hang|tra lai|tra ve|hoan hang|hoan tra|doi tra|return|returned|refund|refunded)\b",
-    "delivering": r"\b(?:dang giao|dang van chuyen|dang gui|dang xu ly|shipping|delivering|in transit)\b",
+    "delivering": r"\b(?:dang giao|dang van chuyen|dang gui|dang xu ly|cho giao|shipping|delivering|in transit)\b",
     "completed": r"\b(?:hoan thanh|xong|thanh cong|da giao|da lay|completed|complete|done|delivered|ok)\b",
 }
 
@@ -240,7 +240,8 @@ def failed(tried: list[str]) -> Mapping:
 
 
 def _passes(m: Mapping, raw: RawBusiness, tried: list[str]) -> Mapping | None:
-    m = _settle_constants(m, raw)
+    from .from_readme import enrich  # N29: the attributes the README names that the example's shop did not record
+    m = _settle_constants(enrich(m, raw), raw)
     checks = run_checks(build_canonical(raw, m), raw.readme)
     bad = [c.name for c in checks if not c.passed]
     tried.append(f"{m.notes[0]}: {'qua' if not bad else 'hỏng ' + ', '.join(bad)}")

@@ -19,7 +19,7 @@ TRIGGERS = {  # coded fields: words (folded) that must appear for the filter to 
     "shift": ("ca", "sang", "chieu", "toi"),
     "weekday": ("thu", "chu nhat", "cuoi tuan", "ngay le"),
     "order_status": ("huy", "tra", "giao", "hoan thanh", "thanh cong", "doi y"),
-    "prescription": ("ke don", "theo don", "toa"),
+    "prescription": ("ke don", "theo don", "toa", "don bac si"),
     "is_warranty": ("bao hanh",),
     "size": ("size", "co", "m", "l", "s"),
 }
@@ -34,6 +34,39 @@ VALUE_TRIGGERS = {
                 "sun": ("chu nhat", "cn", "cuoi tuan")},
 }
 NUMERIC = {"order_value", "debt_age_days", "expiry_within_days"}
+
+
+CODED = frozenset({"channel", "payment_method"})  # = linking.CODED: values linked to a code of synonyms.json
+
+
+def _coded_grounded(field: str, value: str, question: str) -> bool:
+    """A channel / payment value is grounded when the question writes one of its code's synonyms."""
+    from . import linking  # linking imports this package's siblings; late import keeps the modules apart
+    code = linking.concept(field, value)
+    words = linking.synonyms().get(field, {}).get(code, ()) if code else ()
+    return any(re.search(rf"\b{re.escape(fold(w))}\b", question) for w in words)
+
+
+# A status filter of the orders that count anyway (§1: not cancelled, not returned; in delivery counts) on a question
+# that names no status only restates the default. The LLM adds it to plain counts and revenue ("hôm qua bán được mấy
+# đơn" → order_status = completed): 10 of 25 train questions it read with no plan, 05/11. The metrics take no status
+# filter, so such a plan could only abstain; dropped, the plan is the question's.
+_STATUS_NAMED = r"\b(?:hoan thanh|thanh cong|xong|dang giao|da giao|dang van chuyen)\b"
+_COUNTED = {"completed", "delivering"}
+
+
+def drop_restated_status(question: str, plan: QueryPlan) -> QueryPlan:
+    if re.search(_STATUS_NAMED, fold(question)):
+        return plan
+
+    def fix(m):
+        kept = [f for f in m.filters if not (f.field == "order_status" and f.op in ("eq", "in")
+                                              and set(f.value if isinstance(f.value, list) else [f.value]) <= _COUNTED)]
+        return m.model_copy(update={"filters": kept}) if len(kept) < len(m.filters) else m
+    update = {"measures": [fix(m) for m in plan.measures]}
+    if plan.share_of is not None:
+        update["share_of"] = fix(plan.share_of)
+    return plan.model_copy(update=update) if update["measures"] != list(plan.measures) or         update.get("share_of") is not plan.share_of else plan
 
 
 def _grounded_text(value: str, question_tokens: list[str], question: str) -> bool:
@@ -59,6 +92,8 @@ def ungrounded_filters(question: str, plan: QueryPlan) -> list[str]:
             ok = all(any(re.search(rf"\b{t}\b", q) for t in VALUE_TRIGGERS[f.field][v]) for v in values)
         elif f.field in TRIGGERS:
             ok = any(re.search(rf"\b{re.escape(t)}\b", q) for t in TRIGGERS[f.field])
+        elif f.field in CODED:  # the linker's synonyms: "tm", "tiền tươi" are cash (05/11: 3 of 25 plans lost)
+            ok = all(_coded_grounded(f.field, str(v), q) or _grounded_text(str(v), tokens, q) for v in values)
         elif f.field in NUMERIC:
             ok = all(str(int(v)) in re.sub(r"[.,]", "", question) for v in values if isinstance(v, (int, float)))
         else:

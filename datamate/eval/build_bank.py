@@ -18,11 +18,11 @@ from collections import Counter, defaultdict
 from datetime import date
 from pathlib import Path
 
-from datamate import metrics, nlu, rules
+from datamate import nlu, rules
 from datamate.contracts import DataCard, QueryPlan
 from datamate.nlu import prompt
 from datamate.nlu.templates import NameIndex, plan_shape, template_text
-from datamate.pipeline import prepare_business
+from datamate.pipeline import prepare_business, rule_ids
 from datamate.predict import connect_llm
 
 from .check_plans import check
@@ -79,7 +79,7 @@ def verify_by_answer(questions: list[dict], plans: dict[str, dict | None], split
     files = mapping_files("train")
     refs = {a["id"]: a for a in map(json.loads, (split / "answers.jsonl").read_text(encoding="utf-8").splitlines())}
     rulebook = (split / "rulebook.md").read_text(encoding="utf-8-sig")
-    rule_status = rules.check_rules(rulebook, tuple(sorted({r for s in metrics.REGISTRY.values() for r in s.rules})))
+    rule_status = rules.check_rules(rulebook, rule_ids())
     by_business = defaultdict(list)
     for q in questions:
         if q["business_id"] in files and plans.get(q["id"]):

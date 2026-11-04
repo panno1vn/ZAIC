@@ -15,6 +15,7 @@ import json
 import re
 import unicodedata
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 REFERENCE = Path(__file__).resolve().parents[2] / "assets" / "rules" / "reference_rules.json"
@@ -127,6 +128,59 @@ def check_rules(rulebook: str, rule_ids: tuple[str, ...], reference: dict[str, s
             versions = [versions]
         out[rid] = row is not None and bool(versions) and any(same_rule(row.text, v, threshold) for v in versions)
     return out
+
+
+@lru_cache(maxsize=1)
+def train_rule_ids(path: Path = REFERENCE) -> frozenset[str]:
+    """Rules with a train version in the reference: the ones the metric functions were checked against."""
+    if not path.exists():
+        return frozenset()
+    return frozenset(rid for rid, entry in json.loads(path.read_text(encoding="utf-8")).items()
+                     if any(v.get("source") == "train" for v in entry["versions"]))
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", _fold(text))
+
+
+@lru_cache(maxsize=4)
+def new_terms(rulebook: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """(rule id, words naming it in a question) of the rows of this rulebook with no train version: terms such as
+    "Khách trung thành nhất" (most days with a purchase) that no function was checked against. A term is named by
+    the words after its head noun ("trung thanh nhat"), of the last name when a row names several ("Nhân viên, thợ
+    chăm chỉ nhất"); one word left is too common to tell ("Bảo hành")."""
+    known, out = train_rule_ids(), []
+    for rid, row in parse_rulebook(rulebook).items():
+        if rid in known or row.name.startswith("p_"):
+            continue
+        words = _words(row.name.split(",")[-1])[1:]
+        if len(words) >= 2:
+            out.append((rid, tuple(words)))
+    return tuple(out)
+
+
+def _says(question: list[str], words: tuple[str, ...], gap: int = 2) -> bool:
+    """The words come in order in the question, at most `gap` other words between two of them ("khách nào trung
+    thành nhất")."""
+    for start in (i for i, w in enumerate(question) if w == words[0]):
+        at, ok = start, True
+        for w in words[1:]:
+            nxt = next((j for j in range(at + 1, min(at + 2 + gap, len(question))) if question[j] == w), None)
+            if nxt is None:
+                ok = False
+                break
+            at = nxt
+        if ok:
+            return True
+    return False
+
+
+def unverified_terms(question: str, rulebook: str, cited: list[str] | tuple[str, ...]) -> list[str]:
+    """Rule ids of terms the question uses that this rulebook defines, no train version of which exists, and that
+    the answering function does not implement (does not cite). Public 04/11: such questions ("khách trung thành
+    nhất", "mặt hàng được ưa chuộng nhất"…) were read as the nearest train metric (most orders, most quantity)."""
+    q = _words(question)
+    return [rid for rid, words in new_terms(rulebook) if rid not in cited and _says(q, words)]
 
 
 def diff_rulebooks(old: str, new: str) -> dict[str, list]:

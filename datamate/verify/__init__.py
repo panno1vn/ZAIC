@@ -36,6 +36,10 @@ def coverage(period: ResolvedPeriod | None, span: tuple[date, date] | None) -> s
     return "full" if period.start >= lo and period.end <= hi else "partial"
 
 
+# §7 rows the "period wholly outside the shop's data: unanswerable" decision relies on (N28)
+R_OUTSIDE = ("§7.p_cau_khong_tra_loi_duoc_khi", "§7.p_khong_co_du_lieu_khac_voi")
+
+
 # tables without their own dates take the span of the table that dates them
 DATE_OWNER = {"lines": "orders", "lot_sales": "orders", "payments": "orders", "returns": "orders",
               "deliveries": "orders", "installments": "orders"}
@@ -75,6 +79,10 @@ def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: Ca
     filters = [f for m in measures for f in m.filters] + list((p.compare.filters or []) if p.compare else [])
     linkable = [k for f in filters if f.field in LINKED_FIELDS for k in filter_keys(f)]
     s.entities_ok = all(k in plan.linked for k in linkable)  # no linkable filter: nothing to link, so ok
+    shop = db.date_ranges.get("orders")  # §7 "khoảng ngày có dữ liệu của shop", not the span of one table
+    if plan.period is not None and shop is not None and all(rules.get(r, False) for r in R_OUTSIDE):
+        compared = plan.compare_period if p.compare is not None and p.compare.kind != "filter" else None
+        s.outside_data = any(coverage(x, shop) == "none" for x in (plan.period, compared) if x is not None)
     if result is None:
         return s
     s.required_fields_present = all(
@@ -84,5 +92,7 @@ def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: Ca
     if p.compare is not None and p.compare.kind != "filter":
         s.compare_coverage = coverage(plan.compare_period, span)
     s.sane = _sane(result)
+    if "tie" in result.notes:  # metrics.sales.TIE: the generator leaves ties out, so ours mean a misread (N25)
+        s.ranking_clear = False
     s.rules_unchanged = bool(result.rule_ids) and all(rules.get(r, False) for r in result.rule_ids)
     return s

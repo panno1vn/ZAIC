@@ -23,11 +23,11 @@ from datamate.loader.parse import parse_bool, parse_date, parse_datetime, parse_
 DATE_COLUMNS = {"orders": "order_time", "purchases": "receipt_time", "payments": "paid_time", "inventory": "as_of",
                 "price_history": "effective_date", "expenses": "expense_date", "deliveries": "delivery_time",
                 "shift_reports": "report_date", "warranty_visits": "visit_time"}
-REQUIRED_CHECKS = ("có orders và lines", "bảng đúng schema", "trạng thái đơn đã quy đổi", "khoảng ngày hợp lý",
+REQUIRED_CHECKS = ("có orders và lines (hoặc tiền hàng của đơn)", "bảng đúng schema", "trạng thái đơn đã quy đổi", "khoảng ngày hợp lý",
                    "dòng hàng thuộc đơn có thật", "cột bắt buộc đủ giá trị",
                    # H17, checks of meaning; thresholds measured on the 8 hand mappings of 05/11 (docs/HAN_CHE §E)
                    "thành tiền khớp số lượng × đơn giá", "trạng thái hợp lý", "ngày cuối khớp README",
-                   "số âm chỉ ở đơn trả")
+                   "số âm chỉ ở đơn trả", "tiền hàng của đơn khớp tổng dòng")
 AMOUNT_MATCH_MIN = 0.95  # share of lines with amount ≈ qty × price − discount; 0.980–1.000 on correct mappings
 SOLD_SHARE_MIN = 0.5  # share of orders completed or delivering; 0.95–0.98 on correct mappings
 NEGATIVE_MAX = 0.001  # share of lines with a negative amount or qty outside returned orders; 0 on correct mappings
@@ -339,10 +339,12 @@ def meaning_checks(db: CanonicalDB, readme: str = "") -> list[tuple[bool, str]]:
     mapping that is well formed but wrong: amount mapped to the price column, statuses mapped the wrong way round,
     sheets or files left out, a discount or price column taken for the amount."""
     o, ln = db.table("orders"), db.table("lines")
-    if o is None or ln is None:
-        return [(True, "không áp dụng")] * 4
+    if o is None:
+        return [(True, "không áp dụng")] * 5
     out = []
-    if {"qty", "unit_price", "line_amount"} <= set(ln.columns) and ln["unit_price"].notna().sum() >= MIN_ROWS:
+    if ln is None:
+        out.append((True, "không áp dụng: không có dòng hàng"))
+    elif {"qty", "unit_price", "line_amount"} <= set(ln.columns) and ln["unit_price"].notna().sum() >= MIN_ROWS:
         rows = ln[ln["unit_price"].notna()]
         disc = rows["line_discount"].fillna(0) if "line_discount" in rows.columns else 0
         diff = (rows["line_amount"] - (rows["qty"] * rows["unit_price"] - disc)).abs()
@@ -364,25 +366,48 @@ def meaning_checks(db: CanonicalDB, readme: str = "") -> list[tuple[bool, str]]:
             out.append((True, "không áp dụng: ngày trong README không đọc được"))
     else:
         out.append((True, "không áp dụng: README không ghi ngày cuối"))
-    status = ln["order_id"].map(o.set_index("order_id")["status"]) if o["order_id"].is_unique else None
+    status = ln["order_id"].map(o.set_index("order_id")["status"]) if ln is not None and o["order_id"].is_unique         else None
     if status is not None and {"qty", "line_amount"} <= set(ln.columns):
         neg = ((ln["line_amount"] < 0) | (ln["qty"] <= 0)) & (status != "returned")
         share = float(neg.mean())
         out.append((share <= NEGATIVE_MAX, f"{int(neg.sum())} dòng âm hoặc số lượng ≤ 0 ngoài đơn trả hàng"))
+    elif ln is None and "goods_amount" in o.columns:
+        neg = (o["goods_amount"] < 0) & (o["status"] != "returned")
+        share = float(neg.mean())
+        out.append((share <= NEGATIVE_MAX, f"{int(neg.sum())} đơn có tiền hàng âm ngoài đơn trả hàng"))
     else:
         out.append((True, "không áp dụng"))
+    out.append(_goods_match(o, ln))
     return out
+
+
+GOODS_MATCH_MIN = 0.95  # share of orders whose goods amount = the sum of their lines; measured on train 05/11
+
+
+def _goods_match(o: pd.DataFrame, ln: pd.DataFrame | None) -> tuple[bool, str]:
+    """An order's goods amount ("tổng tiền hàng của đơn: cộng thành tiền các dòng") against the sum of its lines'
+    amounts, when the shop records both: two columns read independently that must agree (§1 revenue of an order)."""
+    if ln is None or "goods_amount" not in o.columns or "line_amount" not in ln.columns:
+        return True, "không áp dụng"
+    rows = o.dropna(subset=["goods_amount"])
+    if len(rows) < MIN_ROWS:
+        return True, f"không áp dụng: dưới {MIN_ROWS} đơn"
+    sums = rows["order_id"].map(ln.groupby("order_id")["line_amount"].sum()).fillna(0.0)
+    share = float(((sums - rows["goods_amount"]).abs() <= 1).mean())
+    return share >= GOODS_MATCH_MIN, f"{share:.1%} đơn khớp (cần ≥ {GOODS_MATCH_MIN:.0%})"
 
 
 def run_checks(db: CanonicalDB, readme: str = "") -> list[CheckResult]:
     """The required checks (H8): a mapping is usable only if every one of them passes."""
-    has_core = db.has("orders") and db.has("lines")
+    only_orders = db.has("orders", "goods_amount") and not db.has("lines")  # a shop that records no lines (N26)
+    has_core = db.has("orders") and (db.has("lines") or only_orders)
     problems = [p for name, df in db.tables.items() for p in check_frame(name, df)]
     status_ok = has_core and set(db.tables["orders"]["status"].dropna()) <= set(ORDER_STATUSES) \
         and db.tables["orders"]["status"].isna().mean() <= UNKNOWN_STATUS_MAX
     span = db.date_ranges.get("orders")
     span_ok = span is not None and date(2000, 1, 1) <= span[0] <= span[1] <= date(2100, 1, 1)
-    lines_ok = has_core and set(db.tables["lines"]["order_id"].dropna()) <= set(db.tables["orders"]["order_id"])
+    lines_ok = has_core and (only_orders or set(db.tables["lines"]["order_id"].dropna())
+                             <= set(db.tables["orders"]["order_id"]))
     empty = empty_required_cells(db)
     meaning = meaning_checks(db, readme)
     results = [has_core, not problems, status_ok, span_ok, lines_ok, not empty] + [ok for ok, _ in meaning]

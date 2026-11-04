@@ -40,20 +40,42 @@ def _cache(db: CanonicalDB) -> dict:
 
 def orders(db: CanonicalDB) -> pd.DataFrame | None:
     """Every order with its day, revenue (§1: sum of its lines' amounts, fee lines included) and whether that revenue
-    is complete (no line with an unread amount)."""
+    is complete (no line with an unread amount). A shop that records orders only (no lines) gives each order's revenue
+    in orders.goods_amount, the README's "tiền hàng của đơn: cộng thành tiền các mặt hàng" (N26)."""
     store = _cache(db)
     if "orders" not in store:
         o, lines = db.table("orders"), db.table("lines")
-        if o is None or lines is None or "line_amount" not in lines.columns:
+        if o is None:
             store["orders"] = None
-        else:
+        elif lines is not None and "line_amount" in lines.columns:
             o = o.copy()
             o["day"] = o["order_time"].dt.date
             o["revenue"] = o["order_id"].map(lines.groupby("order_id")["line_amount"].sum()).fillna(0.0)
             unread = set(lines.loc[lines["line_amount"].isna(), "order_id"])
             o["revenue_ok"] = ~o["order_id"].isin(unread)
             store["orders"] = o
+        elif orders_only(db):
+            o = o.copy()
+            o["day"] = o["order_time"].dt.date
+            o["revenue"] = o["goods_amount"].fillna(0.0)
+            o["revenue_ok"] = o["goods_amount"].notna()
+            store["orders"] = o
+        else:
+            store["orders"] = None
     return store["orders"]
+
+
+def orders_only(db: CanonicalDB) -> bool:
+    """The shop records orders without their lines, each with its goods amount (§1 revenue of the order)."""
+    return db.table("lines") is None and db.has("orders", "goods_amount")
+
+
+def requires(db: CanonicalDB, columns) -> list[str]:
+    """The canonical columns a figure reads in this shop: an orders-only shop reads the order's goods amount where
+    others read the lines' amounts."""
+    if not orders_only(db):
+        return list(columns)
+    return sorted({"orders.goods_amount" if c == "lines.line_amount" else c for c in columns})
 
 
 def base_units(db: CanonicalDB) -> dict[str, str]:

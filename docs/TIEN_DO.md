@@ -1,6 +1,6 @@
 # Tiến độ và bối cảnh dự án (bàn giao giữa các phiên làm việc)
 
-*Cập nhật cuối: cuối phiên 2 với Claude. **Phiên mới đọc [BAN_GIAO_PHIEN_2.md](BAN_GIAO_PHIEN_2.md) trước**, rồi tới file này, mục 9–10 của [KE_HOACH_DataMate.md](KE_HOACH_DataMate.md) và [HAN_CHE_VA_CAI_THIEN.md](HAN_CHE_VA_CAI_THIEN.md).*
+*Cập nhật cuối: phiên 4 với Claude. **Phiên mới đọc [BAN_GIAO_PHIEN_4.md](BAN_GIAO_PHIEN_4.md) trước**, rồi tới file này, mục 9–10 của [KE_HOACH_DataMate.md](KE_HOACH_DataMate.md) và [HAN_CHE_VA_CAI_THIEN.md](HAN_CHE_VA_CAI_THIEN.md).*
 
 ## 1. Bối cảnh
 - **Cuộc thi:** Zalo AI Challenge 2026, đề **DataMate**: trả lời câu hỏi tiếng Việt (không dấu, viết tắt) trên dữ liệu kinh doanh của cửa hàng nhỏ (csv / xlsx / sqlite). Nhóm đã bỏ đề LifeMate; dữ liệu LifeMate đã xóa.
@@ -181,8 +181,19 @@
   - Public: 8/14 cửa hàng có mapping qua kiểm tra (trước T5: 0).
   - **Review cuối phiên 04/11** (HAN_CHE mục L): sửa R44 (mô tả README lấy nhầm bảng), R45 (ngày ảnh tồn chỉ khi README ghi rõ).
   - **N23, mapping dựng từ mô tả cột trong README** (không cần LLM): `eval.mapping` cả hệ **2294 đúng / 0 sai / 706 bỏ trống, PA +0,765**; riêng đường README 2048 / 0 trên 25/30 cửa hàng. Public không đổi (8/14).
-  - **Public lượt 1** (04/11, trước N23): `outputs/public_run1/submission.jsonl`, 370 trả lời / 630 bỏ trống, 23 phút, qua `eval.validate`. Chờ trưởng nhóm nộp và ghi điểm.
-  - 325 test qua.
+  - **Public lượt 1** (04/11 18:22, trước N23): `outputs/public_run1/submission.jsonl`, 370 trả lời / 630 bỏ trống, 23 phút. **Điểm public 0,316 → 343 đúng / 27 sai (7,3% số câu trả lời).** Train báo 0 sai: tỉ lệ sai thật trên cửa hàng mới là 7% (N24).
+    - Bỏ trống: 360 vì 6 cửa hàng chưa map; 128 hàm không ra kết quả; 109 không đọc được câu; 28 cổng câu anh em; 5 ngoài phạm vi.
+    - Không phải do thuật ngữ mới của rulebook public (các câu có thuật ngữ mới đều đã bỏ trống), cũng không phải do mapping ở 3 cửa hàng map được bằng hai đường (140/140 câu giống nhau).
+  - 329 test qua.
+- **Phiên 4 (tối 04/11 ngày hệ thống; HAN_CHE mục M):**
+  - **N25, cổng hoà hạng:** bộ sinh đề bỏ các câu hoà (train 0/281 câu xếp hạng hoà, trong khi xếp khách theo số đơn của một tháng hoà ở hạng 1 tới 39%). Bảng xếp hạng của hệ mà hoà thì bỏ trống. Train không mất câu nào; public lượt 1 chạy lại thì chặn 3 câu `sales.rank`.
+  - **N26, cửa hàng chỉ có bảng đơn** (cột chuẩn `orders.goods_amount` = tiền hàng của đơn = doanh thu §1): biz_110 từ 0 lên **37 đúng / 0 sai**. Thêm kiểm tra nghĩa "tiền hàng của đơn khớp tổng dòng" (train 4/4 cửa hàng khớp 100%).
+  - **`tools/replay_run.py`:** chạy lại một lượt từ log (mapping, plan) bằng code hiện tại, không cần LLM, chỉ in số đếm. Khớp 1000/1000 dòng với lượt 1 và với file `tat_cong_cau_anh_em.jsonl` (chỉ khác ở các câu cổng hoà hạng chặn).
+  - **N28, bật unanswerable nhóm A** (kỳ hỏi nằm hoàn toàn ngoài khoảng ngày có dữ liệu, §7): đo trước trên train 16/16 câu đúng.
+  - **`eval.mapping --llm-url`: 2347 đúng / 0 sai / 653 bỏ trống, PA +0,782** (sau N25 + N26: 2331 / 0, +0,777). 337 test qua.
+  - **N29, bổ sung thuộc tính theo README** cho mọi mapping ứng viên (nhóm khách, nhân viên, thanh toán, kênh, nhóm hàng, hoạt chất, kê đơn; thêm cả danh mục hàng nếu mapping chưa có): phần 1 cho **2407 / 0 / 593, PA +0,802**.
+  - **N30, plan đọc đúng mà bị cổng căn cứ bỏ:** bỏ bộ lọc "đơn hoàn thành" chỉ nhắc lại mặc định §1; nhận "tm", "tiền tươi", "ck" theo bộ từ đồng nghĩa của bước nối tên. Train thêm 28 câu có plan.
+  - **`eval.mapping --llm-url` cuối phiên 4: 2433 đúng / 0 sai / 567 bỏ trống, PA +0,811.** 344 test qua.
 - **Tài liệu khác:** sổ tay nhóm (artifact, riêng tư) https://claude.ai/artifact/SkCWcHheFw2NE6obQzUPxT; [KE_HOACH_DataMate.md](KE_HOACH_DataMate.md); [data_cards/README.md](data_cards/README.md) (chia 30 cửa hàng train cho thành viên A–D); [rules_notes.md](rules_notes.md).
 
 ## 4. Trạng thái hiện tại

@@ -16,7 +16,7 @@ from datamate.nlu import linking
 
 from . import frames as F
 from .registry import metric
-from .sales import _first_name, _ordered  # one naming and tie rule for every ranking (§3, §9)
+from .sales import TIE, _first_name, _ordered, _tied  # one naming and tie rule for every ranking (§3, §9)
 
 R_DEBT = ("§4.no_them_tra_no_thu_no_trong_ky", "§4.don_cod_don_ban_qua_san_tmdt", "§4.don_duoc_tinh_vao_no",
           "§4.no_theo_khach", "§3.xac_dinh_khach", "§8.ten_goi_nhan", "§0.p_hom_nay_cua_moi_cau_la")
@@ -162,8 +162,10 @@ def rank_debtors(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
                  "rows": [[label, money(float(totals[k]))] for label, k in zip(labels, keys)]}
     else:
         value = labels[0] if r.k == 1 else labels
+    tied = _tied(totals, r.k, order_matters=not r.with_values and r.k != 1)  # a table's row order is not scored
     return ExecResult(value=value, answer_type=expected_answer_type(plan.plan), source="D1",
-                      function="debt.rank_debtors", rule_ids=sorted(set(R_OWED + R_TIES)), requires=list(REQUIRES))
+                      function="debt.rank_debtors", rule_ids=sorted(set(R_OWED + R_TIES)), requires=list(REQUIRES),
+                      notes=[TIE] if tied else [])
 
 
 MEASURES = {"debt_added": debt_added, "debt_paid": debt_paid, "debt_total": debt_total,

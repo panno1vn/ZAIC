@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datamate.contracts import CanonicalDB, ExecResult, ResolvedPlan
 
+from . import frames
 from .registry import REGISTRY, MetricSpec, lookup, metric
 from . import sales  # noqa: F401,E402  registers the sales metrics
 from . import stock  # noqa: F401,E402  registers purchases, prices and stock (§5)
@@ -53,7 +54,10 @@ def execute(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     spec = lookup(plan.plan.intent, name, metric_entity(plan)) if name else None
     if spec is None or not plan_filter_fields(plan) <= set(spec.filters):
         return None
-    return spec.fn(plan, db)
+    result = spec.fn(plan, db)
+    if result is not None:  # what the figure read in this shop (an orders-only shop: the order's goods amount)
+        result.requires = frames.requires(db, result.requires)
+    return result
 
 
 __all__ = ["REGISTRY", "MetricSpec", "execute", "lookup", "metric", "metric_entity", "metric_name",
