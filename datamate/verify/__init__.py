@@ -5,6 +5,8 @@ Every signal starts pessimistic (contracts.results.Signals) and is raised only o
 from __future__ import annotations
 
 import math
+import re
+import unicodedata
 from datetime import date
 
 from datamate.contracts import CanonicalDB, ExecResult, Filter, Mapping, ResolvedPeriod, ResolvedPlan, Signals
@@ -67,18 +69,47 @@ def _sane(result: ExecResult) -> bool:
     return True
 
 
+# N37: a time in the question ("tháng 12/2025", "hôm qua", "Tết"): an out-of-scope reading of it is an LLM misreading
+# of a figure, not a question the data cannot hold (train 05/11: 7 of 8 out-of-scope readings have no time, all
+# unanswerable; the eighth, "nhân viên bán giỏi nhất tháng 12/2025", is a ranking)
+_TIME = re.compile(r"\b(?:thang|tuan|quy|ngay|hom nay|hom qua|bua qua|bua nay|hqua|tet|nam nay|nam ngoai|nam truoc"
+                   r"|nam \d{4}|\d{1,2}/\d{2,4}|\d{4})\b")
+
+
+# N38, train 05/11: the 104 purchase questions of shops whose README conventions name "Nhập hàng" are answerable, the
+# 5 of the shops whose conventions do not are all unanswerable
+PURCHASE_METRICS = frozenset({"purchase_amount", "purchase_avg_cost", "receipt_count", "purchase_minus_sales"})
+
+
+def _asks_purchases(p) -> bool:
+    measures = list(p.measures) + ([p.share_of] if p.share_of else [])
+    return any(m.metric in PURCHASE_METRICS for m in measures) or (p.rank is not None and p.rank.entity == "supplier")
+
+
+def _fold(text: str) -> str:
+    s = unicodedata.normalize("NFD", text.lower().replace("đ", "d"))
+    return "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+
+
 def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: CanonicalDB, mapping: Mapping,
-                    rules: dict[str, bool]) -> Signals:
+                    rules: dict[str, bool], question: str = "") -> Signals:
     s = Signals(mapping_ok=mapping.ok)
     if plan is None:
         return s
     p = plan.plan
     s.intent_known = True
     s.out_of_scope = p.intent == "out_of_scope"
+    if s.out_of_scope and question and all(rules.get(r, False) for r in R_OUTSIDE):
+        s.subjective = not _TIME.search(_fold(question))
     measures = list(p.measures) + ([p.share_of] if p.share_of else [])
     filters = [f for m in measures for f in m.filters] + list((p.compare.filters or []) if p.compare else [])
     linkable = [k for f in filters if f.field in LINKED_FIELDS for k in filter_keys(f)]
     s.entities_ok = all(k in plan.linked for k in linkable)  # no linkable filter: nothing to link, so ok
+    if plan.omitted:  # N36: a name the question writes is missing from the plan
+        s.entities_ok = False
+    if all(rules.get(r, False) for r in R_OUTSIDE) and _asks_purchases(p) and db.conventions is not None \
+            and "nhap hang" not in db.conventions and not db.has("purchases"):
+        s.not_recorded = True  # N38: the README's conventions name no purchases, and none were mapped (§7)
     shop = db.date_ranges.get("orders")  # §7 "khoảng ngày có dữ liệu của shop", not the span of one table
     if plan.period is not None and shop is not None and all(rules.get(r, False) for r in R_OUTSIDE):
         compared = plan.compare_period if p.compare is not None and p.compare.kind != "filter" else None

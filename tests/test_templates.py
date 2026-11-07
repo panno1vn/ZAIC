@@ -93,3 +93,15 @@ def test_twin_gate_trusts_a_plan_shaped_like_a_verified_twin_of_another_business
               rules_unchanged=True, period_coverage="full")
     assert decide(Signals(**ok, twin_ok=None), result).kind == "answer"  # gate off
     assert decide(Signals(**ok, twin_ok=False), result).kind == "abstain"
+
+
+def test_twin_gate_is_off_by_default():
+    """N16/N24: on public (05/11) the 28 answers the gate held back were 24 right / 4 wrong. A gate pays only when
+    more than half of what it holds back is wrong, so the run goes without it; train is scored without it too."""
+    from datamate.pipeline import twin_check
+    from datamate.predict import DEFAULT_CONFIG, load_config
+
+    assert load_config(DEFAULT_CONFIG).twin_threshold is None
+    plan = QueryPlan.model_validate({"intent": "value", "measures": [{"metric": "order_count"}],
+                                     "period": {"kind": "today"}})
+    assert twin_check("hôm nay bán được mấy đơn", plan, None, None, {}) is None  # off: never consulted

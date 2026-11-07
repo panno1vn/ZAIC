@@ -14,9 +14,11 @@ from datamate.llm import LLMClient
 
 from datamate.verify import LINKED_FIELDS, filter_keys
 
-from . import baseline, linking, prompt
-from .grounding import (drop_restated_status, drop_ungrounded_years, ungrounded_dates, ungrounded_filters,
-                        ungrounded_measures)
+from . import baseline, jobs, linking, prompt, repair
+from .grounding import (anchor_by_price, count_as_value, drop_month_as_weekday, drop_restated_metric,
+                        drop_restated_status, drop_ungrounded_years, month_of_short_year, rate_as_value, scale_money,
+                        split_debt_ages, ungrounded_dates, ungrounded_filters, ungrounded_measures, whole_not_part,
+                        widen_each_table, written_last_year)
 
 
 def _fold_value(v):
@@ -47,26 +49,55 @@ def canonical_plan(plan: QueryPlan) -> dict:
 
 
 def llm_plan(question: str, as_of: date, card: DataCard, llm: LLMClient,
-             bank: prompt.ExampleBank | None = None, exclude_ids: frozenset[str] = frozenset()) -> QueryPlan | None:
+             bank: prompt.ExampleBank | None = None, exclude_ids: frozenset[str] = frozenset(),
+             trace: dict | None = None) -> QueryPlan | None:
     """The LLM's plan, or None when the call fails or times out, the output is not a valid plan, or it has a filter
     or a day the question gives no ground for (grounding.py). A year the question does not state is dropped, so §2
-    decides it."""
+    decides it. `trace` (the run's log of the question) gets the raw output and why a plan was not used."""
+    trace = {} if trace is None else trace
     bank = bank or prompt.default_bank()
     messages = prompt.build_messages(question, as_of, card, bank.select(question, exclude_ids=exclude_ids))
     try:
-        plan = QueryPlan.model_validate(llm.generate_json(messages, prompt.PLAN_SCHEMA))
-    except Exception:
+        out = llm.generate_json(messages, prompt.PLAN_SCHEMA)
+    except Exception as e:
+        trace["llm_error"] = type(e).__name__
         return None
-    return accept_plan(question, plan, as_of)
+    trace["llm_raw"] = out
+    try:
+        plan = QueryPlan.model_validate(out)
+    except Exception as e:  # N32: an invalid shape seen on train, rewritten into the plan it means; else no plan
+        fixed = repair.repair(out, question, str(e))
+        try:
+            plan = QueryPlan.model_validate(fixed) if fixed is not None else None
+        except Exception:
+            plan = None
+        trace["invalid"] = "repaired" if plan is not None else "unrepaired"
+        if plan is None:
+            return None
+    plan, problems = plan_problems(question, plan, as_of)
+    if problems:
+        trace["rejected"] = problems
+    return None if problems else plan
+
+
+def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> tuple[QueryPlan, list[str]]:
+    """The plan after the drops (years the question does not state, restated filters) and what in it has no ground
+    in the question: filters, days, measures (grounding.py)."""
+    plan = scale_money(question, count_as_value(month_of_short_year(question, widen_each_table(question, plan))))
+    plan = rate_as_value(plan)
+    plan = whole_not_part(split_debt_ages(drop_month_as_weekday(question, anchor_by_price(question, plan, as_of))))
+    plan = written_last_year(plan)
+    plan = drop_ungrounded_years(question, plan, as_of)
+    plan = drop_restated_metric(drop_restated_status(question, drop_implied_filters(plan)))
+    return plan, (ungrounded_filters(question, plan) + ungrounded_dates(question, plan, as_of)
+                  + ungrounded_measures(question, plan))
 
 
 def accept_plan(question: str, plan: QueryPlan, as_of: date | None = None) -> QueryPlan | None:
     """An LLM plan as the pipeline may use it: years the question does not state dropped, None when a filter or a
     day has no ground in the question (grounding.py)."""
-    plan = drop_restated_status(question, drop_implied_filters(drop_ungrounded_years(question, plan, as_of)))
-    if ungrounded_filters(question, plan) or ungrounded_dates(question, plan, as_of):
-        return None
-    return None if ungrounded_measures(question, plan) else plan
+    plan, problems = plan_problems(question, plan, as_of)
+    return None if problems else plan
 
 
 def drop_implied_filters(plan: QueryPlan) -> QueryPlan:
@@ -80,16 +111,19 @@ def drop_implied_filters(plan: QueryPlan) -> QueryPlan:
 
 
 def parse_question(question: str, as_of: date, card: DataCard, llm: LLMClient | None = None,
-                   exclude_ids: frozenset[str] = frozenset()) -> QueryPlan | None:
+                   exclude_ids: frozenset[str] = frozenset(), trace: dict | None = None) -> QueryPlan | None:
     """QueryPlan for the question, or None when it cannot be parsed into a valid plan both readers agree on.
-    `exclude_ids`: examples the LLM may not see (development runs on train leave out the business's own questions)."""
+    `exclude_ids`: examples the LLM may not see (development runs on train leave out the business's own questions).
+    `trace` gets how the reading went (llm_plan's notes, the baseline's plan when the two disagree)."""
+    trace = {} if trace is None else trace
     base = baseline.parse(question)
     if llm is None:
         return base
-    plan = llm_plan(question, as_of, card, llm, exclude_ids=exclude_ids)
+    plan = llm_plan(question, as_of, card, llm, exclude_ids=exclude_ids, trace=trace)
     if plan is None:
         return base  # the LLM failed or its plan had no ground: the baseline's reading, if it has one
     if base is not None and canonical_plan(plan) != canonical_plan(base):
+        trace["disagree_baseline"] = base.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
         return None
     return plan
 
@@ -98,12 +132,20 @@ def link_entities(plan: ResolvedPlan, db: CanonicalDB, question: str = "") -> Re
     """Fill plan.linked / plan.link_scores: each name a filter carries, as written -> the data value it names
     (linking.py, G6). A name is left out when no value is clearly meant; [V] then makes the question abstain.
     `link_scores` keeps the best score of every name tried, linked or not, for the logs."""
+    plan = product_as_attribute(plan, db)
     p = plan.plan
     measures = list(p.measures) + ([p.share_of] if p.share_of else [])
     filters = [f for m in measures for f in m.filters] + list((p.compare.filters or []) if p.compare else [])
     linked, scores = dict(plan.linked), dict(plan.link_scores)
     for f in filters:
         if f.field not in LINKED_FIELDS:
+            continue
+        if f.field == "service":  # a repair job is a code of jobs.py, not a name of the data (§6 Sửa xe)
+            for key in filter_keys(f):
+                job = jobs.job_of(key) if db.has("orders", "services") else None
+                scores[key] = 100.0 if job else 0.0
+                if job:
+                    linked[key] = job
             continue
         cands = linking.candidates(f.field, db)
         units = linking.units(db) if f.field == "product" else ()
@@ -112,4 +154,85 @@ def link_entities(plan: ResolvedPlan, db: CanonicalDB, question: str = "") -> Re
             scores[key] = got.score
             if got.value is not None:
                 linked[key] = got.value
-    return plan.model_copy(update={"linked": linked, "link_scores": scores})
+    omitted = omitted_names(filters, db, question) if question else []
+    return plan.model_copy(update={"linked": linked, "link_scores": scores, "omitted": omitted})
+
+
+ATTRIBUTE_FIELDS = ("category", "product_line", "brand", "product_group")
+
+
+def product_as_attribute(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
+    """A "product" the shop has no product of, written exactly as one of its kinds, lines or brands (public phone
+    ledgers, 06/11: "máy cũ bán mấy chiếc" with product = "máy cũ", the category of the abbreviation sheet; "Xiaomi
+    Redmi Note 14" for the line of its 128GB and 256GB phones, §6 "dòng máy"): the filter of that attribute. Only an
+    exact match (folded) in exactly one attribute, and only when no product links."""
+    p = plan.plan
+    if not any(f.field == "product" for m in p.measures for f in m.filters):
+        return plan
+    cands = linking.candidates("product", db)
+    units = linking.units(db)
+
+    def field_of(value) -> str | None:
+        if not isinstance(value, str) or linking.link_value("product", value, "", cands, units).value is not None:
+            return None
+        hits = [a for a in ATTRIBUTE_FIELDS if linking.norm(value) in linking.candidates(a, db)]
+        return hits[0] if len(hits) == 1 else None
+
+    products = db.table("products")
+    stages = {}
+    if products is not None and "stage" in products.columns:
+        from datamate.metrics.frames import _stage_core
+        stages = {_stage_core(s): s for s in products["stage"].dropna().astype(str) if s.strip()}
+    groups = linking.candidates("product_group", db)
+
+    def group_and_stage(value) -> list[dict] | None:
+        """"sữa bột số 2": a group of the shop followed by a "Số / Size" of its catalogue (§6 Mẹ và bé)."""
+        if not isinstance(value, str) or not stages:
+            return None
+        v = linking.norm(value)
+        for g in sorted(groups, key=len, reverse=True):
+            if v.startswith(g + " "):
+                from datamate.metrics.frames import _stage_core
+                rest = _stage_core(v[len(g) + 1:])
+                if rest in stages and len(groups[g]) == 1:
+                    return [{"field": "product_group", "value": next(iter(groups[g]))},
+                            {"field": "stage", "value": stages[rest]}]
+        return None
+
+    def fix(m):
+        filters = []
+        for f in m.filters:
+            if f.field == "product" and (new := field_of(f.value)):
+                filters.append(f.model_copy(update={"field": new}))
+            elif f.field == "product" and (pair := group_and_stage(f.value)) and \
+                    linking.link_value("product", f.value, "", cands, units).value is None:
+                filters += [f.model_copy(update=x) for x in pair]
+            else:
+                filters.append(f)
+        return m.model_copy(update={"filters": filters}) if filters != list(m.filters) else m
+    measures = [fix(m) for m in p.measures]
+    if measures == list(p.measures):
+        return plan
+    return plan.model_copy(update={"plan": p.model_copy(update={"measures": measures})})
+
+
+OMISSION_FIELDS = ("customer", "product")
+
+
+def omitted_names(filters: list, db: CanonicalDB, question: str) -> list[str]:
+    """N36: names of the shop's customers or products (two words or more) the question writes as whole words while the
+    plan has no filter of that field, nor a filter value holding the name ("nhóm cà phê sữa"). Train 05/11: "khách
+    cao thu hạnh ghi nợ thêm bao nhiêu" read without the customer gave the shop's total; that was the only train
+    question with such a name left out."""
+    fields = {f.field for f in filters}
+    values = [linking.norm(v) for f in filters for v in (f.value if isinstance(f.value, list) else [f.value])
+              if isinstance(v, str)]
+    text = f" {linking.norm(question)} "
+    out = set()
+    for field in OMISSION_FIELDS:
+        if field in fields:
+            continue
+        for name in linking.candidates(field, db):
+            if len(name.split()) >= 2 and f" {name} " in text and not any(name in v for v in values):
+                out.add(f"{field}={name}")
+    return sorted(out)

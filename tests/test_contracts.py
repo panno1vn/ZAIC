@@ -165,6 +165,20 @@ def test_mapping_rejects_unknown_targets():
     assert not Mapping().ok
 
 
+def test_an_orders_only_shop_with_a_side_table_is_usable():
+    """Orders without lines, the goods amount on the orders: usable, whatever side tables come with it (a staff list,
+    public repair shop 05/11); the goods amount of another table does not make it so."""
+    passed = [{"name": "x", "passed": True}]
+    orders = {"target": "orders", "sources": ["a.csv"], "columns": [{"target": "order_id", "source": "id"},
+                                                                    {"target": "goods_amount", "source": "tien"}]}
+    staff = {"target": "employees", "sources": ["b.csv"], "columns": [{"target": "employee_key", "source": "ten"}]}
+    assert Mapping.model_validate({"tables": [orders], "checks": passed}).ok
+    assert Mapping.model_validate({"tables": [orders, staff], "checks": passed}).ok
+    assert not Mapping.model_validate({"tables": [orders, staff], "checks": [{"name": "x", "passed": False}]}).ok
+    no_amount = {**orders, "columns": orders["columns"][:1]}
+    assert not Mapping.model_validate({"tables": [no_amount, staff], "checks": passed}).ok
+
+
 def test_check_frame():
     df = pd.DataFrame({"order_id": ["1"], "status": ["xong"], "foo": [1]})
     problems = check_frame("orders", df)

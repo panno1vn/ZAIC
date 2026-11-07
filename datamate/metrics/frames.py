@@ -13,16 +13,18 @@ import weakref
 import pandas as pd
 
 from datamate.contracts import CanonicalDB, Filter, ResolvedPeriod
-from datamate.nlu import linking
+from datamate.nlu import jobs, linking
 
 VALID_STATUSES = ("completed", "delivering")  # §1: not cancelled, not returned; orders in delivery count
-ORDER_FILTERS = frozenset({"channel", "payment_method", "customer_group", "customer", "employee", "shift", "weekday"})
-LINE_FILTERS = frozenset({"product", "product_group", "active_ingredient", "prescription", "size", "category", "brand"})
+ORDER_FILTERS = frozenset({"channel", "payment_method", "customer_group", "customer", "employee", "shift", "weekday",
+                           "vehicle_model", "is_warranty", "service"})  # N44: a repair shop's tickets (§6 Sửa xe)
+LINE_FILTERS = frozenset({"product", "product_group", "active_ingredient", "prescription", "size", "category", "brand",
+                          "product_line", "stage"})  # §6 điện thoại: dòng máy; mẹ và bé: số sữa
 FILTERS = ORDER_FILTERS | LINE_FILTERS
 ORDER_COLUMN = {"channel": "channel", "payment_method": "payment_method", "customer_group": "customer_group",
-                "customer": "customer_key", "employee": "employee"}
+                "customer": "customer_key", "employee": "employee", "vehicle_model": "vehicle_model"}
 LINE_COLUMN = {"product": "product_key", "product_group": "product_group", "active_ingredient": "active_ingredient",
-               "category": "category", "brand": "brand"}
+               "category": "category", "brand": "brand", "product_line": "product_line"}
 SHIFT_HOURS = {"morning": range(6, 14), "afternoon": range(14, 22)}  # §2: 06:00–13:59, 14:00–21:59
 WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 _SIZE = {"M": re.compile(r"\(\s*m\s*\)\s*$", re.I), "L": re.compile(r"\(\s*l\s*\)\s*$", re.I)}  # §6: name ends (M)
@@ -120,10 +122,15 @@ def lines(db: CanonicalDB) -> pd.DataFrame | None:
             products = db.table("products")
             if products is not None:
                 attrs = products.drop_duplicates("product_key").assign(product_key=lambda p: p["product_key"].astype(str))
-                for col in ("product_group", "active_ingredient", "is_prescription", "category", "brand"):
+                for col in ("product_group", "active_ingredient", "is_prescription", "category", "brand", "product_line",
+                            "stage", "size"):
                     if col in attrs.columns and attrs[col].notna().any():
                         from_catalogue = df["product_key"].map(attrs.set_index("product_key")[col])
                         df[col] = df[col].fillna(from_catalogue) if col in df.columns else from_catalogue
+                        if col == "brand":  # a catalogue product with its brand cell blank has no brand, not an
+                            # unknown one (public mẹ-và-bé catalogue, 06/11: towels, toys with no "Hãng")
+                            listed = df["product_key"].isin(set(attrs["product_key"]))
+                            df.loc[listed & df[col].isna(), col] = ""
             df["base_unit"] = df["product_key"].map(base_units(db))
             store["lines"] = df
     return store["lines"]
@@ -175,10 +182,20 @@ def order_mask(o: pd.DataFrame, filters: list[Filter], linked: dict[str, str]) -
                 sel |= hours.isin(SHIFT_HOURS[v])
         elif f.field == "weekday":
             sel = o["order_time"].dt.dayofweek.isin([WEEKDAYS.index(v) for v in _values(f)])
+        elif f.field == "is_warranty":
+            if "is_warranty" not in o.columns:
+                return None
+            sel = o["is_warranty"].eq(True) == bool(_values(f)[0])
+        elif f.field == "service":
+            sel = _job_mask(o, _linked(f, linked))
+            if sel is None:
+                return None
         else:
             col, values = ORDER_COLUMN[f.field], _linked(f, linked)
             if values is None or col not in o.columns or o[col].isna().all():
                 return None
+            if f.field == "vehicle_model" and (linking.ledger_lines(o[col]).isna() & o[col].notna()).any():
+                return None  # a spelling that may name two lines ("Wave" beside Wave Alpha and Wave RSX)
             sel = pd.Series(False, index=o.index)
             for v in values:
                 sel |= linking.matches(f.field, o[col], v)
@@ -190,6 +207,27 @@ def order_mask(o: pd.DataFrame, filters: list[Filter], linked: dict[str, str]) -
     return mask
 
 
+def _job_mask(o: pd.DataFrame, codes: list[str] | None) -> pd.Series | None:
+    """Tickets that did one of the jobs (§6 Sửa xe "lượt xe có làm một việc = phiếu có việc đó, tính một lượt"),
+    warranty tickets left out ("phiếu bảo hành không tính là lượt làm việc đó"); None when a ledger cell holds a job
+    jobs.py does not read, which might be the one asked."""
+    if codes is None or "services" not in o.columns:
+        return None
+    cells = o["services"].map(lambda c: jobs.cell_jobs(c) if isinstance(c, str) else frozenset())
+    if cells.isna().any():
+        return None
+    sel = cells.map(lambda done: any(c in done for c in codes)).astype(bool)
+    if "is_warranty" in o.columns:
+        sel &= o["is_warranty"].ne(True)
+    return sel
+
+
+def _stage_core(v) -> str:
+    """"Số 2", "số 2", "2" → "2"; "Size XL", "size xl", "XL" → "xl"."""
+    t = linking.norm(str(v))
+    return re.sub(r"^(?:so|size|sz)\s+", "", t).strip()
+
+
 def line_mask(ln: pd.DataFrame, filters: list[Filter], linked: dict[str, str]) -> pd.Series | None:
     """Lines passing the product-level filters (product, group, ingredient, prescription, size, category, brand)."""
     mask = pd.Series(True, index=ln.index)
@@ -197,7 +235,16 @@ def line_mask(ln: pd.DataFrame, filters: list[Filter], linked: dict[str, str]) -
     for f in filters:
         if f.field not in LINE_FILTERS:
             continue
-        if f.field == "size":
+        if f.field in ("size", "stage") and f.field in ln.columns and ln[f.field].notna().any():
+            # §6 Mẹ và bé: "số sữa, size bỉm lấy theo cột Số / Size của danh mục: hàng để trống cột Số / Size thì không
+            # xếp vào số, size nào, dù tên hàng có số" — a blank is no size, not an unknown one
+            if f.op not in ("eq", "in"):
+                return None
+            want = {_stage_core(v) for v in _values(f)}
+            sel = ln[f.field].map(lambda v: isinstance(v, str) and _stage_core(v) in want)
+        elif f.field == "stage":
+            return None
+        elif f.field == "size":
             pats = [_SIZE.get(str(v).upper()) for v in _values(f)]
             if None in pats:
                 return None
@@ -230,6 +277,10 @@ def filter_columns(filters: list[Filter]) -> list[str]:
             out.append(f"orders.{ORDER_COLUMN[f.field]}")
         elif f.field == "shift":
             out.append("orders.has_time")
+        elif f.field == "service":
+            out.append("orders.services")
+        elif f.field == "stage":
+            out.append("products.stage")
         elif f.field in ("product", "size"):
             out.append("lines.product_key")
     return out

@@ -14,7 +14,7 @@ from datetime import date
 from pathlib import Path
 from typing import Callable
 
-from datamate import codegen, decide, formatter, loader, mapping, metrics, nlu, rules, temporal, verify
+from datamate import codegen, decide, diagnose, formatter, loader, mapping, metrics, nlu, rules, temporal, verify
 from datamate.contracts import (BusinessProfile, CanonicalDB, DataCard, Mapping, QueryPlan, RawBusiness,
                                 ResolvedPlan, SubmissionLine)
 from datamate.llm import LLMClient
@@ -117,7 +117,8 @@ def prepare_business(root: Path, rulebook: str, llm: LLMClient | None, map_fn: M
 
 def rule_ids() -> tuple[str, ...]:
     """Every rulebook row the run relies on, checked by [R]: the metric functions' and the decisions' (§7)."""
-    return tuple(sorted({r for spec in metrics.REGISTRY.values() for r in spec.rules} | set(verify.R_OUTSIDE)))
+    return tuple(sorted({r for spec in metrics.REGISTRY.values() for r in spec.rules} | set(verify.R_OUTSIDE)
+                        | set(metrics.sales.CONDITIONAL_RULES)))
 
 
 def twin_check(question: str, plan: QueryPlan, ctx: BusinessContext, threshold: float | None, log: dict,
@@ -145,17 +146,27 @@ def answer_question(q: dict, ctx: BusinessContext, calendar: Path, rule_status: 
         as_of = date.fromisoformat(q["as_of_date"])
         reader = llm if ctx.mapping.ok else None  # no usable data: the question abstains anyway, spare the LLM call
         log["reader"] = "llm+baseline" if reader is not None else "baseline"
-        plan = nlu.parse_question(q["question"], as_of, ctx.card, reader, exclude_examples)
+        reading: dict = {}  # how the reading went: the LLM's raw output, why a plan was not used (counted by run_stats)
+        plan = nlu.parse_question(q["question"], as_of, ctx.card, reader, exclude_examples, trace=reading)
         log["plan"] = plan
+        log["reading"] = reading
         resolved: ResolvedPlan | None = temporal.resolve(plan, as_of, calendar, ctx.db) if plan is not None else None
         if resolved is not None:
             resolved = nlu.link_entities(resolved, ctx.db, q["question"])
         log["resolved"] = resolved
         result = None
+        no_result: dict = {}  # why a plan gave no result (N72): counted by run_stats
         if resolved is not None and resolved.plan.intent != "out_of_scope":
-            result = metrics.execute(resolved, ctx.db) or codegen.solve(q["question"], resolved, ctx.db, rulebook, llm)
+            result = metrics.execute(resolved, ctx.db, no_result) \
+                or codegen.solve(q["question"], resolved, ctx.db, rulebook, llm)
+        elif plan is not None and resolved is None:
+            no_result["why"] = "period_unresolved"
+            if diagnose.ENABLED:
+                no_result["at"] = diagnose.none_chain(temporal.resolve, plan, as_of, calendar, ctx.db)
         log["result"] = result
-        signals = verify.collect_signals(resolved, result, ctx.db, ctx.mapping, rule_status)
+        if result is None and no_result:
+            log["no_result"] = no_result
+        signals = verify.collect_signals(resolved, result, ctx.db, ctx.mapping, rule_status, q["question"])
         if result is not None:  # a term only this rulebook defines, which the function does not implement
             unknown = rules.unverified_terms(q["question"], rulebook, result.rule_ids)
             signals.terms_known = not unknown

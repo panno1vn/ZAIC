@@ -5,6 +5,7 @@ filter the function does not declare: a filter must never be dropped silently.
 """
 from __future__ import annotations
 
+from datamate import diagnose
 from datamate.contracts import CanonicalDB, ExecResult, ResolvedPlan
 
 from . import frames
@@ -13,6 +14,7 @@ from . import sales  # noqa: F401,E402  registers the sales metrics
 from . import stock  # noqa: F401,E402  registers purchases, prices and stock (§5)
 from . import debt  # noqa: F401,E402  registers debts (§4)
 from . import industry  # noqa: F401,E402  registers industry rules (§6)
+from . import lots  # noqa: F401,E402  registers lots, expiry and out of stock (§5, §6 Nhà thuốc)
 
 
 def metric_name(plan: ResolvedPlan) -> str | None:
@@ -48,15 +50,26 @@ def plan_filter_fields(plan: ResolvedPlan) -> set[str]:
     return {f.field for f in filters}
 
 
-def execute(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
-    """Run the registered function for the plan's intent, metric and entity; None when none fits."""
+def execute(plan: ResolvedPlan, db: CanonicalDB, trace: dict | None = None) -> ExecResult | None:
+    """Run the registered function for the plan's intent, metric and entity; None when none fits.
+    `trace`: filled with why there is no result (the question's log, N72); with diagnose.ENABLED, also where inside
+    the function it stopped."""
     name = metric_name(plan)
-    spec = lookup(plan.plan.intent, name, metric_entity(plan)) if name else None
-    if spec is None or not plan_filter_fields(plan) <= set(spec.filters):
+    entity = metric_entity(plan)
+    spec = lookup(plan.plan.intent, name, entity) if name else None
+    extra = plan_filter_fields(plan) - set(spec.filters) if spec is not None else set()
+    if spec is None or extra:
+        if trace is not None:
+            trace.update({"why": "no_function", "key": [plan.plan.intent, name, entity]} if spec is None else
+                         {"why": "filter_not_taken", "function": spec.fn.__name__, "fields": sorted(extra)})
         return None
     result = spec.fn(plan, db)
     if result is not None:  # what the figure read in this shop (an orders-only shop: the order's goods amount)
         result.requires = frames.requires(db, result.requires)
+    elif trace is not None:
+        trace.update({"why": "function_none", "function": spec.fn.__name__})
+        if diagnose.ENABLED:
+            trace["at"] = diagnose.none_chain(spec.fn, plan, db)
     return result
 
 

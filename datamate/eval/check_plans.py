@@ -54,7 +54,7 @@ def check(q: dict, plan: QueryPlan, ctx, calendar: Path, rule_status: dict[str, 
     result = None
     if resolved is not None and plan.intent != "out_of_scope":
         result = metrics.execute(resolved, ctx.db)
-    signals = verify.collect_signals(resolved, result, ctx.db, ctx.mapping, rule_status)
+    signals = verify.collect_signals(resolved, result, ctx.db, ctx.mapping, rule_status, q["question"])
     decision = decide.decide(signals, result)
     line = formatter.to_line(q["id"], decision, result).to_dict()
     gates = [g for g in decide.GATES if not getattr(signals, g)]

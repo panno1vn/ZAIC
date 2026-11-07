@@ -75,6 +75,7 @@
                 "note_contains",
                 "lookup",
                 "order_status_from_lines",
+                "status_from_note",
                 "concat",
                 "negate"
               ],

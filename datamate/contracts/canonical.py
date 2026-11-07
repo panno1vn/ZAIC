@@ -130,7 +130,9 @@ TABLES: dict[str, TableSpec] = {
         Col("expense_date", "date", True), Col("amount", "float", True), Col("category", "str"), _SOURCE,
     )),
     "employees": TableSpec("Nhân viên / thợ", (
-        Col("employee_key", "str", True), Col("employee_name", "str"), Col("start_date", "date"), _SOURCE,
+        Col("employee_key", "str", True), Col("employee_name", "str"), Col("start_date", "date"),
+        Col("commission_pct", "float", doc="phần trăm hoa hồng, trên tổng tiền các phiếu người đó làm trong tháng"),
+        _SOURCE,
     )),
     "deliveries": TableSpec("Các đợt giao của đơn (giao nhiều đợt)", (
         Col("order_id", "str", True), Col("delivery_time", "datetime", True), Col("batch_no", "int"), _SOURCE,
@@ -166,6 +168,8 @@ class CanonicalDB:
     industry: str | None = None
     date_ranges: dict[str, tuple[date, date]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    # N38: the topics the README's conventions name ("nhap hang", "cong no"…), folded; None: no conventions section
+    conventions: tuple[str, ...] | None = None
 
     def table(self, name: str) -> pd.DataFrame | None:
         df = self.tables.get(name)

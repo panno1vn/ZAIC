@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import operator
 from collections.abc import Callable
+from datetime import timedelta
 
 import pandas as pd
 
@@ -134,10 +135,13 @@ def cancel_rate(db, period, filters, linked, m=None, strict_unit=True):
 
 
 def avg_order_value(db, period, filters, linked, m=None, strict_unit=True):
-    """§3: revenue / number of valid orders, in whole đồng (half up)."""
+    """§3: revenue / number of valid orders, in whole đồng (half up). §6 Sửa xe (public rulebook): over the tickets
+    with money, warranty tickets left out (N42)."""
     if _line_filtered(filters):
         return None
     o = _orders(db, period, filters, linked)
+    if o is not None and "is_warranty" in o.columns:
+        o = o[o["is_warranty"].ne(True)]
     if o is None or o.empty or not o["revenue_ok"].all():
         return None
     return money(float(o["revenue"].sum()) / o["order_id"].nunique())
@@ -150,16 +154,18 @@ def quantity(db, period, filters, linked, m: Measure | None = None, strict_unit=
     ln = _lines(db, period, filters, linked, items_only=True)
     if ln is None:
         return None
-    if m is not None and m.unit and strict_unit:
+    if m is not None and m.unit and strict_unit and linking.units(db):  # a shop with no unit: "chiếc" only counts
         unit = linking.norm(m.unit)
-        if ln["base_unit"].isna().any():
+        if unit not in linking.units(db):  # N34: no unit of this shop ("ly ta", a particle read as a unit), not 0
+            return None
+        if "base_unit" not in ln.columns or ln["base_unit"].isna().any():
             return None
         if any(f.field == "product" for f in filters):
             if (ln["base_unit"] != unit).any():
                 return None
         else:
             ln = ln[ln["base_unit"] == unit]
-    if ln["base_qty"].isna().any():
+    if "base_qty" not in ln.columns or ln["base_qty"].isna().any():  # a mapping without base quantities (05/11)
         return None
     q = float(ln["base_qty"].sum())
     return int(q) if q.is_integer() else q
@@ -204,20 +210,241 @@ def net_profit(db, period, filters, linked, m=None, strict_unit=True):
     return None if gp is None else money(gp - float(spent))
 
 
+# ---------------------------------------------------------------- industry figures of §6 (N44, public rulebook)
+def _tickets(db, period, filters, linked) -> pd.DataFrame | None:
+    """A repair shop's tickets of the period (each row of its ledger one ticket, warranty tickets included, §6 Sửa
+    xe "lượt xe, phiếu"); None for a shop that is no repair ledger (no vehicle plates)."""
+    o = F.orders(db)
+    if o is None or "vehicle_plate" not in o.columns or _line_filtered(filters):
+        return None
+    return _orders(db, period, filters, linked)
+
+
+def _paid(t: pd.DataFrame) -> pd.DataFrame:
+    """The tickets with money: warranty tickets left out (§6 Sửa xe)."""
+    return t[t["is_warranty"].ne(True)] if "is_warranty" in t.columns else t
+
+
+def ticket_count(db, period, filters, linked, m=None, strict_unit=True):
+    t = _tickets(db, period, filters, linked)
+    return None if t is None else int(len(t))
+
+
+def avg_ticket_value(db, period, filters, linked, m=None, strict_unit=True):
+    """§6 Sửa xe: "tiền trung bình một phiếu chia cho số phiếu có thu tiền (không tính phiếu bảo hành)"."""
+    t = _tickets(db, period, filters, linked)
+    if t is None or not t["revenue_ok"].all():
+        return None
+    paid = _paid(t)
+    return None if paid.empty else money(float(paid["revenue"].sum()) / len(paid))
+
+
+def vehicle_count(db, period, filters, linked, m=None, strict_unit=True):
+    """§6 Sửa xe: "số chiếc xe mang tới = số biển số khác nhau, tính cả xe chỉ tới bảo hành"."""
+    t = _tickets(db, period, filters, linked)
+    if t is None or t["vehicle_plate"].isna().any():
+        return None
+    return int(t["vehicle_plate"].map(lambda v: linking.norm(v)).nunique())
+
+
+def _phone_visits(db, period, filters, linked) -> pd.DataFrame | None:
+    """A phone shop's warranty visits received in the period (§6 Cửa hàng điện thoại "Bảo hành": "lượt bảo hành có
+    ngày nhận trong quý … lượt bảo hành của máy bán từ quý trước vẫn tính"); a line filter keeps the visits of that line
+    (the book writes the line, "Máy ghi dòng máy")."""
+    v = db.table("warranty_visits")
+    if v is None or v["visit_time"].isna().any():
+        return None
+    day = v["visit_time"].dt.date
+    v = v[(day >= period.start) & (day <= period.end)]
+    for f in filters:
+        if f.field != "product_line" or f.op not in ("eq", "in"):
+            return None
+        keys = {linking.norm(str(linked.get(str(x), x))) for x in F._values(f)}
+        v = v[v["product_line"].map(lambda x: linking.norm(str(x))).isin(keys)]
+    return v
+
+
+def phones_sold(db, period) -> int | None:
+    """Phones sold in the period, cancelled and returned orders left out (§6 "số máy bán trong quý"): the quantity of
+    the lines that are no accessory (the shop's kind of goods); None when a line's kind is unknown."""
+    ln = _lines(db, period, [], {}, items_only=True)
+    if ln is None or "category" not in ln.columns or ln["category"].isna().any() or ln["base_qty"].isna().any():
+        return None
+    phones = ln[~ln["category"].map(lambda c: linking.norm(str(c))).eq("phu kien")]
+    return int(phones["base_qty"].sum())
+
+
+def warranty_count(db, period, filters, linked, m=None, strict_unit=True):
+    if db.table("warranty_visits") is not None and not any(f.field != "product_line" for f in filters):
+        v = _phone_visits(db, period, filters, linked)
+        return None if v is None else int(len(v))
+    t = _tickets(db, period, filters, linked)
+    return None if t is None or "is_warranty" not in t.columns else int(t["is_warranty"].eq(True).sum())
+
+
+def warranty_rate(db, period, filters, linked, m=None, strict_unit=True):
+    """§6 Sửa xe: "tỉ lệ bảo hành = số phiếu bảo hành có ngày trong kỳ / số phiếu có thu tiền trong cùng kỳ"; §6 Cửa
+    hàng điện thoại: "số lượt bảo hành có ngày nhận trong quý, chia cho số máy bán trong quý (bỏ đơn huỷ, đơn trả)"."""
+    if db.table("warranty_visits") is not None:
+        v = None if filters else _phone_visits(db, period, filters, linked)
+        sold = phones_sold(db, period) if v is not None else None
+        return None if not sold else round(100.0 * len(v) / sold, 2)
+    t = _tickets(db, period, filters, linked)
+    if t is None or "is_warranty" not in t.columns:
+        return None
+    paid = len(_paid(t))
+    return None if not paid else round(100.0 * int(t["is_warranty"].eq(True).sum()) / paid, 2)
+
+
+ORDER_AMOUNTS = {"voucher_discount": "voucher_discount", "points_discount": "points_discount",
+                 "shipping_fee_total": "shipping_fee", "trade_in_amount": "trade_in_amount",
+                 "amount_due_total": "total_due"}  # §6 điện thoại "khách phải trả": after discount and trade-in
+
+
+def order_amount(db, period, filters, linked, m=None, strict_unit=True):
+    """§6 Mẹ và bé (voucher, points, shipping) and Điện thoại (trade-in): positive amounts summed by the order's day,
+    over the orders neither cancelled nor returned. None when the shop records no such column."""
+    if m is None or _line_filtered(filters):
+        return None
+    col = ORDER_AMOUNTS[m.metric]
+    raw = db.table("orders")
+    if raw is None or col not in raw.columns or raw[col].notna().sum() == 0:
+        return None
+    o = _orders(db, period, filters, linked)
+    if o is None:
+        return None
+    amounts = o["order_id"].map(raw.set_index("order_id")[col])
+    return money(float(amounts.fillna(0).abs().sum()))
+
+
+def new_customer_count(db, period, filters, linked, m=None, strict_unit=True):
+    """§6 Mẹ và bé: "khách thành viên mới trong tháng: số khách có Ngày đăng ký trong tháng đó, kể cả khách chưa mua
+    lần nào" — the member list, not the orders."""
+    c = db.table("customers")
+    if filters or c is None or "registered_date" not in c.columns or c["registered_date"].isna().all():
+        return None
+    day = pd.to_datetime(c["registered_date"], errors="coerce").dt.date
+    return int(c.loc[(day >= period.start) & (day <= period.end), "customer_key"].nunique())
+
+
+def commissions(db, period, filters, linked) -> pd.Series | None:
+    """Each person's commission (a public repair shop's README: "Hoa hồng (%): phần trăm hoa hồng của thợ, tính trên
+    tổng Tiền các phiếu thợ làm trong tháng"): the staff list's percent × the money of the orders, tickets, the person
+    did in the period, in whole đồng. Within one month only: the base is a month's money, and a longer period rounded
+    once may differ from its months rounded one by one. None when someone of the period has no percent."""
+    staff = db.table("employees")
+    if (staff is None or "commission_pct" not in staff.columns or staff["commission_pct"].isna().any()
+            or (period.start.year, period.start.month) != (period.end.year, period.end.month) or _line_filtered(filters)):
+        return None
+    o = _orders(db, period, filters, linked)
+    if o is None or "employee" not in o.columns or o["employee"].isna().any() or not o["revenue_ok"].all():
+        return None
+    pct: dict[str, float] = {}
+    for col in ("employee_key", "employee_name"):
+        if col in staff.columns:
+            pct.update({str(k): float(v) for k, v in zip(staff[col], staff["commission_pct"]) if pd.notna(k)})
+    base = o.groupby(o["employee"].astype(str))["revenue"].sum()
+    if not set(base.index) <= set(pct):
+        return None
+    return pd.Series({e: money(float(v) * pct[e] / 100) for e, v in base.items()}, dtype="int64")
+
+
+def commission(db, period, filters, linked, m=None, strict_unit=True):
+    """The commission of the people the filters keep (one person: an employee filter), summed."""
+    per = commissions(db, period, filters, linked)
+    return None if per is None else int(per.sum())
+
+
+R_TICKETS = R_TODAY + ("§6.sua_xe.luot_xe_phieu", "§6.p_luat_rieng_cua_tung_nganh_dung", "§1.don_thuoc_ky_nao")
+R_ORDER_AMOUNT = R_VALID + ("§6.me_va_be.tien_giam_voucher_tien_giam_nho_dung_diem_phi_sh",
+                            "§6.p_luat_rieng_cua_tung_nganh_dung")
+R_METRIC.update({
+    "work_days": R_VALID + ("§3.nhan_vien_tho_cham_chi_nhat",),
+    "days_with_purchase": R_VALID + ("§3.khach_trung_thanh_nhat", "§3.xac_dinh_khach"),
+    "ticket_count": R_TICKETS, "avg_ticket_value": R_TICKETS + ("§6.sua_xe.bao_hanh",),
+    "vehicle_count": R_TICKETS + ("§6.sua_xe.dong_xe_bien_so",),
+    "warranty_count": R_TICKETS + ("§6.sua_xe.bao_hanh", "§6.cua_hang_dien_thoai.bao_hanh"),
+    "warranty_rate": R_TICKETS + ("§6.sua_xe.bao_hanh", "§6.cua_hang_dien_thoai.bao_hanh"),
+    "voucher_discount": R_ORDER_AMOUNT,
+    "points_discount": R_ORDER_AMOUNT, "shipping_fee_total": R_ORDER_AMOUNT,
+    "trade_in_amount": R_VALID + ("§6.cua_hang_dien_thoai.thu_may_cu", "§6.p_luat_rieng_cua_tung_nganh_dung"),
+    "amount_due_total": R_VALID + ("§6.cua_hang_dien_thoai.thu_may_cu", "§6.p_luat_rieng_cua_tung_nganh_dung"),
+    "new_customer_count": R_TODAY + ("§6.me_va_be.khach_thanh_vien_moi_trong_thang", "§6.p_luat_rieng_cua_tung_nganh_dung"),
+    "commission": R_REVENUE,  # the percent and its base are the README's, not a rulebook row
+})
+REQ_TICKETS = REQ_ORDERS + ("orders.vehicle_plate",)
+REQ_METRIC.update({
+    "commission": REQ_ORDERS + ("orders.employee", "employees.commission_pct"),
+    "ticket_count": REQ_TICKETS, "avg_ticket_value": REQ_TICKETS + ("orders.goods_amount",),
+    "vehicle_count": REQ_TICKETS, "warranty_count": REQ_TICKETS + ("orders.is_warranty",),
+    "warranty_rate": REQ_TICKETS + ("orders.is_warranty",), "voucher_discount": REQ_ORDERS + ("orders.voucher_discount",),
+    "points_discount": REQ_ORDERS + ("orders.points_discount",),
+    "shipping_fee_total": REQ_ORDERS + ("orders.shipping_fee",), "trade_in_amount": REQ_ORDERS + ("orders.trade_in_amount",),
+    "amount_due_total": REQ_ORDERS + ("orders.total_due",),
+    "new_customer_count": ("customers.registered_date",),
+})
+
 MEASURES: dict[str, Callable] = {
     "revenue": revenue, "order_count": order_count, "cancel_count": cancel_count, "cancel_rate": cancel_rate,
     "avg_order_value": avg_order_value, "quantity": quantity, "customer_count": customer_count,
     "gross_profit": gross_profit, "net_profit": net_profit,
+    "ticket_count": ticket_count, "avg_ticket_value": avg_ticket_value, "vehicle_count": vehicle_count,
+    "warranty_count": warranty_count, "warranty_rate": warranty_rate, "commission": commission,
+    "new_customer_count": new_customer_count,
+    **{name: order_amount for name in ORDER_AMOUNTS},
 }
+
+
+# §2 "trung bình mỗi ngày thứ X của kỳ: chia cho số ngày thứ X trong kỳ, kể cả ngày không có đơn, phiếu": the
+# figures that add up day by day; a money average is money, in whole đồng (§9 "Làm tròn")
+PER_DAY = frozenset({"revenue", "order_count", "cancel_count", "quantity", "gross_profit", "ticket_count",
+                     "warranty_count", "voucher_discount", "points_discount", "shipping_fee_total", "trade_in_amount"})
+MONEY = frozenset({"revenue", "gross_profit", "voucher_discount", "points_discount", "shipping_fee_total",
+                   "trade_in_amount"})
+R_PER_DAY = ("§2.trung_binh_moi_ngay_thu_x_cua_ky",)
+
+
+def calendar_days(period: ResolvedPeriod, filters: list[Filter]) -> int | None:
+    """Days of the period an average per day is over: every day, or the days of the weekdays a weekday filter names,
+    days without orders included (§2)."""
+    wd = [f for f in filters if f.field == "weekday"]
+    if len(wd) > 1 or (wd and wd[0].op not in ("eq", "in")):
+        return None
+    names = {str(v) for v in F._values(wd[0])} if wd else None
+    n = (period.end - period.start).days + 1
+    return sum(1 for i in range(n)
+               if names is None or F.WEEKDAYS[(period.start + timedelta(days=i)).weekday()] in names)
 
 
 def figure(db: CanonicalDB, m: Measure, period: ResolvedPeriod | None, plan: ResolvedPlan,
            filters: list[Filter] | None = None, strict_unit: bool = True):
-    """One measure over one period (the measure's own filters unless `filters` is given); None when not exact."""
+    """One measure over one period (the measure's own filters unless `filters` is given); None when not exact.
+    An average per day (§2) is the period's total over its calendar days: avg_per_weekday needs the weekday."""
     fn = MEASURES.get(m.metric)
-    if fn is None or period is None or m.aggregate != "total" or m.unit_split:
+    if fn is None or period is None or m.unit_split:
         return None
-    return fn(db, period, m.filters if filters is None else filters, plan.linked, m, strict_unit)
+    filters = m.filters if filters is None else filters
+    if m.aggregate == "total":
+        return fn(db, period, filters, plan.linked, m, strict_unit)
+    if m.metric not in PER_DAY or (m.aggregate == "avg_per_weekday" and not any(f.field == "weekday" for f in filters)):
+        return None
+    days, total = calendar_days(period, filters), fn(db, period, filters, plan.linked, m, strict_unit)
+    if not days or total is None:
+        return None
+    return money(total / days) if m.metric in MONEY else total / days
+
+
+def measure_requires(db: CanonicalDB, metric: str) -> tuple[str, ...]:
+    """The columns a figure read in this shop: a phone shop's warranty figures read its warranty book (and, for the
+    rate, the kind of each line), not a repair ledger's tickets."""
+    if metric in ("warranty_count", "warranty_rate") and db.table("warranty_visits") is not None:
+        book = ("warranty_visits.visit_time",)
+        return book + (("lines.base_qty", "products.category") if metric == "warranty_rate" else ())
+    return REQ_METRIC[metric]
+
+
+def measure_rules(m: Measure) -> tuple[str, ...]:
+    return R_METRIC[m.metric] + (R_PER_DAY if m.aggregate != "total" else ())
 
 
 def _result(plan: ResolvedPlan, value, rules: tuple[str, ...], requires: tuple[str, ...], fn: str,
@@ -226,8 +453,14 @@ def _result(plan: ResolvedPlan, value, rules: tuple[str, ...], requires: tuple[s
     if value is None or answer_type is None:
         return None
     filters = [f for m in plan.plan.measures for f in m.filters]
+    rules = tuple(rules) + tuple(r for f in filters for r in FILTER_RULES.get(f.field, ()))
     return ExecResult(value=value, answer_type=answer_type, source="D1", function=f"sales.{fn}",
                       rule_ids=sorted(set(rules)), requires=sorted(set(requires) | set(F.filter_columns(filters))))
+
+
+# rows a filter of a repair ledger reads by (only cited when the plan has the filter: train's rulebook has neither)
+FILTER_RULES = {"service": ("§6.sua_xe.viec_ghi_trong_o_lam_gi",), "vehicle_model": ("§6.sua_xe.dong_xe_bien_so",),
+                "stage": ("§6.me_va_be.so_sua_size_bim",)}
 
 
 # ---------------------------------------------------------------- value, compare, share, trend, series
@@ -237,8 +470,8 @@ def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     values = [figure(db, m, plan.period, plan) for m in ms]
     if not ms or any(v is None for v in values):
         return None
-    rules = sum((R_METRIC[m.metric] for m in ms), R_FILTERS)
-    requires = sum((REQ_METRIC[m.metric] for m in ms), ())
+    rules = sum((measure_rules(m) for m in ms), R_FILTERS)
+    requires = sum((measure_requires(db, m.metric) for m in ms), ())
     return _result(plan, values[0] if len(values) == 1 else values, rules, requires, "value_of")
 
 
@@ -262,8 +495,8 @@ def compare(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
         value = None if b == 0 else (a - b) / b * 100
     else:
         value = a - b
-    rules = R_METRIC[m.metric] + R_FILTERS + R_COMPARE
-    return _result(plan, value, rules, REQ_METRIC[m.metric], "compare")
+    rules = measure_rules(m) + R_FILTERS + R_COMPARE
+    return _result(plan, value, rules, measure_requires(db, m.metric), "compare")
 
 
 def share(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
@@ -277,8 +510,8 @@ def share(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     part, total = figure(db, m, plan.period, plan), figure(db, whole, plan.period, plan)
     if part is None or not total:
         return None
-    rules = R_METRIC[m.metric] + R_METRIC[whole.metric] + R_FILTERS
-    return _result(plan, part / total * 100, rules, REQ_METRIC[m.metric], "share")
+    rules = measure_rules(m) + measure_rules(whole) + R_FILTERS
+    return _result(plan, part / total * 100, rules, measure_requires(db, m.metric), "share")
 
 
 def _series_values(plan: ResolvedPlan, db: CanonicalDB) -> list | None:
@@ -297,7 +530,7 @@ def trend(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
         return None
     rising = all(b > a for a, b in zip(values, values[1:]))
     m = plan.plan.measures[0]
-    return _result(plan, rising, R_METRIC[m.metric] + R_FILTERS, REQ_METRIC[m.metric], "trend")
+    return _result(plan, rising, measure_rules(m) + R_FILTERS, measure_requires(db, m.metric), "trend")
 
 
 def series(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
@@ -305,7 +538,7 @@ def series(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     m = plan.plan.measures[0] if plan.plan.measures else None
     if values is None or m is None:
         return None
-    return _result(plan, values, R_METRIC[m.metric] + R_FILTERS, REQ_METRIC[m.metric], "series")
+    return _result(plan, values, measure_rules(m) + R_FILTERS, measure_requires(db, m.metric), "series")
 
 
 # ---------------------------------------------------------------- rank
@@ -343,24 +576,46 @@ def _tied(totals: pd.Series, k: int | None, order_matters: bool = True) -> bool:
 def rank(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     """Products, customers, employees, days or months ranked by a sales metric; ties by code ascending (§9)."""
     p, r = plan.plan, plan.plan.rank
-    if r.order != "desc" or r.with_values or r.min_orders or plan.period is None:
+    if r.order != "desc" or (r.with_values and r.entity != "employee") or plan.period is None:
         return None
+    if r.min_orders and (r.by, r.entity) != ("avg_order_value", "customer"):
+        return None
+    if (r.by, r.entity) == ("warranty_count", "product_line"):  # §6 điện thoại: the book writes each visit's line
+        v = _phone_visits(db, plan.period, [], plan.linked)
+        if v is None or v.empty or r.with_values or (p.measures and p.measures[0].filters):
+            return None
+        totals = v.groupby("product_line").size()
+        keys = _ordered(totals, r.k)
+        out = _result(plan, keys[0] if r.k == 1 else keys, R_RANK + R_METRIC["warranty_count"],
+                      ("warranty_visits.visit_time", "warranty_visits.product_line"), "rank")
+        if out is not None and _tied(totals, r.k):
+            out.notes.append(TIE)
+        return out
     filters = p.measures[0].filters if p.measures else []
-    if r.entity == "product":
+    if r.entity in ("product", "product_line", "brand"):
         ln = _lines(db, plan.period, filters, plan.linked, items_only=True)
         if ln is None or ln.empty:
             return None
+        group = {"product": "product_key", "product_line": "product_line", "brand": "brand"}[r.entity]
+        if group not in ln.columns or ln[group].isna().any():
+            return None  # §6 điện thoại "dòng máy, hãng": every line's, or no ranking
         if r.by == "gross_profit":  # §3 "hàng lời nhất": by total gross profit (§5)
             profit = _line_profit(ln)
             ln, col = (None if profit is None else ln.assign(_profit=profit)), "_profit"
         else:
-            col = {"quantity": "base_qty", "revenue": "line_amount"}.get(r.by)
-        if ln is None or col is None or ln[col].isna().any():
+            col = {"quantity": "base_qty", "revenue": "line_amount", "order_presence": "order_id"}.get(r.by)
+        if ln is None or col is None or col not in ln.columns or ln[col].isna().any():
             return None
-        totals = ln.groupby("product_key")[col].sum()
+        if r.by == "order_presence":  # §3 "mặt hàng được ưa chuộng nhất: có mặt trong nhiều đơn nhất"
+            totals = ln.groupby(group)["order_id"].nunique()
+        else:
+            totals = ln.groupby(group)[col].sum()
         keys = _ordered(totals, r.k)
-        names = _first_name(F.lines(db)["product_key"], F.lines(db)["product_name"])
-        labels = [names.get(k, k) for k in keys]
+        if r.entity == "product":
+            names = _first_name(F.lines(db)["product_key"], F.lines(db)["product_name"])
+            labels = [names.get(k, k) for k in keys]
+        else:
+            labels = keys
     else:
         if _line_filtered(filters):
             return None
@@ -373,15 +628,39 @@ def rank(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
             key = o["customer_key"]  # §3: walk-in orders have no key and are not ranked
         elif r.entity == "employee" and "employee" in o.columns:
             key = o["employee"]
+        elif r.entity == "vehicle_model" and "vehicle_model" in o.columns:  # §6 Sửa xe: a line, all its spellings
+            key = linking.ledger_lines(F.orders(db)["vehicle_model"]).loc[o.index]
+            if (key.isna() & o["vehicle_model"].notna()).any():
+                return None
+        elif r.entity == "hour" and "has_time" in o.columns and o["has_time"].eq(True).all():
+            key = o["order_time"].dt.hour.map(lambda h: f"{h:02d}")  # §3 "giờ cao điểm": the hour that starts it
         else:
             return None
+        if (r.by, r.entity) == ("cancel_count", "customer"):  # §3 "khách hay đổi ý nhất: nhiều đơn huỷ nhất"
+            o = _orders(db, plan.period, filters, plan.linked, statuses=("cancelled",))
+            if o is None or o.empty or "customer_key" not in o.columns:
+                return None
+            key = o["customer_key"]
         o = o.assign(_key=key.astype("string")).dropna(subset=["_key"])
         if o.empty:
             return None
+        tickets = "vehicle_plate" in o.columns  # a repair shop: each order is a ticket (§6 Sửa xe)
         if r.by == "revenue":
             totals = o.groupby("_key")["revenue"].sum()
-        elif r.by == "order_count":
-            totals = o.groupby("_key")["order_id"].nunique()
+        elif r.by in ("order_count", "cancel_count") or (r.by == "ticket_count" and tickets):
+            totals = o.groupby("_key")["order_id"].nunique()  # §6 "thợ làm nhiều nhất": warranty tickets included
+        elif (r.by, r.entity) == ("avg_order_value", "customer"):  # §3 "khách sộp nhất", only from min_orders orders
+            g = o.groupby("_key")
+            n = g["order_id"].nunique()
+            totals = (g["revenue"].sum() / n)[n >= (r.min_orders or 1)]
+            if totals.empty:
+                return None
+        elif (r.by, r.entity) in (("work_days", "employee"), ("days_with_purchase", "customer")):
+            totals = o.groupby("_key")["day"].nunique()  # §3 "chăm chỉ", "trung thành": days with an order
+        elif (r.by, r.entity) == ("commission", "employee"):
+            totals = commissions(db, plan.period, filters, plan.linked)
+            if totals is None or totals.empty:
+                return None
         else:
             return None
         keys = _ordered(totals, r.k)
@@ -392,14 +671,35 @@ def rank(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
             if customers is not None and "customer_name" in customers.columns:
                 names = {**names, **_first_name(customers["customer_key"], customers["customer_name"])}
             labels = [names.get(k, k) for k in keys]
+        elif r.entity == "hour":
+            labels = [int(k) for k in keys]  # §3 "giờ cao điểm … type number"
         else:
             labels = keys
-    value = labels[0] if r.k == 1 else labels
+    if r.with_values:  # §9 table: the name first, then the measure; rows in any order
+        figures = [money(float(totals[k])) if r.by in MONEY | {"commission"} else int(totals[k]) for k in keys]
+        value = {"columns": ["nhan_vien", TABLE_COLUMN.get(r.by, r.by)],
+                 "rows": [[label, v] for label, v in zip(labels, figures)]}
+    else:
+        value = labels[0] if r.k == 1 else labels
     rules = R_RANK + R_METRIC.get(r.by, ()) + R_FILTERS
+    if r.entity == "employee" and r.by in ("order_count", "ticket_count") and "vehicle_plate" in o.columns:
+        rules += R_TICKETS + ("§6.sua_xe.tho_lam_nhieu_nhat",)
+    if r.entity == "vehicle_model":
+        rules += R_TICKETS + ("§6.sua_xe.dong_xe_bien_so",)
+    rules += RANK_TERMS.get((r.by, r.entity), ())
     out = _result(plan, value, rules, REQ_METRIC.get(r.by, REQ_ORDERS), "rank")
-    if out is not None and _tied(totals, r.k):
+    if out is not None and _tied(totals, r.k, order_matters=not r.with_values):
         out.notes.append(TIE)
     return out
+
+
+TABLE_COLUMN = {"revenue": "doanh_thu", "order_count": "so_don", "ticket_count": "so_luot_xe", "work_days": "so_ngay_lam",
+                "commission": "hoa_hong"}
+# §3 terms of the public rulebook a ranking implements (cited, so the term gate knows the function reads the term)
+RANK_TERMS = {("avg_order_value", "customer"): ("§3.khach_sop_nhat",),
+              ("cancel_count", "customer"): ("§3.khach_hay_doi_y_nhat",),
+              ("order_presence", "product"): ("§3.mat_hang_duoc_ua_chuong_nhat",),
+              ("order_count", "hour"): ("§3.gio_cao_diem",)}
 
 
 # ---------------------------------------------------------------- count over a threshold, unsold products
@@ -417,6 +717,8 @@ def count_where(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     if o is None:
         return None
     cmp = OPS[t.op]
+    if t.entity in ("product", "customer", "vehicle", "employee") and cmp(0, t.value) and not cmp(1, t.value):
+        return None  # K1: "không bán được lần nào" as order_presence = 0 asks for what the period's rows never show
     if t.entity == "order" and t.metric == "revenue":
         if not o["revenue_ok"].all():
             return None
@@ -434,6 +736,11 @@ def count_where(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
         if ln is None:
             return None
         per = ln.groupby("product_key")["order_id"].nunique()
+    elif t.entity == "vehicle" and t.metric in ("ticket_count", "order_count") and "vehicle_plate" in o.columns:
+        paid = _paid(o)  # §6 Sửa xe "xe tới nhiều lần": a vehicle by its plate, only tickets with money are a visit
+        if paid["vehicle_plate"].isna().any():
+            return None
+        per = paid.groupby(paid["vehicle_plate"].map(linking.norm))["order_id"].nunique()
     else:
         return None
     hits = int(cmp(per, t.value).sum())
@@ -444,6 +751,8 @@ def count_where(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     else:
         value = hits
     rules = R_COUNT + R_VALID + R_METRIC.get(t.metric, ()) + R_FILTERS
+    if t.entity == "vehicle":
+        rules += R_TICKETS + ("§6.sua_xe.khach_quen_xe_toi_nhieu_lan", "§6.sua_xe.dong_xe_bien_so")
     return _result(plan, value, rules, REQ_METRIC.get(t.metric, REQ_ORDERS), "count_where")
 
 
@@ -485,8 +794,25 @@ _register("series", ("revenue", "order_count", "avg_order_value", "quantity", "c
 _register("rank", ("quantity", "revenue", "gross_profit"), rank, entity="product", rules=R_RANK)
 for _entity in ("customer", "employee", "day", "month"):
     _register("rank", ("revenue", "order_count"), rank, entity=_entity, rules=R_RANK)
+_register("rank", ("ticket_count", "work_days", "commission"), rank, entity="employee", rules=R_RANK)
+_register("rank", ("days_with_purchase", "avg_order_value", "cancel_count"), rank, entity="customer", rules=R_RANK)
+_register("rank", ("order_presence",), rank, entity="product", rules=R_RANK)
+_register("rank", ("order_count",), rank, entity="hour", rules=R_RANK)
+
+# rule ids a function cites only when the plan uses them (a filter, an average per day, a term): train's rulebook has
+# none of these rows, so they cannot sit in every result; they must still be checked against the split's rulebook
+# (pipeline.rule_ids), or [V] reads them as missing and every such answer abstains (caught 06/11 before any run)
+CONDITIONAL_RULES = tuple(sorted(set(
+    R_PER_DAY + tuple(r for rs in FILTER_RULES.values() for r in rs) + tuple(r for rs in RANK_TERMS.values() for r in rs)
+    + R_TICKETS + ("§6.sua_xe.tho_lam_nhieu_nhat", "§6.sua_xe.khach_quen_xe_toi_nhieu_lan", "§6.sua_xe.dong_xe_bien_so"))))
+_register("rank", ("revenue", "order_count", "ticket_count"), rank, entity="vehicle_model", rules=R_RANK)
+_register("rank", ("warranty_count",), rank, entity="product_line", rules=R_RANK)
+for _entity in ("product_line", "brand"):  # §6 điện thoại "dòng máy, hãng"
+    _register("rank", ("quantity", "revenue"), rank, entity=_entity,
+              rules=R_RANK + ("§6.cua_hang_dien_thoai.dong_may_hang",))
 _register("count_where", ("revenue",), count_where, entity="order", rules=R_COUNT)
 _register("count_where", ("revenue",), count_where, entity="day", rules=R_COUNT)
 _register("count_where", ("order_count",), count_where, entity="customer", rules=R_COUNT)
 _register("count_where", ("order_presence", "order_count"), count_where, entity="product", rules=R_COUNT)
+_register("count_where", ("ticket_count", "order_count"), count_where, entity="vehicle", rules=R_COUNT)
 _register("list_items", ("unsold_in_period",), unsold, entity="product", rules=R_UNSOLD + R_TIES)

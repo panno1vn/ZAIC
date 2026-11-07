@@ -52,7 +52,7 @@ for b in sorted(by):
             continue
         res = nlu.link_entities(res, ctx.db, q["question"])
         result = metrics.execute(res, ctx.db) if plan.intent != "out_of_scope" else None
-        s = verify.collect_signals(res, result, ctx.db, ctx.mapping, status)
+        s = verify.collect_signals(res, result, ctx.db, ctx.mapping, status, q["question"])
         d = decide.decide(s, result)
         if d.kind != "abstain":
             continue

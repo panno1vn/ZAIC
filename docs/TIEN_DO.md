@@ -1,6 +1,6 @@
 # Tiến độ và bối cảnh dự án (bàn giao giữa các phiên làm việc)
 
-*Cập nhật cuối: phiên 4 với Claude. **Phiên mới đọc [BAN_GIAO_PHIEN_4.md](BAN_GIAO_PHIEN_4.md) trước**, rồi tới file này, mục 9–10 của [KE_HOACH_DataMate.md](KE_HOACH_DataMate.md) và [HAN_CHE_VA_CAI_THIEN.md](HAN_CHE_VA_CAI_THIEN.md).*
+*Cập nhật cuối: phiên 6 với Claude (đêm 05→06/11). **Phiên mới đọc [BAN_GIAO_PHIEN_6.md](BAN_GIAO_PHIEN_6.md) trước**, rồi tới file này, mục 9–10 của [KE_HOACH_DataMate.md](KE_HOACH_DataMate.md) và [HAN_CHE_VA_CAI_THIEN.md](HAN_CHE_VA_CAI_THIEN.md).*
 
 ## 1. Bối cảnh
 - **Cuộc thi:** Zalo AI Challenge 2026, đề **DataMate**: trả lời câu hỏi tiếng Việt (không dấu, viết tắt) trên dữ liệu kinh doanh của cửa hàng nhỏ (csv / xlsx / sqlite). Nhóm đã bỏ đề LifeMate; dữ liệu LifeMate đã xóa.
@@ -194,6 +194,24 @@
   - **N29, bổ sung thuộc tính theo README** cho mọi mapping ứng viên (nhóm khách, nhân viên, thanh toán, kênh, nhóm hàng, hoạt chất, kê đơn; thêm cả danh mục hàng nếu mapping chưa có): phần 1 cho **2407 / 0 / 593, PA +0,802**.
   - **N30, plan đọc đúng mà bị cổng căn cứ bỏ:** bỏ bộ lọc "đơn hoàn thành" chỉ nhắc lại mặc định §1; nhận "tm", "tiền tươi", "ck" theo bộ từ đồng nghĩa của bước nối tên. Train thêm 28 câu có plan.
   - **`eval.mapping --llm-url` cuối phiên 4: 2433 đúng / 0 sai / 567 bỏ trống, PA +0,811.** 344 test qua.
+- **Phiên 5 (05/11, Claude tự làm):** N32 tự sửa plan sai schema → **2439 / 0 / 561, PA +0,813**, 348 test qua. Chuẩn bị Kaggle K1 (`kaggle/k1_qwen14b.ipynb`, `tools/kaggle_k1.py`, `tools/kaggle_pack.py`, `tools/read_plans_shard.py`) và bản nháp Docker (`docker/`). Lịch §11 của KE_HOACH.
+- **Nộp public 05/11:**
+  - **run4 0,342** (lượt 1: 0,316);
+  - chẩn đoán: tắt cổng câu anh em 0,336 (28 câu cổng chặn = 24 đúng / 4 sai), bỏ xếp hạng 0,276 (54 câu = 47 / 7), bỏ cửa hàng ghép theo nghĩa 0,175 (169 câu = 155 / 14);
+  - kết luận: **tắt cổng câu anh em** (`twin_threshold: null`, N16, 350 test qua); lượt 5 là `outputs/public_run4_twin_off/` (432 câu trả lời). Chi tiết ở HAN_CHE N24.
+  - Đòn bẩy lớn nhất: 6/14 cửa hàng public không map được (360 câu) → N27.
+- **Phiên 6 (đêm 05→06/11, Claude tự làm, trưởng nhóm ngủ):**
+  - N27 định dạng lạ: `stem` của cơ sở dữ liệu, hỏi lại cột bắt buộc, ghép bảng theo vai trò bằng LLM, bỏ bảng phụ hỏng, `requantify`, cột mã đơn không mang nghĩa khác, kiểm tra "mã hàng và tên hàng hợp lý".
+  - Các sửa khác:
+    - N33 khách vãng lai nhận theo tỉ lệ đơn;
+    - N34 bộ lọc nhắc lại chỉ số;
+    - N35 công nợ và giá vốn theo "Quy ước" của README;
+    - N36 plan bỏ sót tên;
+    - N37 câu chủ quan → unanswerable;
+    - N38 nhập hàng không ghi → unanswerable.
+  - **Train 2651 / 0 / 349, PA +0,884** (đầu phiên 2439, +0,813).
+  - Public run6: 438 câu trả lời (+6 so với run4 tắt cổng); 6 cửa hàng public vẫn chưa map.
+  - Công cụ mới: `tools/variant_eval.py`, `tools/ablate.py`; README cho image Docker.
 - **Tài liệu khác:** sổ tay nhóm (artifact, riêng tư) https://claude.ai/artifact/SkCWcHheFw2NE6obQzUPxT; [KE_HOACH_DataMate.md](KE_HOACH_DataMate.md); [data_cards/README.md](data_cards/README.md) (chia 30 cửa hàng train cho thành viên A–D); [rules_notes.md](rules_notes.md).
 
 ## 4. Trạng thái hiện tại

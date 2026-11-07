@@ -25,6 +25,7 @@ R_OWED = ("§4.no_mot_don_tai_ngay_x", "§4.don_duoc_tinh_vao_no", "§4.don_cod_
           "§0.p_hom_nay_cua_moi_cau_la")
 R_TIES = ("§9.p_bang_nhau_hai_doi_tuong_bang",)
 FLOW = frozenset({"debt_added", "debt_paid"})
+DEBT_CODES = frozenset({"debt", "installment"})  # §6 điện thoại: "đơn trả góp là đơn ghi nợ (§4)"
 REQUIRES = ("payments.paid_time", "payments.amount", "orders.payment_method", "orders.total_due")
 
 
@@ -35,7 +36,7 @@ def debt_orders(db: CanonicalDB, m: Measure, linked: dict[str, str]) -> pd.DataF
     if o is None or "payment_method" not in o.columns:
         return None
     codes = {v: linking.concept("payment_method", v) for v in o["payment_method"].dropna().astype(str).unique()}
-    debt = o[o["payment_method"].astype(str).map(codes).eq("debt")]
+    debt = o[o["payment_method"].astype(str).map(codes).isin(DEBT_CODES)]
     if F.unknown_status(debt):
         return None  # a debt order that may be cancelled
     debt = debt[debt["status"].ne("cancelled")]
@@ -101,18 +102,35 @@ def open_orders(db: CanonicalDB, day) -> pd.DataFrame | None:
     o = o[o["status"].ne("cancelled")]
     codes = {v: linking.concept("payment_method", v) for v in o["payment_method"].dropna().astype(str).unique()}
     method = o["payment_method"].astype(str).map(codes)
-    if o.loc[method.eq("debt"), "total_due"].isna().any():
+    if o.loc[method.isin(DEBT_CODES), "total_due"].isna().any():
         return None
     paid = p[(p["amount"] > 0) & (p["paid_time"].dt.date <= day)].groupby("order_id")["amount"].sum()
     balance = o["total_due"] - o["order_id"].map(paid).fillna(0.0)
     owing = o.assign(balance=balance, method=method)[(balance > 1e-6) & method.ne("cod")]
-    return owing if owing["method"].eq("debt").all() else None
+    return owing if owing["method"].isin(DEBT_CODES).all() else None
+
+
+AGE_OPS = {"gte": lambda a, v: a >= v, "gt": lambda a, v: a > v, "lte": lambda a, v: a <= v, "lt": lambda a, v: a < v,
+           "eq": lambda a, v: a == v}
 
 
 def _owing(db: CanonicalDB, plan: ResolvedPlan, m: Measure | None) -> pd.DataFrame | None:
     day = plan.period.end if plan.period is not None else plan.as_of
     owing = open_orders(db, day)
     for f in (m.filters if m is not None else []):
+        if f.field == "payment_method" and owing is not None and f.op in ("eq", "in"):
+            # "tiền góp chưa trả": the installment orders only (§6 điện thoại "Trả góp")
+            codes = {linking.concept("payment_method", str(v)) for v in (f.value if isinstance(f.value, list) else [f.value])}
+            if None in codes:
+                return None
+            owing = owing[owing["method"].isin(codes)]
+            continue
+        if f.field == "debt_age_days":  # §4 "tuổi nợ: số ngày tính từ ngày đặt; đơn đặt hôm nay có tuổi nợ 0 ngày"
+            if owing is None or f.op not in AGE_OPS or not isinstance(f.value, (int, float)) or isinstance(f.value, bool):
+                return None
+            age = owing["day"].map(lambda d: (day - d).days)
+            owing = owing[AGE_OPS[f.op](age, float(f.value))]
+            continue
         keys = [plan.linked.get(str(v)) for v in (f.value if isinstance(f.value, list) else [f.value])]
         if (owing is None or f.field != "customer" or f.op not in ("eq", "in") or None in keys
                 or "customer_key" not in owing.columns):
@@ -168,8 +186,42 @@ def rank_debtors(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
                       notes=[TIE] if tied else [])
 
 
+def _overdue(db: CanonicalDB, plan: ResolvedPlan, m: Measure | None) -> pd.Series | None:
+    """What each installment order has overdue at the end of the day (§6 điện thoại "Trả góp": "kỳ góp có hạn trước
+    ngày hỏi mà chưa góp đủ là quá hạn; kỳ có hạn đúng ngày hỏi thì chưa quá hạn"): the amounts of its periods due
+    before the day, less what it paid in installments by then, never below 0; indexed by order."""
+    sched, pay = db.table("installments"), db.table("payments")
+    if sched is None or pay is None or "kind" not in pay.columns or plan.period is None:
+        return None
+    day = plan.period.end
+    owing = _owing(db, plan, m)
+    if owing is None:
+        return None
+    due = sched[pd.to_datetime(sched["due_date"]).dt.date < day].groupby("order_id")["amount_due"].sum()
+    paid = pay[(pay["kind"] == "installment") & (pay["paid_time"].dt.date <= day)].groupby("order_id")["amount"].sum()
+    late = (due - paid.reindex(due.index).fillna(0.0)).clip(lower=0)
+    return late[late.index.isin(set(owing["order_id"])) & (late > 1e-6)]
+
+
+def overdue_amount(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
+    late = _overdue(db, plan, m)
+    return None if late is None else money(float(late.sum()))
+
+
+def overdue_installment_count(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
+    """Customers with an overdue installment ("mấy khách quá hạn góp", "mấy người trả góp còn kỳ quá hạn chưa đóng":
+    every such question of the public shop counts customers), each by its customer key (§3)."""
+    late = _overdue(db, plan, m)
+    o = F.orders(db)
+    if late is None or o is None or "customer_key" not in o.columns:
+        return None
+    who = o.set_index("order_id")["customer_key"].reindex(late.index)
+    return None if who.isna().any() else int(who.nunique())
+
+
 MEASURES = {"debt_added": debt_added, "debt_paid": debt_paid, "debt_total": debt_total,
-            "debtor_count": debtor_count, "debt_amount": debt_amount}
+            "debtor_count": debtor_count, "debt_amount": debt_amount, "overdue_amount": overdue_amount,
+            "overdue_installment_count": overdue_installment_count}
 
 
 def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
@@ -184,12 +236,20 @@ def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     if any(v is None for v in values) or answer_type is None:
         return None
     rules = R_DEBT if ms[0].metric in FLOW else R_OWED
+    if any(f.field == "debt_age_days" for m in ms for f in m.filters):
+        rules += R_AGE
+    if db.table("installments") is not None:  # the shop's debts include its installments (§6 điện thoại)
+        rules += R_INSTALLMENT
     return ExecResult(value=values[0] if len(values) == 1 else values, answer_type=answer_type, source="D1",
                       function="debt.value_of", rule_ids=sorted(set(rules)), requires=list(REQUIRES))
 
 
+R_AGE = ("§4.tuoi_no",)
+R_INSTALLMENT = ("§6.cua_hang_dien_thoai.tra_gop", "§6.p_luat_rieng_cua_tung_nganh_dung")
+OVERDUE = frozenset({"overdue_amount", "overdue_installment_count"})
 for _name in MEASURES:
-    metric("value", _name, requires=REQUIRES, rules=tuple(sorted(set(R_DEBT if _name in FLOW else R_OWED))),
-           filters=("customer",))(value_of)
+    _rules = R_DEBT if _name in FLOW else R_OWED + R_AGE + (R_INSTALLMENT if _name in OVERDUE else ())
+    metric("value", _name, requires=REQUIRES, rules=tuple(sorted(set(_rules))),
+           filters=("customer",) if _name in FLOW else ("customer", "debt_age_days", "payment_method"))(value_of)
 metric("rank", "debt_amount", entity="customer", requires=REQUIRES,
        rules=tuple(sorted(set(R_OWED + R_TIES))))(rank_debtors)

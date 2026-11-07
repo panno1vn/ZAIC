@@ -5,6 +5,8 @@ meaning, not syntax.
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -136,9 +138,84 @@ def card_text(card: DataCard) -> str:
     return "\n".join(lines)
 
 
+# Plan pieces for what train never asks (public rulebook §2, §3, §6 Sửa xe; a README's commission), given only to a shop
+# that records it or a question that says it: every train prompt stays the one its verified plan was read with.
+REPAIR_HINTS = """Đây là sổ sửa xe, mỗi dòng một phiếu (một lượt xe):
+- số phiếu, số lượt xe (của tiệm hay của một thợ) → ticket_count; tiền trung bình một phiếu → avg_ticket_value;
+  số chiếc xe, số xe khác nhau → vehicle_count; số phiếu bảo hành, lượt xe quay lại bảo hành → warranty_count;
+  phiếu bảo hành chiếm bao nhiêu % → warranty_rate; doanh thu, tiền sửa → revenue.
+- dòng xe (Wave Alpha, Vision…) → filter vehicle_model; việc đã làm (thay nhớt, vá ruột, sửa điện, thay dầu láp…)
+  → filter service (không dùng product_group: tiệm sửa xe không có nhóm hàng); số phiếu → intent value, ticket_count;
+  thợ → filter employee. "không tính phiếu bảo hành" → filter is_warranty = false.
+- thợ làm nhiều lượt xe nhất, nhận nhiều phiếu nhất → rank entity employee by ticket_count; thợ làm ra nhiều tiền
+  nhất → rank employee by revenue; thợ chăm chỉ nhất → rank employee by work_days; dòng xe nào nhiều tiền sửa
+  nhất → rank entity vehicle_model by revenue.
+- xe tới, vô sửa từ N lần trở lên, xe khách quen (từ 2 lần) → count_where threshold entity vehicle, metric
+  ticket_count, op gte, value N."""
+PHONE_HINTS = """Đây là cửa hàng điện thoại:
+- tiền thu máy cũ (trừ vào đơn) → metric trade_in_amount; khách phải trả (sau bớt, sau trừ máy cũ) → amount_due_total.
+- lượt bảo hành, lượt khách mang máy tới bảo hành → warranty_count; tỉ lệ bảo hành, lượt bảo hành so với số máy bán →
+  warranty_rate; dòng máy nào nhiều lượt bảo hành nhất → rank entity product_line by warranty_count.
+- máy cũ / máy mới / phụ kiện → filter category; dòng máy (iPhone 15, Galaxy A56…) → filter product_line; hãng →
+  filter brand; số máy bán → quantity."""
+# only for a question about installments: a payment filter in every phone prompt was written onto other questions
+INSTALLMENT_HINT = """- trả góp: tiền góp quá hạn, tiền chậm góp → overdue_amount; mấy khách quá hạn góp → overdue_installment_count;
+  tiền góp còn chưa trả (kể cả kỳ chưa tới hạn) → debt_total, filter payment_method = trả góp; một khách còn thiếu
+  bao nhiêu tiền góp → debt_amount, filter customer và payment_method = trả góp."""
+_INSTALLMENT = re.compile(r"gop")
+BABY_HINTS = """Đây là cửa hàng mẹ và bé (danh mục có cột Số / Size):
+- số sữa (sữa bột số 2) → filter product_group = sữa bột và filter stage = Số 2; size bỉm (bỉm size XL) → filter size = XL.
+- một size hay một hãng bỉm chiếm bao nhiêu % số bịch bỉm → intent share, measure quantity (filter size hoặc brand),
+  share_of quantity với filter product_group = bỉm tã. Hãng → filter brand.
+- khách thành viên mới, đăng ký mới trong tháng → new_customer_count."""
+COMMISSION_HINT = """- hoa hồng của thợ, nhân viên → metric commission (một người: filter employee); ai hoa hồng cao nhất → rank
+  entity employee by commission; bảng hoa hồng từng người, mọi người → rank entity employee by commission, k null,
+  with_values true, không filter employee."""
+WEEKDAY_AVG_HINT = """- trung bình mỗi ngày thứ X (thứ Hai… Chủ nhật) của kỳ → measure có aggregate "avg_per_weekday" và filter
+  weekday = mã ngày đó: thứ Hai (thứ 2) = mon, thứ Ba (thứ 3) = tue, thứ Tư (thứ 4) = wed, thứ Năm (thứ 5) = thu,
+  thứ Sáu (thứ 6) = fri, thứ Bảy (thứ 7) = sat, Chủ nhật = sun. Lượt xe, số phiếu → ticket_count."""
+_WEEKDAY_AVG = re.compile(r"(trung binh|binh quan|\btb\b).*\b(thu (2|3|4|5|6|7|hai|ba|tu|nam|sau|bay)|chu nhat|cn)\b"
+                          r"|\b(thu (2|3|4|5|6|7|hai|ba|tu|nam|sau|bay)|chu nhat)\b.*(trung binh|binh quan)")
+_COMMISSION = re.compile(r"\b(hoa|hue) hong\b")
+# words of central Vietnam the questions use ("thợ mô làm nhiều nhất", public 06/11: "mô" written as a mechanic's name)
+DIALECT_HINT = "- từ địa phương trong câu hỏi: mô = nào, rứa = vậy, ni = này (tháng ni = tháng này)."
+_CENTRAL = re.compile(r"(?<!\w)(mô|rứa|ni)(?!\w)")  # not "răng" ("sao"): train writes "kem đánh răng"
+TERM_HINTS = (  # §3 of the public rulebook: words train never asks, each with the plan the rulebook defines
+    (re.compile(r"\bsop\b"), '- khách sộp nhất → rank entity customer by avg_order_value, min_orders 3.'),
+    (re.compile(r"\bdoi y\b"), "- khách hay đổi ý nhất → rank entity customer by cancel_count."),
+    (re.compile(r"\bua chuong\b"), "- mặt hàng được ưa chuộng nhất → rank entity product by order_presence."),
+    (re.compile(r"\bgio cao diem\b"), "- giờ cao điểm → rank entity hour by order_count."),
+    (re.compile(r"\btrung thanh\b"), "- khách trung thành nhất → rank entity customer by days_with_purchase."),
+    (re.compile(r"\bcham chi\b"), "- nhân viên, thợ chăm chỉ nhất → rank entity employee by work_days."),
+)
+
+
+def hints(question: str, card: DataCard) -> str:
+    """Lines added to the guide for this shop and question; empty for every train shop and question."""
+    q, out = fold(question), []
+    if "orders.vehicle_plate" in card.fields:
+        out.append(REPAIR_HINTS)
+    if "products.stage" in card.fields:
+        out.append(BABY_HINTS)
+    if {"orders.trade_in_amount", "warranty_visits.visit_time", "products.product_line"} & set(card.fields):
+        out.append(PHONE_HINTS)
+        if "installments.due_date" in card.fields and _INSTALLMENT.search(q):
+            out.append(INSTALLMENT_HINT)
+    if "employees.commission_pct" in card.fields and _COMMISSION.search(q):
+        out.append(COMMISSION_HINT)
+    if _WEEKDAY_AVG.search(q):
+        out.append(WEEKDAY_AVG_HINT)
+    out += [hint for pattern, hint in TERM_HINTS if pattern.search(q) and hint not in REPAIR_HINTS]
+    if _CENTRAL.search(unicodedata.normalize("NFC", question.lower())):
+        out.append(DIALECT_HINT)
+    return "\n".join(out)
+
+
 def build_messages(question: str, as_of: date, card: DataCard, examples: list[dict]) -> list[dict]:
     """Chat messages: guide (system), then each example as a user/assistant pair, then the question."""
-    messages = [{"role": "system", "content": GUIDE + "\n\nDữ liệu của cửa hàng này:\n" + card_text(card)}]
+    extra = hints(question, card)
+    messages = [{"role": "system", "content": GUIDE + "\n\nDữ liệu của cửa hàng này:\n" + card_text(card)
+                 + ("\n\n" + extra if extra else "")}]
     for e in examples:
         messages.append({"role": "user", "content": user_text(e["question"], date.fromisoformat(e["as_of_date"]))})
         messages.append({"role": "assistant", "content": json.dumps(e["plan"], ensure_ascii=False)})

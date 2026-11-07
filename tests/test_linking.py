@@ -135,3 +135,14 @@ def test_link_entities_fills_linked_and_unlinked_names_make_the_question_abstain
     got = link_entities(ResolvedPlan(plan=plan, as_of=date(2026, 6, 1)), db, "doanh thu ca phe den")
     assert got.linked == {} and got.link_scores["ca phe den"] >= linking.THRESHOLD
     assert not collect_signals(got, None, db, Mapping(), {}).entities_ok
+
+
+def test_a_northern_name_links_to_the_southern_one_of_the_data_and_back():
+    """Public 06/11: "Lạc rang muối 200g" for the shop's "Đậu phộng rang muối 200g", "Đậu phụ rán giòn" for "Đậu hũ
+    chiên giòn". With diacritics only: "lắc" is no "lạc", and an unaccented "lac" could be either."""
+    cands = {"dau phong rang muoi 200 g": frozenset({"Đậu phộng rang muối 200g"}),
+             "dau hu chien gion": frozenset({"Đậu hũ chiên giòn"}), "lac": frozenset({"Lạc"})}
+    assert linking.link_value("product", "Lạc rang muối 200g", "", cands).value == "Đậu phộng rang muối 200g"
+    assert linking.link_value("product", "Đậu phụ rán giòn", "", cands).value == "Đậu hũ chiên giòn"
+    assert linking.link_value("product", "lac rang muoi 200g", "", cands).value is None
+    assert linking.dialects("khoai tây lắc") == [] and linking.dialects("Đậu phộng") == ["lạc"]

@@ -24,11 +24,12 @@ TRANSFORMS: dict[str, tuple[tuple[str, ...], str]] = {
     "note_contains": (("map",), "map từ khóa → giá trị khi ô chứa từ khóa, ví dụ ghi chú 'khách trả lại' → returned"),
     "lookup": (("table", "key", "value"), "tra cột `value` của bảng thô `table` theo khóa `key`, ví dụ sheet Ghi tắt"),
     "order_status_from_lines": ((), "trạng thái đơn gộp từ trạng thái từng dòng: có dòng trả → returned…"),
+    "status_from_note": ((), "sổ không có cột trạng thái (§8): trạng thái đọc từ ghi chú, ghi chú không nhắc là hoàn thành"),
     "concat": (("sep",), "nối các cột trong `sources` bằng `sep`"),
     "negate": ((), "đổi dấu số"),
 }
 Transform = Literal["regex_extract", "split_qty_unit", "year_from_sheet", "note_contains", "lookup",
-                    "order_status_from_lines", "concat", "negate"]
+                    "order_status_from_lines", "status_from_note", "concat", "negate"]
 
 
 class ColumnMap(_Model):
@@ -92,8 +93,11 @@ class Mapping(_Model):
 
     @property
     def ok(self) -> bool:
-        """Usable for answering: has orders and lines (or orders alone, each with its goods amount: a shop that records
-        no lines), and every check passed."""
+        """Usable for answering: has orders and lines (or orders without lines, each with its goods amount: a shop that
+        records no lines, as `metrics.frames.orders_only`; side tables such as a staff list do not change that), and
+        every check passed."""
         targets = {t.target for t in self.tables}
-        orders_only = targets == {"orders"} and any(c.target == "goods_amount" for t in self.tables for c in t.columns)
-        return ({"orders", "lines"} <= targets or orders_only) and bool(self.checks)             and all(c.passed for c in self.checks)
+        orders_only = "lines" not in targets and any(
+            c.target == "goods_amount" for t in self.tables if t.target == "orders" for c in t.columns)
+        return ({"orders", "lines"} <= targets or orders_only) and bool(self.checks) \
+            and all(c.passed for c in self.checks)

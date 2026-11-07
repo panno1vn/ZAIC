@@ -34,6 +34,7 @@ LIBRARY = ROOT / "assets" / "mappings" / "train"
 SIGNATURES = ROOT / "assets" / "mappings" / "signatures.json"  # tools/mapping_signatures.py
 REQUIRED = ("orders", "lines")
 SAME_TABLE = 0.8  # raw tables of two layouts are stacked as one table when their columns are this alike (Jaccard)
+DATABASES = (".sqlite", ".db", ".sqlite3")  # one file, many tables (loader.READERS)
 
 
 @dataclass(frozen=True)
@@ -124,8 +125,15 @@ def vocabulary() -> dict[tuple[str, str], dict[str, str]]:
 # not read. "hoàn" alone is both "hoàn thành" (completed) and "hoàn hàng / hoàn trả" (returned): only the pairs count.
 STATUS_WORDS = {
     "cancelled": r"\b(?:huy|khong giao duoc|bom hang|cancel|cancelled|canceled)\b",
-    "returned": r"\b(?:tra hang|tra lai|tra ve|hoan hang|hoan tra|doi tra|return|returned|refund|refunded)\b",
-    "delivering": r"\b(?:dang giao|dang van chuyen|dang gui|dang xu ly|cho giao|shipping|delivering|in transit)\b",
+    # "Khách trả" alone in a status cell (a public shop, 06/11); "khách trả tiền" is no status word
+    # "kiểm tra lại" (check again) is no return (a public repair ledger's note, 06/11)
+    "returned": r"\b(?:tra hang|(?<!kiem )tra lai|tra ve|mang tra|hoan hang|hoan tra|doi tra|return|returned|refund"
+                r"|refunded)\b"
+                r"|^khach tra$",
+    # "chưa giao": not delivered yet, of the four §8 statuses the one in delivery (public notes, 06/11)
+    # "đang ship" (a public ledger, 06/11: 3 orders without status, every delivery count of their days abstained)
+    "delivering": r"\b(?:dang giao|dang van chuyen|dang gui|dang xu ly|cho giao|chua giao|shipping|delivering"
+                  r"|in transit|dang ship|cho ship)\b",
     "completed": r"\b(?:hoan thanh|xong|thanh cong|da giao|da lay|completed|complete|done|delivered|ok)\b",
 }
 
@@ -170,6 +178,23 @@ def _transfer_table(tm: TableMap, example: Example, raw: RawBusiness) -> TableMa
         read = {w: read_word(tm.target, col, w) for w in _raw_values(raw, ids, source)} if source else {}
         value_maps[col] = {**vm, **{w: v for w, v in read.items() if v is not None}}
     return tm.model_copy(update={"sources": ids, "columns": columns, "value_maps": value_maps})
+
+
+def refresh_status_words(m: Mapping, raw: RawBusiness) -> Mapping:
+    """The order statuses a logged mapping's value map lacks, read with today's words (a replay sees what a new run
+    would: "đang ship" became a delivering order, 06/11)."""
+    out = []
+    for tm in m.tables:
+        source = next((c.source for c in tm.columns if c.target == "status"), None)
+        if tm.target == "orders" and "status" in tm.value_maps and source:
+            vm = tm.value_maps["status"]
+            ids = source_ids(tm, [t.table_id for t in raw.tables])
+            new = {w: v for w in _raw_values(raw, ids, source) if w not in vm
+                   and (v := read_word("orders", "status", w)) is not None}
+            if new:
+                tm = tm.model_copy(update={"value_maps": {**tm.value_maps, "status": {**vm, **new}}})
+        out.append(tm)
+    return m.model_copy(update={"tables": out})
 
 
 _REQUIRED_COLUMNS = {"orders": ("order_id", "order_time", "status"),
@@ -241,11 +266,195 @@ def failed(tried: list[str]) -> Mapping:
 
 def _passes(m: Mapping, raw: RawBusiness, tried: list[str]) -> Mapping | None:
     from .from_readme import enrich  # N29: the attributes the README names that the example's shop did not record
-    m = _settle_constants(enrich(m, raw), raw)
-    checks = run_checks(build_canonical(raw, m), raw.readme)
+    m = expand_abbreviations(status_in_note(_settle_constants(enrich(m, raw), raw), raw), raw)
+    db = build_canonical(raw, m)
+    if broken := unfilled_extras(db):  # N27: a side table matched wrongly is left out, not the shop
+        m = m.model_copy(update={"tables": [tm for tm in m.tables if tm.target not in broken], "notes": list(
+            m.notes) + ["bỏ bảng phụ có cột bắt buộc trống: " + ", ".join(broken)]})
+        db = build_canonical(raw, m)
+    checks = run_checks(db, raw.readme)
     bad = [c.name for c in checks if not c.passed]
+    if bad == [AMOUNT_CHECK] and (fixed := requantify(m, raw)) is not None:
+        m, bad = fixed, []
     tried.append(f"{m.notes[0]}: {'qua' if not bad else 'hỏng ' + ', '.join(bad)}")
     return None if bad else m
+
+
+AMOUNT_CHECK = "thành tiền khớp số lượng × đơn giá"
+
+
+def requantify(m: Mapping, raw: RawBusiness) -> Mapping | None:
+    """N27: the amount check alone failed: the one other number column of the lines that, taken for the quantity,
+    makes every check pass (05/11: an unfamiliar pharmacy's "SL cơ bản", the quantity in base units, was matched for
+    the line's quantity, its "Slg" left out; 1 thùng at the price of a thùng counted as 24). Two such columns: no
+    guess."""
+    lines = next((tm for tm in m.tables if tm.target == "lines"), None)
+    qty = next((c for c in lines.columns if c.target == "qty"), None) if lines is not None else None
+    if qty is None or qty.transform is not None or not qty.source:
+        return None
+    used = {x for c in lines.columns for x in [c.source, *c.sources] if x}
+    ids = set(source_ids(lines, [t.table_id for t in raw.tables]))
+    frames = [t.frame for t in raw.tables if t.table_id in ids]
+    passing = []
+    for col in dict.fromkeys(str(c) for f in frames for c in f.columns):
+        if col in used or not _numbers(frames, col):
+            continue
+        moved = lines.model_copy(update={"columns": [c.model_copy(update={"source": col}) if c is qty else c
+                                                     for c in lines.columns]})
+        cand = m.model_copy(update={"tables": [moved if tm is lines else tm for tm in m.tables], "notes": list(
+            m.notes) + [f"số lượng của dòng đọc lại theo thành tiền = số lượng × đơn giá: {col}"]})
+        if all(c.passed for c in run_checks(build_canonical(raw, cand), raw.readme)):
+            passing.append(cand)
+    return passing[0] if len(passing) == 1 else None
+
+
+def _numbers(frames: list[pd.DataFrame], column: str, share: float = 0.9) -> bool:
+    from datamate.loader.parse import parse_number
+    values = [v for f in frames if column in f.columns for v in f[column].dropna().astype(str).head(50) if v.strip()]
+    return bool(values) and sum(parse_number(v) is not None for v in values) >= share * len(values)
+
+
+# N40, public rulebook §8 "sổ không có cột trạng thái: trạng thái đơn ghi ở cột Ghi chú": a shop moved from an example
+# whose status column it has not (public phone ledgers, 06/11)
+NOTE_NAME = re.compile(r"^ghi chu\b")
+
+
+def note_column(raw: RawBusiness, ids: list[str]) -> str | None:
+    """The one column of these tables named "Ghi chú…" that is a note: mostly blank (a status column has a word on
+    every row; a ledger's note names a status on the few orders it concerns), or of other words than statuses. None:
+    none, or two."""
+    frames = [t.frame for t in raw.tables if t.table_id in ids]
+    names = [c for c in dict.fromkeys(str(c) for f in frames for c in f.columns) if NOTE_NAME.match(_fold(c))]
+    if len(names) != 1:
+        return None
+    cells = pd.concat([f[names[0]] for f in frames if names[0] in f.columns], ignore_index=True)
+    blank = float(cells.map(lambda v: v is None or (isinstance(v, float) and pd.isna(v)) or not str(v).strip()).mean())
+    return names[0] if blank >= 0.5 or not _status_words(frames, names[0]) else None
+
+
+def _status_words(frames: list[pd.DataFrame], column: str) -> bool:
+    values = {str(v).strip() for f in frames if column in f.columns for v in f[column].dropna().unique()[:100]} - {""}
+    return bool(values) and len(values) <= 20 and sum(read_word("orders", "status", v) is not None
+                                                       for v in values) >= STATUS_SHARE * len(values)
+
+
+def status_in_note(m: Mapping, raw: RawBusiness) -> Mapping:
+    """An orders status read from the shop's note column (not status words) is read by status_from_note, its value
+    map dropped."""
+    out, changed = [], False
+    for tm in m.tables:
+        st = next((c for c in tm.columns if c.target == "status"), None) if tm.target == "orders" else None
+        if st is not None and st.transform in (None, "order_status_from_lines") and st.source is not None:
+            ids = source_ids(tm, [t.table_id for t in raw.tables])
+            if note_column(raw, ids) == st.source:
+                cols = [c.model_copy(update={"transform": "status_from_note"}) if c is st else c for c in tm.columns]
+                tm = tm.model_copy(update={"columns": cols, "value_maps": {k: v for k, v in tm.value_maps.items()
+                                                                           if k != "status"}})
+                changed = True
+        out.append(tm)
+    return m.model_copy(update={"tables": out}) if changed else m
+
+
+ABBREV_COVER = 0.8  # share of the lines' distinct product values written by abbreviation or by name
+ABBREV_SOME = 0.2  # share of them abbreviated
+ABBREV_NAMED = 0.1  # share of them written by the full name (a public phone ledger: 56 of 115)
+
+
+def expand_abbreviations(m: Mapping, raw: RawBusiness) -> Mapping:
+    """N43, public phone ledgers (06/11): "hàng bán, có thể ghi tắt (tra ở sheet Ghi tắt)". When the lines read their
+    product from a plain column and another table of the shop has a column holding most of that column's values (as
+    keys, each once) and another column of names (with a space), the product key and name are looked up there
+    (unknown abbreviations kept as written). Two such tables or columns: no guess."""
+    lines = next((tm for tm in m.tables if tm.target == "lines"), None)
+    key = next((c for c in lines.columns if c.target == "product_key"), None) if lines is not None else None
+    if key is not None and key.transform == "lookup" and key.args.get("fold") and {"table", "key", "value"} <= set(key.args):
+        # already expanded (a logged mapping replayed): the kind of goods of the same sheet, if any
+        a = key.args
+        return m.model_copy(update={"tables": _kind_of_goods(list(m.tables), raw, a["table"], a["key"], a["value"])})
+    if key is None or key.transform is not None or not key.source:
+        return m
+    ids = set(source_ids(lines, [t.table_id for t in raw.tables]))
+    # compared however written (§8): a public ledger writes "IP16 128 hong" and "IP16 128 hồng", "Cáp  C-L"
+    values = {_fold(str(v)) for t in raw.tables if t.table_id in ids and key.source in t.frame.columns
+              for v in t.frame[key.source].dropna().unique()} - {""}
+    if not values:
+        return m
+    found = []
+    for t in raw.tables:
+        if t.table_id in ids:
+            continue
+        f = t.frame
+        for k in map(str, f.columns):
+            col = f[k].dropna().astype(str).map(_fold)
+            if not col.is_unique or len(values & set(col)) < ABBREV_SOME * len(values):
+                continue
+            # the ledger writes some products by abbreviation, the others by their full name (a public ledger: 59 of
+            # 115 values abbreviated): together they cover the lines
+            names = [n for n in map(str, f.columns) if n != k and f[n].dropna().astype(str).str.contains(" ").mean() >= 0.5
+                     and f[n].dropna().astype(str).nunique() >= 0.9 * len(col)
+                     and len(values & (set(col) | set(f[n].dropna().astype(str).map(_fold))))
+                     >= ABBREV_COVER * len(values)
+                     and f[n].dropna().astype(str).str.len().mean() > col.str.len().mean()  # names are longer
+                     # some lines write the full name itself: a ledger keyed by codes never does (06/11: train shops
+                     # keyed "SP001" with a catalogue of codes and names lost their keys to the names, 67 answers)
+                     and len(values & set(f[n].dropna().astype(str).map(_fold))) >= ABBREV_NAMED * len(values)]
+            if len(names) == 1:
+                found.append((t.table_id, k, names[0]))
+    if len(found) != 1:
+        return m
+    table, k, name = found[0]
+    if k == key.source and table in ids:
+        return m
+    args = {"table": table, "key": k, "value": name, "keep_missing": True, "fold": True}
+    # the key as written, and the name whatever lookup the moved mapping made (a public ledger's name was looked up by
+    # the wrong column of the same sheet)
+    cols = [c.model_copy(update={"transform": "lookup", "args": args, "source": key.source})
+            if (c.target == "product_key" and c.transform is None) or (c.target == "product_name"
+                                                                       and c.source == key.source) else c
+            for c in lines.columns]
+    if not any(c.target == "product_name" for c in cols):
+        cols.append(ColumnMap(target="product_name", source=key.source, transform="lookup", args=args))
+    out = [lines.model_copy(update={"columns": cols}) if tm is lines else tm for tm in m.tables]
+    out = _kind_of_goods(out, raw, table, k, name)
+    return m.model_copy(update={"tables": out, "notes": list(m.notes) + [f"tên hàng ghi tắt tra ở {table}"]})
+
+
+def _kind_of_goods(tables: list[TableMap], raw: RawBusiness, table: str, key: str, name: str) -> list[TableMap]:
+    """The kind of each product the abbreviation sheet gives beside its full name (public phone ledgers, 06/11: "sheet
+    Ghi tắt cho tên đầy đủ và loại hàng (máy mới, máy cũ, phụ kiện)"): the catalogue keyed by that full name (the
+    product key the lines now hold) gets it as its category; a shop without a catalogue gets one from the sheet."""
+    frame = next((t.frame for t in raw.tables if t.table_id == table), None)
+    if frame is None:
+        return tables
+    kinds = [c for c in map(str, frame.columns) if c not in (key, name) and _fold(c).startswith("loai")
+             and 2 <= frame[c].dropna().astype(str).nunique() <= 10]
+    if len(kinds) != 1:
+        return tables
+    kind = ColumnMap(target="category", source=kinds[0])
+    products = [tm for tm in tables if tm.target == "products"]
+    if not products:
+        return tables + [TableMap(target="products", sources=[table], columns=[
+            ColumnMap(target="product_key", source=name), ColumnMap(target="product_name", source=name), kind])]
+    p = products[0]
+    keyed = next((c.source for c in p.columns if c.target == "product_key"), None)
+    if len(products) != 1 or p.sources != [table] or keyed != name or any(c.target == "category" for c in p.columns):
+        return tables
+    return [tm.model_copy(update={"columns": list(tm.columns) + [kind]}) if tm is p else tm for tm in tables]
+
+
+def unfilled_extras(db) -> list[str]:
+    """Canonical tables besides the orders and lines with a required column left empty in some row (N27, 05/11: an
+    unfamiliar shop's lines and orders matched right, its product list taken for a price history with no dates: the
+    whole shop failed "cột bắt buộc đủ giá trị"). Such a table is wrong or unreadable; without it, the questions it
+    serves abstain."""
+    out = []
+    for name, df in db.tables.items():
+        spec = TABLES.get(name)
+        if name in REQUIRED or spec is None or not len(df):
+            continue
+        if any(c.required and c.name in df.columns and df[c.name].isna().any() for c in spec.columns):
+            out.append(name)
+    return sorted(out)
 
 
 def map_by_transfer(raw: RawBusiness, pool: list[Example] | None = None, llm: LLMClient | None = None,
@@ -269,6 +478,13 @@ def map_by_transfer(raw: RawBusiness, pool: list[Example] | None = None, llm: LL
         tried.append(f"dựng từ README: {why}")
     elif (ok := _passes(m, raw, tried)) is not None:
         return ok, tried
+    # N27: no file name, README meaning or column name pairs the tables: the LLM pairs them by role, then the columns
+    for e, pairs in by_role(raw, pool, llm)[:by_meaning] if llm is not None else []:
+        m = transfer_by_meaning(e, raw, llm, pairs)
+        if m is None:
+            tried.append(f"ghép bảng theo vai trò với mapping mẫu {e.name}: thiếu bảng đơn hoặc dòng hàng")
+        elif (ok := _passes(m, raw, tried)) is not None:
+            return ok, tried
     return None, tried
 
 
@@ -281,10 +497,34 @@ def map_by_transfer(raw: RawBusiness, pool: list[Example] | None = None, llm: LL
 
 def stem(table_id: str) -> str:
     """What names a table across shops: its file name without digits or punctuation ("SoBanHang_1.xlsx" →
-    "sobanhang"), with the table name for a database file (one file holds every table)."""
+    "sobanhang"); for a database file, its table name alone (N27, 05/11: one file holds every table and its name says
+    nothing of the format, "pos.sqlite" / "du_lieu.db"; with the file name in, a shop of the same POS whose file was
+    named otherwise paired with no example, and a database's "don_hang" never met the "don_hang.csv" of three shops)."""
     file, _, sheet = table_id.partition("::")
-    name = re.sub(r"[^a-z]+", "", _fold(Path(file).stem))
-    return name + "/" + re.sub(r"[^a-z]+", "", _fold(sheet)) if Path(file).suffix.lower() in (".sqlite", ".db") else name
+    if Path(file).suffix.lower() in DATABASES:
+        return re.sub(r"[^a-z]+", "", _fold(sheet))
+    return re.sub(r"[^a-z]+", "", _fold(Path(file).stem))
+
+
+def layout_groups(raw: RawBusiness) -> list[list[str]]:
+    """The shop's tables as the LLM sees them when pairing by role: by stem, and within a stem by layout (columns
+    alike at SAME_TABLE). A workbook of several lists offers each list; the sheets of one list stay together (public
+    shop, 06/11: the sales sheets of a workbook of five lists were left out by `_new_groups`, never offered)."""
+    out: list[list[str]] = []
+    by_stem: dict[str, list] = {}
+    for t in raw.tables:
+        by_stem.setdefault(stem(t.table_id), []).append(t)
+    for ts in by_stem.values():
+        clusters: list[tuple[set, list[str]]] = []
+        for t in ts:
+            cols = {str(c) for c in t.frame.columns}
+            home = next((c for c in clusters if _jaccard(c[0], cols) >= SAME_TABLE), None)
+            if home is None:
+                clusters.append((cols, [t.table_id]))
+            else:
+                home[1].append(t.table_id)
+        out += [ids for _, ids in clusters]
+    return out
 
 
 def _new_groups(raw: RawBusiness) -> dict[str, list[str]]:
@@ -380,7 +620,7 @@ def readme_section(readme_cols: dict[str, dict[str, str]], table_id: str) -> str
     for name in (sheet, file):
         if name and name in readme_cols:
             return name
-    s = stem(table_id).split("/")[-1]
+    s = stem(table_id)
     return next((k for k in readme_cols if re.sub(r"[^a-z]+", "", _fold(Path(k).stem)) == s), None)
 
 
@@ -406,11 +646,12 @@ def _meaning(e: Example, table_id: str, column: str) -> str:
     return "; ".join(dict.fromkeys(uses))
 
 
-def _ask(e: Example, example_id: str, columns: list[str], raw: RawBusiness, ids: list[str], llm: LLMClient
-         ) -> dict[str, str] | None:
-    """example column -> new column (None: not recorded), for one pair of tables."""
+def _ask(e: Example, example_id: str, columns: list[str], raw: RawBusiness, ids: list[str], llm: LLMClient,
+         taken: frozenset[str] = frozenset()) -> dict[str, str] | None:
+    """example column -> new column (None: not recorded), for one pair of tables; `taken`: new columns already
+    matched, not offered."""
     frames = [t.frame for t in raw.tables if t.table_id in ids]
-    new_cols = list(dict.fromkeys(str(c) for f in frames for c in f.columns))
+    new_cols = [c for c in dict.fromkeys(str(c) for f in frames for c in f.columns) if c not in taken]
     notes = column_notes(readme_columns(raw.readme), ids[0])
     ex_notes = e.notes.get(example_id, {})
     lines = [f'- "{c}"' + (f" (README: {notes[c]})" if c in notes else "") + ": "
@@ -431,6 +672,19 @@ def _ask(e: Example, example_id: str, columns: list[str], raw: RawBusiness, ids:
     return _one_meaning_each(e, example_id, picked)
 
 
+def _ask_required_again(e: Example, example_id: str, columns: list[str], raw: RawBusiness, ids: list[str],
+                        llm: LLMClient) -> dict[str, str | None]:
+    """_ask, then once more for the required columns it left unmatched, among the new columns not taken (N27, 05/11:
+    a shop whose lines had "Số lượng sản phẩm" lost its quantity in a question of 8 columns, and the whole mapping).
+    The checks of meaning (amount = quantity × price…) stop a wrong second pick."""
+    got = _ask(e, example_id, columns, raw, ids, llm) or {}
+    missing = [c for c in columns if got and got.get(c) is None and _is_required(e, example_id, c)]
+    if missing:
+        again = _ask(e, example_id, missing, raw, ids, llm, frozenset(v for v in got.values() if v)) or {}
+        got.update({c: v for c, v in again.items() if v is not None})
+    return got
+
+
 def _one_meaning_each(e: Example, example_id: str, picked: dict[str, str | None]) -> dict[str, str | None]:
     """Two example columns of different meaning matched to one new column: the optional ones lose it (04/11: an
     example with a base-quantity column matched it to the shop's only quantity column, "1 thùng" counted as one
@@ -443,11 +697,25 @@ def _one_meaning_each(e: Example, example_id: str, picked: dict[str, str | None]
     for new, cols in by_new.items():
         if len(cols) < 2:
             continue
+        # N27, 05/11: the order id's column means nothing else (an unfamiliar shop's order ids were taken for the
+        # product key too, both required: rankings named codes of orders)
+        ids = [c for c in cols if _feeds(e, example_id, c, "order_id")]
+        if ids:
+            for c in cols:
+                if c not in ids:
+                    out[c] = None
+            continue
         required = [c for c in cols if _is_required(e, example_id, c)]
         for c in cols:
             if c not in required:
                 out[c] = None
     return out
+
+
+def _feeds(e: Example, table_id: str, column: str, target: str) -> bool:
+    """The example column is read as `target` in a table of the example's raw table."""
+    return any(column in _reads(c) and c.target == target and c.transform is None
+               for tm in e.mapping.tables if table_id in source_ids(tm, list(e.tables)) for c in tm.columns)
 
 
 def _is_required(e: Example, table_id: str, column: str) -> bool:
@@ -509,11 +777,14 @@ def _groups_rows(values: pd.Series, continued: float = 0.2, distinct: float = 0.
     return float((same | follow).mean()) >= continued and text[text != ""].nunique() >= distinct * len(text)
 
 
-def transfer_by_meaning(e: Example, raw: RawBusiness, llm: LLMClient) -> Mapping | None:
+def transfer_by_meaning(e: Example, raw: RawBusiness, llm: LLMClient,
+                        pairs: dict[str, list[str]] | None = None) -> Mapping | None:
     """The example's mapping moved onto a shop sharing its files, columns matched by meaning; None when the orders or
     lines lose a required column, or when the example's ledger has no order ids and the shop's has (04/11: a shop
-    with order ids read row by row like the example passed every check with 68 wrong answers of 119)."""
-    pairs = pair_tables(e, raw)
+    with order ids read row by row like the example passed every check with 68 wrong answers of 119). `pairs`: the
+    tables paired otherwise (by_role); by default by file name or README meanings."""
+    by_llm = pairs is not None
+    pairs = pair_tables(e, raw) if pairs is None else pairs
     if e.mapping.record_grain == "line_is_record":
         orders = next(tm for tm in e.mapping.tables if tm.target == "orders")
         sales = source_ids(orders, list(e.tables))
@@ -535,10 +806,15 @@ def transfer_by_meaning(e: Example, raw: RawBusiness, llm: LLMClient) -> Mapping
         new_ids[t] = pairs[t]
         key = ",".join(pairs[t]) + "|" + "|".join(sorted(cols))
         if key not in asked:
-            asked[key] = _ask(e, t, sorted(cols), raw, pairs[t], llm) or {}
+            asked[key] = _ask_required_again(e, t, sorted(cols), raw, pairs[t], llm)
         renames[t] = _fill_date(e, t, asked[key], raw, pairs[t])
-    if e.mapping.record_grain == "order" and not _order_ids_group_lines(e, renames, new_ids, raw):
-        return None
+    grain = e.mapping.record_grain
+    if grain == "order" and not _order_ids_group_lines(e, renames, new_ids, raw):
+        # each row an order only on the last path (by role): before the README's own column notes it took two train
+        # ledgers without order ids with fewer columns (a train ledger 40 → 29 right, 05/11)
+        if not by_llm or not _as_rows(e, renames, new_ids, raw):
+            return None
+        grain = "line_is_record"
     tables = []
     for tm in e.mapping.tables:
         moved = _rename(tm, e, renames, new_ids, raw)
@@ -546,8 +822,28 @@ def transfer_by_meaning(e: Example, raw: RawBusiness, llm: LLMClient) -> Mapping
             return None
         if moved is not None:
             tables.append(moved)
-    return Mapping(record_grain=e.mapping.record_grain, tables=tables,
-                   notes=[f"ghép theo nghĩa với mapping mẫu {e.name} (LLM chọn cột)"])
+    return Mapping(record_grain=grain, tables=tables,
+                   notes=[f"ghép theo nghĩa với mapping mẫu {e.name} (LLM chọn cột)" if not by_llm
+                          else f"ghép bảng theo vai trò, cột theo nghĩa với mapping mẫu {e.name} (LLM chọn bảng và cột)"])
+
+
+def _as_rows(e: Example, renames: dict, new_ids: dict, raw: RawBusiness) -> bool:
+    """N27, 05/11: a flat ledger example (orders and lines read from one table, with order ids) moved onto a ledger
+    without any column grouping its rows: each row is an order (§8 "sổ không có mã đơn thì mỗi dòng sổ là một lần
+    ghi"), as the hand mapping of such a ledger reads it (order id "_row"). The order id column of the example is
+    renamed to "_row" in `renames`. False (no move) when the example is not flat or the shop's rows do group."""
+    tables = {tm.target: source_ids(tm, list(e.tables)) for tm in e.mapping.tables if tm.target in REQUIRED}
+    if len(tables) != 2 or set(tables["orders"]) != set(tables["lines"]):
+        return False
+    t = next((x for x in tables["lines"] if x in new_ids), None)
+    if t is None or _has_order_ids(raw, new_ids[t]):
+        return False
+    ids = {c.source for tm in e.mapping.tables if tm.target in REQUIRED for c in tm.columns
+           if c.target == "order_id" and c.source}
+    for x in tables["lines"]:
+        if x in renames:
+            renames[x] = {**renames[x], **{c: "_row" for c in ids}}
+    return True
 
 
 def _order_ids_group_lines(e: Example, renames: dict, new_ids: dict, raw: RawBusiness) -> bool:
@@ -571,6 +867,9 @@ def _rename(tm: TableMap, e: Example, renames: dict, new_ids: dict, raw: RawBusi
     for c in tm.columns:
         reads = _reads(c)
         if any(rename.get(r) is None for r in reads):
+            if tm.target == "orders" and c.target == "status" and (note := note_column(raw, ids)) is not None:
+                columns.append(ColumnMap(target="status", source=note, transform="status_from_note"))  # N40
+                continue
             if spec.column(c.target).required:
                 return None
             continue
@@ -594,3 +893,142 @@ def _rename(tm: TableMap, e: Example, renames: dict, new_ids: dict, raw: RawBusi
         read = {w: read_word(tm.target, col, w) for w in _raw_values(raw, ids, source)} if source else {}
         value_maps[col] = {w: v for w, v in read.items() if v is not None}
     return tm.model_copy(update={"sources": ids, "columns": columns, "value_maps": value_maps})
+
+
+# ---------------------------------------------------------------- by role: tables paired by the LLM (N27)
+# A shop of a format no example shares: its files are named otherwise (no stem in common) and its README does not
+# describe each column, so neither file names nor README meanings pair its tables with an example's. Each table of the
+# example plays a known part (one order per row, one order line per row, the product list, a lookup for a product's
+# name…); the LLM picks the new shop's table playing that part, seeing names, columns, a few values and row counts.
+# The columns are then matched as for a shop sharing the files, and the checks of meaning stop a wrong pairing.
+
+TABLE_GUIDE = """Bạn ghép bảng của hai bộ dữ liệu bán hàng. Bảng của cửa hàng mẫu đã biết vai trò; cửa hàng mới đặt \
+tên file, tên bảng và tên cột theo cách riêng. Với mỗi bảng của cửa hàng mẫu, chọn bảng của cửa hàng mới giữ cùng \
+vai trò, tức mỗi dòng là cùng một loại bản ghi (một đơn, một dòng hàng của đơn, một mặt hàng, một khách, một lần thu \
+tiền…), dựa vào tên bảng, tên cột, giá trị và số dòng. Cửa hàng mới không có bảng nào cùng vai trò thì chọn ""."""
+MAX_COLUMNS, SAMPLE_CHARS = 30, 30  # columns shown per table, characters shown per value
+
+
+STATUS_SHARE = 0.9  # share of a column's distinct values read as order statuses
+
+
+def _has_statuses(raw: RawBusiness, ids: list[str]) -> bool:
+    """Some column of these tables holds order status words: at least 90% of its distinct values read as a status."""
+    frames = [t.frame for t in raw.tables if t.table_id in ids]
+    for c in dict.fromkeys(str(c) for f in frames for c in f.columns):
+        values = {str(v).strip() for f in frames if c in f.columns for v in f[c].dropna().unique()[:100]} - {""}
+        if values and len(values) <= 20 and sum(read_word("orders", "status", v) is not None
+                                                for v in values) >= STATUS_SHARE * len(values):
+            return True
+    return False
+
+
+AMOUNT_MEDIAN_MIN = 1000  # đồng: line amounts of every train shop are thousands; quantities and counts are not
+
+
+def _has_amounts(raw: RawBusiness, ids: list[str]) -> bool:
+    """Some column of these tables holds money: at least 90% of its first values read as numbers, their median at
+    least 1 000 đồng."""
+    from datamate.loader.parse import parse_money
+    frames = [t.frame for t in raw.tables if t.table_id in ids]
+    for c in dict.fromkeys(str(c) for f in frames for c in f.columns):
+        values = [v for f in frames if c in f.columns for v in f[c].dropna().astype(str).head(100) if v.strip()]
+        nums = [n for n in map(parse_money, values) if n is not None]
+        if values and len(nums) >= 0.9 * len(values) and sorted(nums)[len(nums) // 2] >= AMOUNT_MEDIAN_MIN:
+            return True
+    return False
+
+
+def _quoted(values) -> str:
+    return ", ".join(f'"{str(v)[:SAMPLE_CHARS]}"' for v in values)
+
+
+def _role(e: Example, table_id: str) -> str:
+    """What an example table is for: the canonical tables it feeds and the lookups made in it."""
+    uses = [f"{tm.target} ({TABLES[tm.target].doc})" for tm in e.mapping.tables
+            if table_id in source_ids(tm, list(e.tables))]
+    uses += [f"tra cứu cho {tm.target}.{c.target}" for tm in e.mapping.tables for c in tm.columns
+             if c.transform == "lookup" and c.args.get("table") == table_id]
+    return "; ".join(dict.fromkeys(uses))
+
+
+def _read_columns(e: Example, table_id: str) -> list[str]:
+    """The columns of an example table its mapping reads (sources, lookup keys and values), in the table's order."""
+    read = set()
+    for tm in e.mapping.tables:
+        if table_id in source_ids(tm, list(e.tables)):
+            read.update(*(_reads(c) for c in tm.columns))
+        for c in tm.columns:
+            if c.transform == "lookup" and c.args.get("table") == table_id:
+                read.update({c.args["key"], c.args["value"]})
+    return [c for c in e.tables.get(table_id, ()) if c in read]
+
+
+def pair_tables_by_llm(e: Example, raw: RawBusiness, llm: LLMClient) -> dict[str, list[str]]:
+    """Example table id -> the new shop's tables playing its part, picked by the LLM; nothing when the example's
+    orders and lines would fall on one table (a different record grain: no guess)."""
+    groups = layout_groups(raw)
+    used = sorted(_used_tables(e))
+    if not groups or not used:
+        return {}
+    shown = []
+    for i, ids in enumerate(groups, 1):
+        frames = [t.frame for t in raw.tables if t.table_id in ids]
+        cols = list(dict.fromkeys(str(c) for f in frames for c in f.columns))[:MAX_COLUMNS]
+        more = f" và {len(ids) - 1} bảng cùng dạng" if len(ids) > 1 else ""
+        shown.append(f'b{i}: bảng "{ids[0]}"{more}, {sum(len(f) for f in frames)} dòng; cột: '
+                     + ", ".join(f'"{c}" ({_quoted(_samples(frames, c, 2))})' for c in cols))
+    asked = []
+    for i, t in enumerate(used, 1):
+        samples = e.samples.get(t, {})
+        asked.append(f't{i}: bảng mẫu "{t}" = {_role(e, t)}; cột: '
+                     + ", ".join(f'"{c}" ({_quoted(samples.get(c, [])[:2])})' for c in _read_columns(e, t)[:MAX_COLUMNS]))
+    user = "Bảng của cửa hàng mới:\n" + "\n".join(shown) + "\n\nBảng của cửa hàng mẫu cần ghép:\n" + "\n".join(asked)
+    labels = [f"b{i}" for i in range(1, len(groups) + 1)]
+    keys = [f"t{i}" for i in range(1, len(used) + 1)]
+    # an example table read for the order status takes only a table with status words, when the shop has one
+    # (05/11: a sales ledger paired with a delivery note of the same columns but no status)
+    with_status = [lab for lab, ids in zip(labels, groups) if _has_statuses(raw, ids)]
+    reads_status = {t for tm in e.mapping.tables if tm.target == "orders" for t in source_ids(tm, list(e.tables))
+                    if any(c.target == "status" and c.source and c.transform != "lookup" for c in tm.columns)}
+    # likewise the lines take a table with an amount column (05/11: a sale's lots per line, as many rows as the
+    # lines and the same order ids, but no money, taken for the lines)
+    with_amount = [lab for lab, ids in zip(labels, groups) if _has_amounts(raw, ids)]
+    reads_amount = {t for tm in e.mapping.tables if tm.target == "lines" for t in source_ids(tm, list(e.tables))
+                    if any(c.target == "line_amount" and c.source and c.transform is None for c in tm.columns)}
+
+    def offered(t: str) -> list[str]:
+        out = [lab for lab in labels if (t not in reads_status or not with_status or lab in with_status)
+               and (t not in reads_amount or not with_amount or lab in with_amount)]
+        return out or labels
+    schema = {"type": "object", "additionalProperties": False, "required": keys,
+              "properties": {k: {"enum": offered(t) + [""]} for k, t in zip(keys, used)}}
+    try:
+        answer = llm.generate_json([{"role": "system", "content": TABLE_GUIDE}, {"role": "user", "content": user}],
+                                   schema)
+    except Exception:
+        return {}
+    pairs = {t: groups[labels.index(answer[k])] for k, t in zip(keys, used) if answer.get(k) in labels}
+    core = {r: {i for tm in e.mapping.tables if tm.target == r for i in source_ids(tm, list(e.tables))}
+            for r in REQUIRED}
+    orders = {tuple(pairs[t]) for t in core["orders"] if t in pairs}
+    lines = {tuple(pairs[t]) for t in core["lines"] if t in pairs}
+    # an example's orders and lines on one sheet of the shop: only a flat sheet whose rows group into orders (public
+    # shop, 06/11: "hoá đơn và chi tiết gộp chung sheet BanHang, thông tin hoá đơn lặp lại"); otherwise no guess
+    if core["orders"] != core["lines"] and any(not _has_order_ids(raw, list(ids)) for ids in orders & lines):
+        return {}
+    return pairs
+
+
+def by_role(raw: RawBusiness, pool: list[Example] | None, llm: LLMClient) -> list[tuple[Example, dict[str, list[str]]]]:
+    """Examples whose orders and lines found a table, with their tables paired by the LLM: those reading the most of
+    the shop's tables first, then those pairing the largest share of their own (05/11: ranked by share alone, a
+    one-sheet ledger, all of its one table paired, came before the exports of many tables for a shop of 13 tables)."""
+    ranked = []
+    for e in examples() if pool is None else pool:
+        pairs = pair_tables_by_llm(e, raw, llm)
+        core = {i for tm in e.mapping.tables if tm.target in REQUIRED for i in source_ids(tm, list(e.tables))}
+        if core and core <= set(pairs):
+            read = len({tuple(ids) for ids in pairs.values()})
+            ranked.append((read, len(pairs) / len(_used_tables(e)), e.name, e, pairs))
+    return [(e, pairs) for *_, e, pairs in sorted(ranked, key=lambda r: (-r[0], -r[1], r[2]))]

@@ -94,6 +94,21 @@ def test_failing_llm_gives_no_plan():
     assert parse_question("doanh thu nhom nuoc ngot thang 6/2026", AS_OF, DataCard(), MockLLM([])) is None
 
 
+def test_the_trace_tells_why_no_plan_was_used():
+    """Public run9: 140 questions of the known shops had no plan and the logs did not say why (06/11)."""
+    q = "tong dthu thang 6 nam 2026 la bn"
+    trace: dict = {}
+    parse_question(q, AS_OF, DataCard(), MockLLM([{**REVENUE_JUNE, "measures": [{"metric": "order_count"}]}]), trace=trace)
+    assert trace["llm_raw"]["measures"] == [{"metric": "order_count"}] and trace["rejected"] == ["metric=order_count"]
+    trace = {}
+    parse_question(q, AS_OF, DataCard(), MockLLM([{**REVENUE_JUNE, "measures": [{"metric": "avg_order_value"}]}]),
+                   trace=trace)
+    assert trace["disagree_baseline"]["measures"] == [{"metric": "revenue"}]
+    trace = {}
+    parse_question(q, AS_OF, DataCard(), MockLLM([]), trace=trace)
+    assert trace["llm_error"] == "RuntimeError"
+
+
 def test_canonical_plan_ignores_case_and_diacritics_of_names():
     a = QueryPlan.model_validate(COCA)
     b = QueryPlan.model_validate(json.loads(json.dumps(COCA).replace("Coca Cola 330ml", "coca cola 330ML")))

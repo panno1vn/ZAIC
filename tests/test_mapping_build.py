@@ -104,7 +104,8 @@ def test_note_contains_with_default_regex_concat_negate_lookup_and_parsed_consta
 # ---------------------------------------------------------------- H17: checks of meaning
 def big_shop(n: int = 40) -> pd.DataFrame:
     return pd.DataFrame({"Ma": [f"O{i}" for i in range(n)], "Ngay": ["2025-06-01"] * (n - 1) + ["2025-06-30"],
-                         "TT": ["Xong"] * (n - 2) + ["Hủy", "Trả"], "Hang": ["Mì"] * n, "SL": ["2"] * n,
+                         "TT": ["Xong"] * (n - 2) + ["Hủy", "Trả"], "Hang": [f"Mì gói {i % 12}" for i in range(n)],
+                         "SL": ["2"] * n,
                          "Gia": ["5.000đ"] * n, "Tien": ["10.000đ"] * n})
 
 
@@ -143,3 +144,37 @@ def test_h17_a_left_out_file_shows_as_an_early_data_end():
 def test_h17_negative_amounts_outside_returns_are_caught():
     shop = big_shop().assign(Tien=["-10.000đ"] * 40, Gia=["-5.000đ"] * 40)
     assert not meaning(shop)["số âm chỉ ở đơn trả"]
+
+
+def test_products_of_the_lines_look_like_products():
+    """N27, train 05/11: every shop has 50-80 product keys and 100% of its names written with a space. An unfamiliar
+    shop matched a one-value column for the product key and a code column for the name: the check stops it."""
+    import pandas as pd
+
+    from datamate.contracts import CanonicalDB
+    from datamate.mapping.build import product_check
+    names = [f"Sản phẩm {i}" for i in range(30)]
+    ok = CanonicalDB(tables={"lines": pd.DataFrame({"product_key": [f"SP{i}" for i in range(30)], "product_name": names})})
+    assert product_check(ok)[0]
+    one = CanonicalDB(tables={"lines": pd.DataFrame({"product_key": ["1"] * 30, "product_name": names})})
+    assert not product_check(one)[0]
+    codes = CanonicalDB(tables={"lines": pd.DataFrame({"product_key": [f"K{i}" for i in range(30)],
+                                                       "product_name": [f"SP{i:04d}" for i in range(30)]})})
+    assert not product_check(codes)[0]
+    few = CanonicalDB(tables={"lines": pd.DataFrame({"product_key": ["1"] * 5, "product_name": ["A"] * 5})})
+    assert product_check(few)[0]  # too few lines to judge
+
+
+def test_fill_down_takes_the_cell_of_the_order_first_row_not_of_an_earlier_order():
+    """§8 "ô để trống ở các dòng sau của cùng một nhóm dòng: giống ô đó ở dòng đầu nhóm". The fill-down took the last
+    non-blank cell of any row above: an order whose first row has no note took an earlier order's "trả lại hàng"
+    (a public phone ledger, 06/11: 834 of 3 819 orders read as returned for 29 return notes)."""
+    import pandas as pd
+
+    from datamate.mapping.build import _fill_down
+    ids = pd.Series(["1", "", "2", "", ""])
+    notes = pd.Series(["trả lại hàng", "", "", "", ""])
+    customers = pd.Series(["An", "", "", "", "Bình"])  # order 2: walk-in on its first row
+    follow = ids.map(lambda v: v == "")
+    assert _fill_down(notes, follow).tolist() == ["trả lại hàng", "trả lại hàng", "", "", ""]
+    assert _fill_down(customers, follow).tolist() == ["An", "An", "", "", "Bình"]

@@ -405,3 +405,49 @@ Vì vậy, điểm tới từ ba thứ: **phủ đủ các mẫu câu bằng hà
 - Chạy llama-server với `-ngl` một phần (laptop 8 GB VRAM), cho K3 chạy qua đêm.
 - Nếu hơn 8B rõ rệt (≥ 3 điểm plan đúng) thì dùng 14B cho Docker; trên RTX 5090 32 GB chạy được bản Q8.
 - Tổng tham số vẫn ≤ 15B nếu chỉ dùng một model.
+
+## 11. Kế hoạch 05–16/11 trong lúc chờ BTC, có Kaggle (viết cuối phiên 4)
+
+*Bối cảnh: train 2433 đúng / 0 sai (PA +0,811); public lượt 1 được 0,316. N22: chỉ dùng train cho tới khi BTC trả lời. Chi tiết số đo ở [BAN_GIAO_PHIEN_4.md](BAN_GIAO_PHIEN_4.md).*
+
+### Chia máy
+| Máy | Dùng cho | Không dùng cho |
+|---|---|---|
+| Laptop (RTX 4060 8 GB, 4G) | Viết code, test, `eval.mapping` với Qwen3-8B, chạy public | Tải hay đẩy file lớn |
+| **Kaggle GPU T4 x2** (miễn phí, ~30 giờ/tuần, phiên tối đa 12 giờ) | Thử Qwen3-14B so với 8B, dựng lại kho đã kiểm chứng, N4 (chạy lại và so giữa hai loại card) | Docker (notebook không có Docker); T4 không phải Blackwell |
+| Kaggle TPU v5e-8 | Không dùng: llama.cpp không chạy trên TPU | |
+| **Thuê RTX 5090 dạng VM** (Vast.ai VM ~$0,5/giờ, hoặc EzyCloudX từ 19.000đ/giờ) | Chỉ buổi build và chạy thử Docker, upload Google Drive (~6–8 giờ) | Container (RunPod pod, Vast instance thường): không chạy Docker bên trong |
+
+Dữ liệu trên Kaggle: chỉ **train**, để dạng Dataset **riêng tư**, xoá sau khi xong (thể lệ cấm công khai dữ liệu). Không đưa public hay private test lên Kaggle khi BTC chưa trả lời câu hỏi về dịch vụ ngoài.
+
+### Lịch
+| Ngày | Trưởng nhóm | Claude (trên train) | Kaggle / GPU thuê | Xong khi |
+|---|---|---|---|---|
+| **05/11** | Nộp 5 lượt (BAN_GIAO_PHIEN_4); commit; xác minh số điện thoại Kaggle | Sửa plan sai schema (tự sửa các lỗi hay gặp); viết notebook Kaggle K1 và gói code | | Có 5 điểm nộp; schema sửa xong có test; notebook chạy thử được |
+| 06/11 | Tạo Dataset riêng tư trên Kaggle: `data/train` nén (~190 MB) và gói code | Sửa theo kết quả chẩn đoán (nhóm sai nhiều nhất); hàm còn thiếu: công nợ, tồn kho, số lượng theo đơn vị; tối viết Dockerfile, `predict.sh` | **K1:** K3 (123 plan tay) với 8B và 14B; 14B đọc 3000 câu train (2 card, 2 server song song) | Biết 14B hơn 8B bao nhiêu điểm plan đúng; train vẫn 0 sai |
+| 07/11 | | N27 mapping tổng quát: từ điển tên cột, cộng LLM dựng mapping, đo leave-one-out trên biz_123 / 124 | **K2:** dựng lại kho đã kiểm chứng (`build_bank`) bằng model đã chọn | Kho mới có các plan của N30 |
+| 08/11 | | N27 (tiếp); chạy public trên laptop, nộp 1 lượt thật | | N27 map được ≥ 1 trong 2 cửa hàng, 0 sai |
+| 09/11 | Hỏi lại BTC (N22, Docker guideline) | Unanswerable nhóm B; N31 (thẻ dữ liệu trong prompt); review toàn bộ | **K3:** N4, chạy train 2 lần trên T4 và so với kết quả laptop | Lệch giữa hai loại card ≤ 0,01 PA |
+| 10–11/11 | Chọn nhà thuê GPU, nạp tiền | Hoàn thiện Docker: chép `assets/`, model, `--network none`, `/data:ro`; README và tài liệu phương pháp | | Dockerfile và script soát xong, chạy thử `predict.sh` ngoài Docker trên laptop (không build trên laptop: base image CUDA nặng vài GB, mạng 4G) |
+| **12/11** | Thuê RTX 5090 VM 6–8 giờ | Hỗ trợ trực tiếp | **Buổi GPU:** build image, chạy public trong container không mạng, đo thời gian, `docker save`, upload Google Drive bằng rclone | Container ra file hợp lệ, cùng điểm với laptop, dưới 6 giờ |
+| 13/11 | | Khoá tính năng; rà luật thi (không id, giấy phép, không mạng) | Dự phòng | Checklist luật thi đạt |
+| **14/11** | Nộp Docker lần 1 (link Drive + checksum, form) | | | Đã nộp; tải lại đúng file và kiểm checksum |
+| 15–16/11 | Lần 2 chỉ nộp nếu tốt hơn rõ **và** đã chạy thử trên 5090 | Chỉ sửa lỗi an toàn (bỏ trống thêm) | Thuê lại 5090 nếu nộp lần 2 | Đóng băng 23:59 ngày 16/11 |
+
+### Ngân sách
+- Kaggle: 0đ, dùng khoảng 10–15 giờ GPU (K1–K3), trong hạn mức 30 giờ/tuần.
+- GPU thuê: 6–8 giờ, khoảng $3–4 (Vast.ai VM) hoặc ~150.000đ (EzyCloudX). Nếu nộp lần 2 thì gấp đôi.
+- Chạy private (20–23/11): nếu chốt 8B thì chạy trên laptop. Nếu chốt 14B thì cần GPU (thuê thêm 4–6 giờ, hoặc Kaggle nếu BTC cho phép đưa dữ liệu thi lên dịch vụ ngoài).
+
+### Khi bị chậm thì bỏ gì (theo thứ tự)
+1. Unanswerable nhóm B, N31.
+2. N27 phần LLM dựng mapping (giữ phần từ điển tên cột).
+3. Qwen3-14B: giữ 8B nếu K1 không hơn rõ (≥ 3 điểm plan đúng).
+
+**Không bỏ:** 0 câu sai trên train, buổi chạy thử Docker trên 5090, nộp Docker ngày 14/11.
+
+### Phương án dự phòng nếu bị kẹt ở phần LLM đọc câu (ghi 06/11, chưa làm)
+K1 cho thấy kích thước model hiện chưa phải điểm nghẽn (14B hoà 8B trên train), nên chỉ thử khi phần đọc câu thành chỗ mất điểm chính.
+- **Chưng cất (hợp lệ theo luật dữ liệu tổng hợp):** model lớn (Qwen3-32B / 235B, Apache 2.0) sinh plan cho câu train và cửa hàng tự dựng lúc phát triển, fine-tune (LoRA) Qwen3-8B hoặc 14B trên đó. Lúc dự đoán chỉ chạy model ≤ 15B; image không chứa model thầy; nộp kèm code huấn luyện; không gán gì cho câu public/private. Rủi ro: model sau fine-tune sai theo kiểu mới mà cổng chưa thấy (bài học K1), nên phải đọc lại 3000 câu train và đo lại trước khi dùng.
+- **Cắt tỉa model > 15B xuống < 15B:** vùng xám ("weights public before 01/10/2026", "MoE counted fully"); chỉ làm khi BTC trả lời bằng văn bản là được. Model bị cắt thường cần huấn luyện lại nhiều mới giữ được chất lượng, vượt sức máy hiện có.
+- Cách dùng model lớn an toàn hơn, làm được ngay: đọc lại train để tìm lỗ hổng cổng (như K1), sinh câu mẫu cho ngành mới (H7 S2).

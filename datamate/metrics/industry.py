@@ -39,3 +39,37 @@ def delivery_count(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
 
 metric("value", "delivery_count", requires=("deliveries.delivery_time",), rules=tuple(sorted(R_DELIVERIES)))(
     delivery_count)
+
+
+def orders_by_batches(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
+    """"Đơn đặt tháng 6/2025, tới hôm nay có mấy đơn đã giao từ 2 đợt trở lên" (public 06/11, 3 questions): the orders
+    placed in the period (by order day, §1) with at least / more than N batches delivered by the end of today (§6
+    "giao nhiều đợt: tính đến hết hôm nay"); a batch of an order later returned counts ("đợt đã chở vẫn tính"). An
+    order of the period with no status, or a cancelled one with a batch: no rule, None."""
+    t = plan.plan.threshold
+    if t is None or t.entity != "order" or t.op not in ("gte", "gt") or plan.period is None \
+            or any(m.filters for m in plan.plan.measures):
+        return None
+    d, o = db.table("deliveries"), db.table("orders")
+    if d is None or o is None or d["delivery_time"].isna().any() or o["order_time"].isna().any():
+        return None
+    day = o["order_time"].dt.date
+    placed = o[(day >= plan.period.start) & (day <= plan.period.end)]
+    if placed["status"].isna().any():
+        return None
+    upto = d[d["delivery_time"].dt.date <= plan.as_of]
+    batch = "batch_no" if "batch_no" in upto.columns and upto["batch_no"].notna().all() else None
+    upto = upto.assign(_b=upto[batch] if batch else upto["delivery_time"].dt.date)
+    per = upto.groupby("order_id")["_b"].nunique()
+    cancelled = placed.loc[placed["status"].eq("cancelled"), "order_id"]
+    if cancelled.isin(per.index).any():
+        return None
+    counts = placed["order_id"].map(per).fillna(0)
+    hits = int((counts >= t.value).sum() if t.op == "gte" else (counts > t.value).sum())
+    return ExecResult(value=hits, answer_type=expected_answer_type(plan.plan), source="D1",
+                      function="industry.orders_by_batches", rule_ids=sorted(R_DELIVERIES + ("§1.don_thuoc_ky_nao",)),
+                      requires=["deliveries.delivery_time", "deliveries.order_id", "orders.order_time"])
+
+
+metric("count_where", "delivery_count", entity="order", requires=("deliveries.delivery_time",),
+       rules=tuple(sorted(R_DELIVERIES + ("§1.don_thuoc_ky_nao",))))(orders_by_batches)

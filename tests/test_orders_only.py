@@ -62,3 +62,22 @@ def test_revenue_and_counts_come_from_the_goods_amount_and_product_figures_absta
     assert _run(db, {"intent": "rank", "period": month, "rank": {"entity": "day", "by": "revenue"}}).value == "2026-06-01"
     assert _run(db, {"intent": "rank", "period": month, "rank": {"entity": "product", "by": "quantity"}}) is None
     assert _run(db, {"intent": "value", "measures": [{"metric": "quantity"}], "period": month}) is None
+
+
+def test_an_order_written_twice_alike_is_one_order():
+    """§8 "hai dòng của cùng một đơn giống nhau ở mọi ô: lỗi xuất file, tính một lần" (public dev_009, 06/11: 308 of
+    22 798 invoices written twice, every cell alike): the shop is mapped and the order counted once. Two rows of one id
+    that differ are still no orders-only table."""
+    shop = invoices()
+    f = shop.tables[0].frame
+    shop.tables[0].frame = pd.concat([f, f.iloc[[3, 7]]], ignore_index=True)
+    m, why = map_from_readme(shop)
+    assert m is not None, why
+    db = build_canonical(shop, m)
+    assert len(db.tables["orders"]) == 30
+    differs = invoices()
+    g = differs.tables[0].frame
+    extra = g.iloc[[3]].copy()
+    extra["TongTien"] = "99,000"
+    differs.tables[0].frame = pd.concat([g, extra], ignore_index=True)
+    assert map_from_readme(differs)[0] is None

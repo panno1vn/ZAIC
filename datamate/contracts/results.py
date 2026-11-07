@@ -36,6 +36,8 @@ class Signals(BaseModel):
     terms_known: bool | None = None  # no rulebook term without a train version the function does not implement
     ranking_clear: bool | None = None  # False: equal values where the answer depends on the tie rule (N25)
     outside_data: bool | None = None  # True: the asked or compared period lies wholly outside the shop's data (§7)
+    subjective: bool | None = None  # N37: read out of scope and no time in the question: data never record it (§7)
+    not_recorded: bool | None = None  # N38: the question needs data the README says the shop does not record (§7)
     notes: list[str] = []
 
 

@@ -1,0 +1,10 @@
+# docker build context: only what the image needs (docker/Dockerfile)
+*
+!requirements.txt
+!datamate/
+!assets/
+!configs/
+!docker/
+!tools/
+**/__pycache__
+**/*.pyc

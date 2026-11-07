@@ -39,6 +39,7 @@ Metric = Literal[
     # theo ngành (§6): vật liệu xây dựng, mẹ và bé, sửa xe, điện thoại
     "delivery_count", "voucher_discount", "points_discount", "shipping_fee_total",
     "ticket_count", "avg_ticket_value", "vehicle_count", "warranty_count", "warranty_rate", "trade_in_amount",
+    "commission",  # hoa hồng nhân viên, thợ theo phần trăm của danh sách nhân viên (README)
     "other",
 ]
 PERCENT_METRICS = frozenset({"cancel_rate", "warranty_rate"})
@@ -73,7 +74,7 @@ CompareKind = Literal[
 ]
 Intent = Literal["value", "compare", "share", "rank", "count_where", "trend", "series", "list_items", "out_of_scope"]
 RankEntity = Literal[
-    "product", "product_group", "product_line", "brand", "customer", "employee", "supplier", "vehicle",
+    "product", "product_group", "product_line", "brand", "customer", "employee", "supplier", "vehicle", "vehicle_model",
     "day", "month", "hour", "weekday", "lot",
 ]
 ListCondition = Literal[
@@ -319,3 +320,4 @@ class ResolvedPlan(_Model):
     series: list[ResolvedPeriod] = []
     linked: dict[str, str] = {}  # value as written in the question -> value found in the data
     link_scores: dict[str, float] = {}
+    omitted: list[str] = []  # N36: "field=name" of a shop's name the question writes and the plan has no filter for

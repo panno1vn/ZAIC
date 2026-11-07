@@ -102,6 +102,10 @@ def test_quantity_counts_products_whose_base_unit_is_the_unit_asked():
     assert value("quantity", [{"field": "product", "value": "bia"}], unit="lon", linked={"bia": "SP3"}) == 26
     # a product asked in a unit that is not its base unit: no rule, no answer
     assert value("quantity", [{"field": "product", "value": "bia"}], unit="thùng", linked={"bia": "SP3"}) is None
+    # N34: a unit the shop never writes ("ly ta": "ta" a particle read as a unit) is no unit of this shop: no answer,
+    # not 0 (train 05/11, [214, 0] for "mấy ly ... tính theo ly ta"); a unit it writes but did not sell is 0
+    assert value("quantity", unit="ly ta") is None
+    assert value("quantity", unit="cái", period=ResolvedPeriod(start=date(2026, 4, 1), end=date(2026, 4, 30))) == 0
 
 
 def test_shift_by_order_hour():
@@ -332,3 +336,35 @@ def test_an_order_status_filter_on_a_cancel_metric_is_dropped():
                                                    "filters": [{"field": "order_status", "value": "cancelled"}]}]})
     kept = accept_plan("trong tháng 3/2026, tỉ lệ đơn huỷ là nhiêu %", plan, date(2026, 5, 1))
     assert kept is not None and kept.measures[0].filters == []
+
+
+def test_a_walk_in_spelling_never_met_is_known_by_its_share_of_orders():
+    """N33: walk-ins are 39-41% of the orders of every train shop that records customers, the most frequent real
+    customer 0.6% at most (05/11). A spelling of "khách lẻ" no train file used would otherwise be the best customer
+    by orders and by revenue, and one customer too many in every count."""
+    keys = ["Khách hàng lẻ"] * 40 + [f"KH{i:02d}" for i in range(50) for _ in range(1)] + ["KH01"] * 4 + ["KH02"] * 6
+    db = CanonicalDB(tables={"orders": pd.DataFrame({"customer_key": keys})})
+    blank_walk_ins(db)
+    o = db.tables["orders"]["customer_key"]
+    assert o.isna().sum() == 40 and o.notna().sum() == 60
+    assert "Khách hàng lẻ" in " ".join(db.warnings)
+    # a shop of real customers, one buying often: nobody is taken for a walk-in
+    few = ["KH1"] * 6 + ["KH2"] * 5 + ["KH3"] * 5 + ["KH4"] * 4
+    db = CanonicalDB(tables={"orders": pd.DataFrame({"customer_key": few})})
+    blank_walk_ins(db)
+    assert db.tables["orders"]["customer_key"].notna().all()
+
+
+def test_a_shop_without_base_quantities_gives_no_quantity_rather_than_an_error():
+    """05/11: a mapping without lines.base_qty (an unfamiliar shop) made quantity and ranking raise KeyError."""
+    db = shop()
+    db.tables["lines"] = db.tables["lines"].drop(columns=["base_qty"])
+    plan = ResolvedPlan(plan=QueryPlan.model_validate({"intent": "value", "measures": [{"metric": "quantity"}],
+                                                       "period": {"kind": "this_month"}}),
+                        as_of=date(2026, 6, 30), period=JUNE)
+    assert metrics.execute(plan, db) is None
+    top = ResolvedPlan(plan=QueryPlan.model_validate({"intent": "rank", "measures": [{"metric": "quantity"}],
+                                                      "period": {"kind": "this_month"},
+                                                      "rank": {"entity": "product", "by": "quantity", "k": 1}}),
+                       as_of=date(2026, 6, 30), period=JUNE)
+    assert metrics.execute(top, db) is None

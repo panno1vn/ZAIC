@@ -1,5 +1,7 @@
 # Bàn giao phiên 4 → phiên 5
 
+> **Đã có bàn giao mới hơn: [BAN_GIAO_PHIEN_6.md](BAN_GIAO_PHIEN_6.md)** (đêm 05→06/11: train 2651/0, PA +0,884; public run6).
+
 *Viết tối 04/11/2026 (ngày hệ thống). Đóng băng 16/11 23:59. Phiên 4 làm tiếp từ [BAN_GIAO_PHIEN_3.md](BAN_GIAO_PHIEN_3.md); các mục luật, lệnh và câu hỏi BTC ở file đó vẫn giữ nguyên.*
 
 ## Bắt đầu phiên mới thế nào
@@ -36,6 +38,31 @@ Các lượt public đã chạy, chưa nộp (đều qua `eval.validate`):
 | `tools/replay_run.py` | chạy lại một lượt từ log, không LLM, chỉ in số đếm (N22) | khớp 1000/1000 với lượt 1; dựng file nộp trong khoảng 1 phút |
 | Đo §7 "kỳ phủ một phần" | train không câu nào bỏ trống chỉ vì lý do này | không sửa |
 
+## Phiên 5 (sáng 05/11, Claude tự làm khi trưởng nhóm vắng)
+- **N32, tự sửa plan sai schema** ở 3 dạng đã gặp trên train (HAN_CHE mục M): thêm 6 câu train có plan. Train `eval.mapping --llm-url`: **2439 đúng / 0 sai / 561 bỏ trống, PA +0,813** (log `outputs/eval_mapping_s5a.log`). 348 test qua.
+- **Public run4** (`outputs/public_run4/`, code có N32): **394 câu trả lời**, qua `eval.validate`. So với run3: giữ nguyên 998 dòng, **+2 câu** mới (không mất câu nào). **Dùng run4 làm lượt nộp thật số 4.**
+- Còn bỏ trống trên train (`python tools/train_blanks.py`, không LLM): hàm không ra kết quả nhiều nhất ở `value:revenue` 62, `stock_qty` 29, `share:revenue` 29, `quantity` 24, `debt_paid` 18, `compare:quantity` 13, `rank:quantity` 12, `debt_added` 12, `debt_total` 10. Công nợ phụ thuộc cách từng cửa hàng ghi tiền thu nợ (sổ thu riêng hay ghi trên đơn), cần dò theo định dạng.
+- **Kaggle K1 sẵn sàng** (chưa chạy trên Kaggle):
+  1. Đã đóng gói: `outputs/kaggle/zaic_code.zip` (0,5 MB) và `outputs/kaggle/zaic_train.zip` (128 MB). Nếu sửa code sau đó thì đóng gói lại: `python tools/kaggle_pack.py`.
+  2. Kaggle → Datasets → New Dataset, chế độ **Private**: tải lên 2 file zip, đặt tên ví dụ `zaic-k1`.
+  3. Kaggle → Code → New Notebook → File → Import Notebook: chọn `kaggle/k1_qwen14b.ipynb`. Settings: **Accelerator = GPU T4 x2**, **Internet = On** (cần xác minh số điện thoại). Add Input: dataset `zaic-k1`.
+  4. **Save Version → Save & Run All.** Dự kiến 3–4 giờ: build llama.cpp, tải 8B và 14B, K3, 14B đọc 3000 câu, chấm.
+  5. Xong thì tải `k1_results.zip` ở tab Output, đặt vào `outputs/kaggle/` rồi báo Claude. Dòng cần xem trong `outputs/kaggle_k1/steps.log`: K3 của 8B và 14B, "eval.mapping với plan 14B: …", và "ghép cột theo nghĩa phải gọi LLM mới: 0 lần".
+  6. Xong việc thì xoá Dataset (dữ liệu thi).
+- **Docker bản nháp:** `docker/Dockerfile`, `docker/predict.sh`, `.dockerignore`. Cách build và chạy thử trong buổi GPU: `docker/README.md`.
+
+## Kết quả nộp 05/11 (chi tiết: HAN_CHE N24)
+- Lượt 1–4: tắt cổng câu anh em **0,336**, bỏ xếp hạng **0,276**, bỏ cửa hàng ghép theo nghĩa **0,175**, **run4 0,342**.
+- Suy ra:
+  - 28 câu cổng câu anh em chặn: 24 đúng / 4 sai → **đã tắt cổng** (`configs/default.json` `twin_threshold: null`);
+  - xếp hạng: 7/54 sai; đếm: 6/47 sai;
+  - cửa hàng ghép theo nghĩa: 14/169 sai; các cửa hàng còn lại: 13/201 sai.
+- **Lượt 5: `outputs/public_run4_twin_off/submission.jsonl`** (run4 + 38 câu cổng chặn, 432 câu trả lời, đã qua `eval.validate`). Ước đoán, nếu tỉ lệ đúng giống 28 câu của lượt 1: khoảng 0,365.
+- Việc tiếp theo, theo thứ tự đòn bẩy:
+  1. **N27** mapping cho định dạng mọi đường đều trượt: 6/14 cửa hàng public, 360 câu.
+  2. Câu xếp hạng / đếm liên quan tới khách (13% sai).
+  3. Hàm còn thiếu (công nợ, tồn kho, số lượng).
+
 ## Nộp ngày 05/11 (5 lượt), theo thứ tự
 Công thức cho mỗi lượt chẩn đoán: số sai của nhóm bị bỏ trống = (số câu − (0,316 − điểm) × 1000) / 2.
 
@@ -44,8 +71,8 @@ Công thức cho mỗi lượt chẩn đoán: số sai của nhóm bị bỏ tr�
 | 1 | `outputs/public_ablation/tat_cong_cau_anh_em.jsonl` | trả lời thêm 28 câu cổng câu anh em chặn | điểm > 0,316 thì tắt cổng (N16) |
 | 2 | `outputs/public_ablation/bo_xep_hang.jsonl` | bỏ trống 54 câu `sales.rank` | số sai của xếp hạng; 13 − số đó là của `count_where` |
 | 3 | `outputs/public_ablation/bo_map_theo_nghia.jsonl` | bỏ trống 169 câu của 4 cửa hàng map theo nghĩa | số sai của đường theo nghĩa |
-| 4 | `outputs/public_run3/submission.jsonl` | lượt thật bằng code phiên 4: −3 câu hoà hạng, −4 câu đổi plan, +29 câu mới | điểm − 0,316 = hiệu (đúng − sai)/1000 của phần thay đổi |
-| 5 | để dành | | nếu lượt 1 dương (nên tắt cổng): `python tools/replay_run.py outputs/public_run3 --out outputs/public_run3_twin_off --twin-threshold -1`, kiểm `eval.validate` rồi nộp. Nếu không: nộp `outputs/public_run2/submission.jsonl` để tách riêng tác dụng cổng hoà hạng (run2 = lượt 1 trừ đúng 3 câu hoà) |
+| 4 | **`outputs/public_run4/submission.jsonl`** | lượt thật bằng code mới nhất (phiên 4 + N32): −3 câu hoà hạng, −4 câu đổi plan, +31 câu mới so với lượt 1 | điểm − 0,316 = hiệu (đúng − sai)/1000 của phần thay đổi |
+| 5 | để dành | | nếu lượt 1 dương (nên tắt cổng): `python tools/replay_run.py outputs/public_run4 --out outputs/public_run4_twin_off --twin-threshold -1`, kiểm `eval.validate` rồi nộp. Nếu không: nộp `outputs/public_run2/submission.jsonl` để tách riêng tác dụng cổng hoà hạng (run2 = lượt 1 trừ đúng 3 câu hoà) |
 
 Ghi mọi điểm vào HAN_CHE N24 và TIEN_DO.
 
@@ -55,6 +82,8 @@ Ghi mọi điểm vào HAN_CHE N24 và TIEN_DO.
 - **Cổng câu anh em chặn oan** (lượt 1 dương): đổi `twin_threshold` trong `configs/default.json` thành -1 hoặc bỏ hẳn cổng, đo lại train.
 
 ## Việc tiếp theo (sau khi đọc kết quả)
+**Lịch đầy đủ 05–16/11, gồm phần dùng Kaggle T4 x2 và buổi thuê RTX 5090: [KE_HOACH_DataMate.md mục 11](KE_HOACH_DataMate.md).**
+
 1. **N27, định dạng mọi đường đều trượt** (biz_123 sqlite POS, biz_124 3 nguồn; 236 câu train). Hướng: từ điển tên cột (tách CamelCase / gạch dưới, bỏ dấu) → cột chuẩn, rút từ mapping của 30 cửa hàng train, đo leave-one-out.
 2. Còn khoảng 60 câu train không đọc được câu (plan; 4/25 câu dò là plan sai schema), và khoảng 180 câu "hàm không ra kết quả" ngoài nhóm N29: công nợ (`debt_paid` 19, `debt_added` 12, `debt_total` 10), tồn kho (`stock_qty` 29), số lượng (`quantity` 24 + 13 so sánh + 12 xếp hạng). Phân loại lại bằng `python tools/train_blanks.py` (không cần LLM).
 2b. Dựng lại kho đã kiểm chứng (`eval.build_bank`) để các plan mới của N30 có câu anh em, đỡ bị cổng câu anh em chặn (public run3: 38 câu). Lưu ý: kho đổi thì ví dụ trong prompt đổi, phải chạy lại public.

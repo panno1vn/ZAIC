@@ -272,6 +272,7 @@
             "warranty_count",
             "warranty_rate",
             "trade_in_amount",
+            "commission",
             "other"
           ],
           "title": "Metric",
@@ -512,6 +513,7 @@
             "employee",
             "supplier",
             "vehicle",
+            "vehicle_model",
             "day",
             "month",
             "hour",
@@ -564,6 +566,7 @@
             "warranty_count",
             "warranty_rate",
             "trade_in_amount",
+            "commission",
             "other"
           ],
           "title": "By",
@@ -675,6 +678,7 @@
             "warranty_count",
             "warranty_rate",
             "trade_in_amount",
+            "commission",
             "other"
           ],
           "title": "Metric",

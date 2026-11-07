@@ -17,3 +17,6 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
+
+# model weights (downloaded on the GPU machine, never committed)
+*.gguf

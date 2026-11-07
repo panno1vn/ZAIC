@@ -27,7 +27,7 @@ REQUIRED_CHECKS = ("có orders và lines (hoặc tiền hàng của đơn)", "b�
                    "dòng hàng thuộc đơn có thật", "cột bắt buộc đủ giá trị",
                    # H17, checks of meaning; thresholds measured on the 8 hand mappings of 05/11 (docs/HAN_CHE §E)
                    "thành tiền khớp số lượng × đơn giá", "trạng thái hợp lý", "ngày cuối khớp README",
-                   "số âm chỉ ở đơn trả", "tiền hàng của đơn khớp tổng dòng")
+                   "số âm chỉ ở đơn trả", "tiền hàng của đơn khớp tổng dòng", "mã hàng và tên hàng hợp lý")
 AMOUNT_MATCH_MIN = 0.95  # share of lines with amount ≈ qty × price − discount; 0.980–1.000 on correct mappings
 SOLD_SHARE_MIN = 0.5  # share of orders completed or delivering; 0.95–0.98 on correct mappings
 NEGATIVE_MAX = 0.001  # share of lines with a negative amount or qty outside returned orders; 0 on correct mappings
@@ -57,9 +57,15 @@ def _text(v):
 
 
 def _fill_down(col: pd.Series, follow: pd.Series) -> pd.Series:
-    """Blank cells of continuation rows take the value of the order's first row."""
+    """Blank cells of continuation rows take the value of the order's first row, blank or not (06/11: a plain ffill
+    took the last non-blank cell of any row above, an earlier order's note or customer)."""
     blank = col.map(_blank)
-    filled = col.where(~blank, None).ffill()
+    start = ~follow
+    segment = start.cumsum()
+    first = pd.Series(col[start].values, index=segment[start].values)
+    first = first[~first.index.duplicated()]
+    filled = segment.map(first)
+    filled[segment == 0] = None  # continuation rows before any first row: no order to take from
     return col.where(~(follow & blank), filled)
 
 
@@ -113,9 +119,15 @@ def _transform(values: pd.Series, cm: ColumnMap, frame: pd.DataFrame, raw_frames
         if src is None or a["key"] not in src.columns or a["value"] not in src.columns:
             warnings.append(f"{target}.{cm.target}: lookup không thấy bảng / cột {a}")
             return pd.Series([None] * len(values), index=values.index)
-        table = {k: v for k, v in zip(src[a["key"]], src[a["value"]]) if not _blank(k)}
-        keep = a.get("keep_missing", True)
-        return values.map(lambda v: table.get(v, v if keep else None) if v is not None else None)
+        keep, fold = a.get("keep_missing", True), (_fold if a.get("fold") else (lambda x: x))
+        # "fold": keys compared however written (§8 "tên gọi, nhãn": case, diacritics, doubled spaces; a public
+        # ledger's "IP16 128 hong" for the abbreviation "IP16 128 hồng", 06/11)
+        table = {fold(k) if isinstance(k, str) else k: v for k, v in zip(src[a["key"]], src[a["value"]])
+                 if not _blank(k)}
+        return values.map(lambda v: table.get(fold(v) if isinstance(v, str) else v, v if keep else None)
+                          if v is not None else None)
+    if t == "status_from_note":
+        return values.map(_note_status)  # an order's rows are read together in _build_table
     if t == "concat":
         cols = [c for c in cm.sources if c in frame.columns]
         return frame[cols].apply(lambda r: a["sep"].join(x for x in map(_text, r) if x) or None, axis=1)
@@ -144,6 +156,33 @@ def _column(frame: pd.DataFrame, cm: ColumnMap, raw_frames: dict[str, pd.DataFra
     if cm.transform == "negate":
         values = values.map(lambda v: -v if isinstance(v, (int, float)) and not isinstance(v, bool) else v)
     return values
+
+
+def _note_status(note) -> str | None:
+    """N40, public rulebook §8: the status a ledger's note names ("khách trả lại", "đơn huỷ", "đang giao"), read by
+    the key words of the status words (transfer.STATUS_WORDS); None when it names none (blank, "xe để lại qua đêm");
+    "?" when it names two."""
+    from .transfer import STATUS_WORDS
+    if not isinstance(note, str) or not note.strip():
+        return None
+    folded = _fold(note)
+    hits = {code for code, rx in STATUS_WORDS.items() if re.search(rx, folded)}
+    return (hits.pop() if len(hits) == 1 else "?") if hits else None
+
+
+def _status_from_note(note) -> str | None:
+    """The status of an order with one note: the one it names, else completed (§8 "ghi chú không nhắc trạng thái là
+    đơn hoàn thành"); None when it names two (unclear: the status check fails)."""
+    return _status_from_notes(pd.Series([_note_status(note)]))
+
+
+def _status_from_notes(named: pd.Series) -> str | None:
+    """An order's status from the statuses its rows' notes name: the notes naming nothing do not count (its voucher or
+    shipping rows have none, public 06/11); none named: completed; two different, or a note naming two: None."""
+    s = set(named.dropna())
+    if "?" in s or len(s) > 1:
+        return None
+    return s.pop() if s else "completed"
 
 
 def _status_from_lines(statuses: pd.Series) -> str | None:
@@ -191,22 +230,46 @@ def _build_table(tm: TableMap, mapping: Mapping, warnings: list[str], raw_frames
             elif c.dtype in ("float", "int"):
                 out[c.name] = pd.to_numeric(out[c.name], errors="coerce")
     if tm.target == "orders" and "order_id" in out.columns:
-        for col in [cm.target for cm in tm.columns if cm.transform == "order_status_from_lines"]:
-            out[col] = out.groupby("order_id", sort=False)[col].transform(_status_from_lines)
+        for cm in tm.columns:
+            if cm.transform in ("order_status_from_lines", "status_from_note"):
+                how = _status_from_lines if cm.transform == "order_status_from_lines" else _status_from_notes
+                out[cm.target] = out.groupby("order_id", sort=False)[cm.target].transform(how)
         if "order_time" in out.columns:  # a return line carries the return date: the order date is its earliest row
             out["order_time"] = out.groupby("order_id", sort=False)["order_time"].transform("min")
         out = out.drop_duplicates(subset="order_id", keep="first")  # §8: order fields are those of its first row
     return out.reset_index(drop=True)
 
 
+_CONVENTIONS = re.compile(r"^##\s*Quy ước\s*$", re.M)
+_TOPIC = re.compile(r"^\s*[-*]\s*\*\*([^*]+)\*\*\s*:", re.M)
+
+
+def readme_conventions(readme: str) -> tuple[str, ...] | None:
+    """N38: the topics the README's "## Quy ước" section names in bold ("**Nhập hàng**: …" -> "nhap hang"), folded;
+    None when the README has no such section (then nothing is known to be missing). Every train README has one."""
+    m = _CONVENTIONS.search(readme)
+    if m is None:
+        return None
+    section = re.split(r"^##\s", readme[m.end():], maxsplit=1, flags=re.M)[0]
+    return tuple(dict.fromkeys(_fold(t).strip() for t in _TOPIC.findall(section)))
+
+
 def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
-    db = CanonicalDB(industry=mapping.industry, warnings=list(raw.warnings))
+    db = CanonicalDB(industry=mapping.industry, warnings=list(raw.warnings), conventions=readme_conventions(raw.readme))
     raw_frames = prepare_raw(raw, mapping)
     for tm in mapping.tables:
         db.tables[tm.target] = _build_table(tm, mapping, db.warnings, raw_frames)
+    sane_base_units(db)
     unify_keys(db)
+    order_level_lines(db)
+    full_employee_names(db)
+    phone_lines(db)
     mark_fee_lines(db)
+    readme_conversions(db, raw.readme)
+    catalogue_conversions(db, raw, mapping)
     derive_base_qty(db)
+    from .side_books import side_books  # late import: the side books read with this module's helpers
+    side_books(db, raw, mapping)
     blank_walk_ins(db)
     for table, col in DATE_COLUMNS.items():
         df = db.table(table)
@@ -215,6 +278,111 @@ def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
             if len(values):
                 db.date_ranges[table] = (values.min().date(), values.max().date())
     return db
+
+
+# N41, a public mother-and-baby ledger (06/11): rows after an order's lines that are amounts of the order, not lines.
+# §1: an order's revenue is its item lines, not less a voucher, without shipping; §6 asks them as positive numbers.
+ORDER_LEVEL = ((re.compile(r"^voucher\b"), "voucher_discount"), (re.compile(r"^dung \d+ diem\b"), "points_discount"),
+               (re.compile(r"^(?:phi ship|phi giao hang|phi van chuyen)\b"), "shipping_fee"))
+
+
+def order_level_lines(db: CanonicalDB) -> None:
+    """Rows of the lines named "Voucher", "Dùng <n> điểm", "Phí ship" become the order's voucher_discount,
+    points_discount, shipping_fee (absolute amounts summed per order) and leave the lines. Train has no such row."""
+    lines, orders = db.tables.get("lines"), db.tables.get("orders")
+    if lines is None or orders is None or not len(lines) or "product_name" not in lines.columns \
+            or "line_amount" not in lines.columns or "order_id" not in orders.columns:
+        return
+    names = lines["product_name"].map(lambda v: _fold(v) if isinstance(v, str) else "")
+    drop = pd.Series(False, index=lines.index)
+    for rx, col in ORDER_LEVEL:
+        hit = names.map(lambda n, rx=rx: bool(rx.match(n)))
+        if not hit.any():
+            continue
+        amounts = lines.loc[hit].groupby("order_id")["line_amount"].apply(lambda s: float(s.abs().sum()))
+        found = orders["order_id"].map(amounts)
+        orders[col] = found if col not in orders.columns else orders[col].fillna(found)
+        drop |= hit
+        db.warnings.append(f"lines: {int(hit.sum())} dòng {col} chuyển thành khoản của đơn")
+    if drop.any():
+        db.tables["lines"] = lines.loc[~drop].reset_index(drop=True)
+
+
+# N42: a ledger writes its staff by nickname with an honorific ("A.Phúc", "a Phúc", "anh Đức"), the staff list and
+# the questions by full name (a public repair shop, 06/11)
+HONORIFIC = re.compile(r"^(?:a|anh|c|chi|e|em|co|chu|bac|tho)(?:\.\s*|\s+)")
+
+
+_CAPACITY = re.compile(r"^(.*?)\s*\d+\s*GB\b", re.I)
+PHONE_NAMES_MIN = 0.2  # share of product names with a capacity "…GB" that makes a shop's names phone names
+
+
+def phone_lines(db: CanonicalDB) -> None:
+    """Public rulebook §6 Cửa hàng điện thoại: "dòng máy = phần tên hàng đứng trước dung lượng …GB; tên không có phần
+    …GB thì dòng máy là cả tên. Hãng = chữ đầu tên hàng; máy iPhone là hãng Apple". Written into the catalogue
+    (made from the lines' names when the shop has none) for a shop whose names carry capacities; no train shop does."""
+    lines, products = db.tables.get("lines"), db.tables.get("products")
+    if lines is None or "product_key" not in lines.columns:
+        return
+    if products is None or "product_name" not in products.columns:
+        names = lines[["product_key", "product_name"]].dropna().drop_duplicates("product_key")
+        products = pd.DataFrame({"product_key": names["product_key"].astype(str), "product_name": names["product_name"]})
+    names = products["product_name"].astype(str)
+    if names.empty or names.map(lambda n: bool(_CAPACITY.match(n))).mean() < PHONE_NAMES_MIN:
+        return
+
+    def line(n: str) -> str:
+        m = _CAPACITY.match(n)
+        return (m[1] if m else n).strip()
+
+    def brand(n: str) -> str:
+        first = n.split()[0] if n.split() else n
+        return "Apple" if _fold(first) == "iphone" else first
+
+    products = products.copy()
+    if "product_line" not in products.columns or products["product_line"].isna().all():
+        products["product_line"] = names.map(line)
+    if "brand" not in products.columns or products["brand"].isna().all():
+        products["brand"] = names.map(brand)
+    db.tables["products"] = products
+
+
+def full_employee_names(db: CanonicalDB) -> None:
+    """orders.employee as the full name of the staff list: the honorific dropped, a nickname that is the last word of
+    exactly one full name (folded) becomes that name; a name already full, none or two matching: as written."""
+    o, staff = db.tables.get("orders"), db.tables.get("employees")
+    if o is None or staff is None or "employee" not in o.columns or "employee_name" not in staff.columns:
+        return
+    full = {_fold(n): n for n in staff["employee_name"].dropna().astype(str)}
+    by_last: dict[str, list[str]] = {}
+    for folded, name in full.items():
+        by_last.setdefault(folded.split()[-1], []).append(name)
+
+    def resolve(v):
+        if not isinstance(v, str) or not v.strip():
+            return v
+        core = HONORIFIC.sub("", _fold(v)).strip()
+        if core in full:
+            return full[core]
+        hits = by_last.get(core, [])
+        return hits[0] if len(hits) == 1 else v
+    before = o["employee"].copy()
+    o["employee"] = o["employee"].map(resolve)
+    changed = int((before.fillna("") != o["employee"].fillna("")).sum())
+    if changed:
+        db.warnings.append(f"employee: {changed} đơn ghi tên gọi đổi sang họ tên trong danh sách nhân viên")
+
+
+BASE_UNITS_MAX = 30  # train 06/11: 3 to 15 base units per shop
+
+
+def sane_base_units(db: CanonicalDB) -> None:
+    """products.base_unit of more than 30 distinct values is no unit column (a moved mapping read a public ledger's
+    abbreviations for it, 06/11): left empty, so no quantity is converted or filtered by it."""
+    p = db.tables.get("products")
+    if p is not None and "base_unit" in p.columns and p["base_unit"].nunique() > BASE_UNITS_MAX:
+        p["base_unit"] = None
+        db.warnings.append("products.base_unit: quá nhiều giá trị, không phải cột đơn vị, bỏ")
 
 
 FEE_LINE = re.compile(r"^(?:phi phuc vu|phi dich vu|service charge)\b")
@@ -266,6 +434,9 @@ def unify_keys(db: CanonicalDB) -> None:
 # walk-in customers written in the customer column (§3: an order without a customer code is "khách lẻ", not a
 # customer); the spellings found in the train files
 WALK_IN = frozenset({"khach le", "le", "kl", "khach vang lai", "vang lai"})
+# N33 (05/11): in every train shop that records customers, walk-ins are 39-41% of the orders and the most frequent
+# real customer 0.6% at most; a key with 5% of the orders and 10 times the median customer's is a walk-in spelling
+WALK_IN_SHARE, WALK_IN_RATIO = 0.05, 10
 
 
 def blank_walk_ins(db: CanonicalDB) -> None:
@@ -276,6 +447,87 @@ def blank_walk_ins(db: CanonicalDB) -> None:
         return
     walk = o["customer_key"].map(lambda v: isinstance(v, str) and (not v.strip() or _fold(v) in WALK_IN))
     o.loc[walk, "customer_key"] = None
+    # N33: a spelling no train file used ("Khách hàng lẻ", a placeholder code) is known by its share of the orders
+    counts = o["customer_key"].value_counts()
+    if len(counts) >= 2:
+        heavy = counts[(counts >= WALK_IN_SHARE * len(o)) & (counts >= WALK_IN_RATIO * counts.median())]
+        if len(heavy):
+            o.loc[o["customer_key"].isin(heavy.index), "customer_key"] = None
+            db.warnings.append("customer_key: coi là khách lẻ vì chiếm quá nhiều đơn: "
+                               + ", ".join(f"{k} ({c / len(o):.0%})" for k, c in heavy.items()))
+
+
+_ONE_IS = re.compile(r"\b1\s+([^\W\d_]+)\s*=\s*(\d+(?:[.,]\d+)?)\s+([^\W\d_]+)\b")
+
+
+def readme_conversions(db: CanonicalDB, readme: str) -> None:
+    """Unit conversions the README writes in words, added for the products the conversion table has no row for:
+    "- Gạo ST25: 1 bao = 5 kg" (train READMEs, beside their tables), "Ống PVC … D32, … D50, … D90 bán theo bó, 1 bó =
+    10 cây" (public 06/11: no table row, 1398 lines without a base quantity, every quantity and best-seller question
+    of the shop abstained). A product is one the lines write by that very name (folded)."""
+    lines = db.tables.get("lines")
+    if lines is None or "product_key" not in lines.columns or not readme:
+        return
+    names = {}
+    for col in ("product_name", "product_key"):
+        if col in lines.columns:
+            names.update({_fold(str(n)): k for n, k in zip(lines[col], lines["product_key"]) if pd.notna(n)})
+    conv = db.tables.get("unit_conversions")
+    have = set() if conv is None else {(str(p), _fold(str(u))) for p, u in zip(conv["product_key"], conv["unit"])}
+    rows = []
+    for line in readme.splitlines():
+        m = _ONE_IS.search(line)
+        if not m:
+            continue
+        unit, factor, base = m[1], float(m[2].replace(",", ".")), m[3]
+        prefix = re.sub(r"[*`]", "", line[:m.start()])
+        if " bán theo " in prefix:  # "Hàng theo bó: A, B, C bán theo bó, 1 bó = 10 cây"
+            listed = prefix.split(":", 1)[-1].split(" bán theo ")[0]
+        else:  # "- Gạo ST25: 1 bao = 5 kg"
+            listed = prefix.strip(" -:,;\t")
+        for name in re.split(r",\s*|\s+và\s+", listed):
+            key = names.get(_fold(name.strip()))
+            if key is not None and (str(key), _fold(unit)) not in have and _fold(unit) != _fold(base):
+                rows.append({"product_key": key, "unit": unit, "factor": factor, "base_unit": base, "source": "README"})
+                have.add((str(key), _fold(unit)))
+    if rows:
+        add = pd.DataFrame(rows)
+        db.tables["unit_conversions"] = add if conv is None else pd.concat([conv, add], ignore_index=True)
+        db.warnings.append(f"unit_conversions: {len(rows)} dòng quy đổi đọc từ README")
+
+
+def catalogue_conversions(db: CanonicalDB, raw: RawBusiness, mapping: Mapping) -> None:
+    """A catalogue column of conversions written in words, one product a row (public mẹ-và-bé shop, 06/11: "Quy đổi:
+    quy đổi đơn vị lớn ra ĐVT, vd "1 thùng = 4 bịch"; trống nếu chỉ bán theo ĐVT", "1 lốc = 4 gói; 1 thùng = 24 gói"):
+    a conversion row for each, where the conversion table has none (9124 lines had no base quantity)."""
+    products = next((tm for tm in mapping.tables if tm.target == "products"), None)
+    key = next((c.source for c in products.columns if c.target == "product_key" and c.transform is None), None) \
+        if products is not None else None
+    if key is None:
+        return
+    ids = set(source_ids(products, [t.table_id for t in raw.tables]))
+    conv = db.tables.get("unit_conversions")
+    have = set() if conv is None else {(str(p), _fold(str(u))) for p, u in zip(conv["product_key"], conv["unit"])}
+    rows = []
+    for t in raw.tables:
+        if t.table_id not in ids or key not in t.frame.columns:
+            continue
+        for col in t.frame.columns:
+            cells = t.frame[col].dropna().astype(str)
+            cells = cells[cells.str.strip() != ""]
+            if col == key or cells.empty or cells.map(lambda c: bool(_ONE_IS.search(c))).mean() < 0.8:
+                continue
+            for name, cell in zip(t.frame[key], t.frame[col]):
+                for m in _ONE_IS.finditer(str(cell)) if pd.notna(cell) else ():
+                    unit, factor, base = m[1], float(m[2].replace(",", ".")), m[3]
+                    if pd.notna(name) and (str(name), _fold(unit)) not in have and _fold(unit) != _fold(base):
+                        rows.append({"product_key": str(name), "unit": unit, "factor": factor, "base_unit": base,
+                                     "source": t.table_id})
+                        have.add((str(name), _fold(unit)))
+    if rows:
+        add = pd.DataFrame(rows)
+        db.tables["unit_conversions"] = add if conv is None else pd.concat([conv, add], ignore_index=True)
+        db.warnings.append(f"unit_conversions: {len(rows)} dòng quy đổi đọc từ cột chữ của danh mục")
 
 
 def derive_base_qty(db: CanonicalDB) -> None:
@@ -283,11 +535,17 @@ def derive_base_qty(db: CanonicalDB) -> None:
     A unit with no conversion row is the base unit (factor 1), except for a product that has conversions and a known
     base unit different from it: that line gets no base quantity rather than a guessed one."""
     lines = db.tables.get("lines")
-    if lines is None or not len(lines) or not {"qty", "unit", "product_key"} <= set(lines.columns):
+    if lines is None or not len(lines) or not {"qty", "product_key"} <= set(lines.columns):
         return
     if "base_qty" in lines.columns and lines["base_qty"].notna().any():
         return  # mapped from the file
     conv = db.table("unit_conversions")
+    if "unit" not in lines.columns:
+        # a shop that records no unit and no conversion sells each product in one unit (public phone ledgers, 06/11:
+        # "SL" only, every "bán mấy chiếc" abstained): the quantity written is the base quantity
+        if conv is None:
+            db.tables["lines"] = lines.assign(base_qty=pd.to_numeric(lines["qty"], errors="coerce"))
+        return
     factors, base_unit = {}, {}
     if conv is not None:
         for row in conv.itertuples(index=False):
@@ -382,6 +640,22 @@ def meaning_checks(db: CanonicalDB, readme: str = "") -> list[tuple[bool, str]]:
 
 
 GOODS_MATCH_MIN = 0.95  # share of orders whose goods amount = the sum of their lines; measured on train 05/11
+# N27, train 05/11: every shop's lines carry 50-80 product keys, and 100% of its product names are written with a
+# space; an unfamiliar shop matched its one-value column ("Id cửa hàng") for the product key and a code column
+# ("SP0001") for the name, and named codes in its rankings
+PRODUCT_KEYS_MIN, NAMES_SPACED_MIN = 10, 0.5
+
+
+def product_check(db: CanonicalDB) -> tuple[bool, str]:
+    """The lines' products look like products: many keys, names written as names (with a space), not codes."""
+    ln = db.table("lines")
+    if ln is None or len(ln) < MIN_ROWS or "product_key" not in ln.columns:
+        return True, "không áp dụng"
+    keys = int(ln["product_key"].nunique())
+    names = ln["product_name"].dropna().astype(str).str.strip().unique() if "product_name" in ln.columns else []
+    spaced = sum(" " in n for n in names) / len(names) if len(names) else 1.0
+    detail = f"{keys} mã hàng (cần ≥ {PRODUCT_KEYS_MIN}); {spaced:.0%} tên có khoảng trắng (cần ≥ {NAMES_SPACED_MIN:.0%})"
+    return keys >= PRODUCT_KEYS_MIN and spaced >= NAMES_SPACED_MIN, detail
 
 
 def _goods_match(o: pd.DataFrame, ln: pd.DataFrame | None) -> tuple[bool, str]:
@@ -410,6 +684,7 @@ def run_checks(db: CanonicalDB, readme: str = "") -> list[CheckResult]:
                              <= set(db.tables["orders"]["order_id"]))
     empty = empty_required_cells(db)
     meaning = meaning_checks(db, readme)
+    meaning.append(product_check(db))
     results = [has_core, not problems, status_ok, span_ok, lines_ok, not empty] + [ok for ok, _ in meaning]
     details = ["", "; ".join(problems[:5]), "", str(span), "", "; ".join(empty[:5])] + [d for _, d in meaning]
     return [CheckResult(name=n, passed=bool(ok), detail=d) for n, ok, d in zip(REQUIRED_CHECKS, results, details)]

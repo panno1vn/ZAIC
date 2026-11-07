@@ -16,6 +16,8 @@ out of `plan.linked`, and [V] makes the question abstain.
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 import weakref
 from dataclasses import dataclass
 from functools import lru_cache
@@ -120,7 +122,73 @@ def units(db: CanonicalDB) -> tuple[str, ...]:
     return per_field["_units"]
 
 
+GREEK = {"α": "alpha", "β": "beta", "γ": "gamma"}  # "Wave α": norm() drops the letter
+
+
+def _greek(spelling) -> str:
+    s = str(spelling)
+    for letter, word in GREEK.items():
+        s = s.replace(letter, f" {word} ")
+    return s
+
+
+def model_words(spelling) -> list[str]:
+    """A model name's words, folded without undoing telex: "Air Blade" is "air blade", not the "ai" of "ải"."""
+    s = unicodedata.normalize("NFD", _greek(spelling).lower().replace("đ", "d"))
+    return re.findall(r"[a-z]+|\d+", "".join(ch for ch in s if unicodedata.category(ch) != "Mn"))
+
+
+@lru_cache(maxsize=256)
+def model_lines(spellings: frozenset[str]) -> dict[str, str | None]:
+    """§6 Sửa xe "tên dòng xe chỉ khác hoa/thường hoặc ghi tắt là cùng một dòng": each spelling of a ledger's vehicle
+    models -> the line it names (the line's longest spelling), None when it may name two lines ("Wave" beside Wave
+    Alpha and Wave RSX). A short form is the same letters ("shmode", "SH mode"), some of the words of a longer
+    spelling ("Vision" of Vision 110, "Alpha" of Wave Alpha), its initials ("AB" of Air Blade) or its start ("Ex" of
+    Exciter)."""
+    words = {s: model_words(s) for s in spellings}
+    compact = {s: "".join(w) for s, w in words.items()}
+    kw: dict[str, list[str]] = {}  # letters -> the most words any spelling of them has ("air blade" for "airblade")
+    for s, c in compact.items():
+        if c and len(words[s]) > len(kw.get(c, [])):
+            kw[c] = words[s]
+
+    def short_of(a: str, b: str) -> bool:
+        wa, wb = kw[a], kw[b]
+        initials = "".join(w[0] for w in wb if w.isalpha())
+        return len(a) < len(b) and (set(wa) < set(wb) or (len(a) >= 2 and len(wb) >= 2 and a == initials)
+                                    or (len(a) >= 2 and b.startswith(a)))
+
+    parents = {a: [b for b in kw if b != a and short_of(a, b)] for a in kw}
+
+    def roots(a: str) -> set[str]:
+        return {a} if not parents[a] else set().union(*(roots(b) for b in parents[a]))
+
+    label: dict[str, str] = {}  # a line's name: its first spelling of the most words, by sort order
+    for s in sorted(spellings, key=lambda s: (-len(words[s]), s)):
+        label.setdefault(compact[s], s)
+    out: dict[str, str | None] = {}
+    for s, c in compact.items():
+        r = roots(c) if c else set()
+        out[s] = label[next(iter(r))] if len(r) == 1 else None
+    return out
+
+
+def ledger_lines(column: pd.Series) -> pd.Series:
+    """The line of each row of a vehicle model column (None: blank, or a spelling of two lines)."""
+    lines = model_lines(frozenset(column.dropna().astype(str)))
+    return column.map(lambda v: lines.get(str(v)) if isinstance(v, str) else None)
+
+
 def _collect(field: str, db: CanonicalDB) -> Candidates:
+    if field == "vehicle_model":  # every spelling of a line names the line (§6 Sửa xe)
+        o = db.table("orders")
+        if o is None or "vehicle_model" not in o.columns:
+            return {}
+        out_lines: dict[str, set[str]] = {}
+        for spelling, line in model_lines(frozenset(o["vehicle_model"].dropna().astype(str))).items():
+            if line is not None and (key := norm(_greek(spelling))):  # as link_value folds the question's name
+                out_lines.setdefault(key, set()).add(line)
+        return {k: frozenset(v) for k, v in out_lines.items()}
     out: dict[str, set[str]] = {}
     allowed = None
     if field in FILTERED_ON:
@@ -159,6 +227,33 @@ def _shared_words(a: str, b: str) -> int:
     return len({t for t in a.split() if t.isalpha()} & {t for t in b.split() if t.isalpha()})
 
 
+# One thing, a northern and a southern word (public 06/11: "Lạc rang muối 200g" for the shop's "Đậu phộng rang muối
+# 200g", "Đậu phụ rán giòn" for "Đậu hũ chiên giòn"). Replaced with their diacritics only: "lạc" is not "lắc"
+# ("khoai tây lắc"), which folding would merge.
+DIALECT = (("đậu phụ", "đậu hũ"), ("lạc", "đậu phộng"), ("rán", "chiên"), ("vừng", "mè"), ("ngô", "bắp"),
+           ("mì chính", "bột ngọt"), ("lợn", "heo"), ("dứa", "thơm"), ("dưa chuột", "dưa leo"), ("mướp đắng", "khổ qua"),
+           ("xì dầu", "nước tương"), ("hoa quả", "trái cây"), ("sắn", "khoai mì"), ("thìa", "muỗng"),
+           # run10 (06/11): "cháo ngao" / "cháo nghêu", "cá tràu" (miền Trung) / "cá lóc", "cát xây trát" / "cát xây
+           # tô", "găng tay" / "bao tay"
+           ("ngao", "nghêu"), ("cá tràu", "cá lóc"), ("cá quả", "cá lóc"), ("trát", "tô"), ("găng tay", "bao tay"))
+
+
+ONE_WAY = frozenset({"trát"})  # "tô" is also a bowl ("tô phở"): never read back as "trát"
+
+
+def dialects(written) -> list[str]:
+    """The written name in the southern words, and in the northern ones, when it has words of the other side."""
+    text = unicodedata.normalize("NFC", str(written).lower())
+    out = []
+    for pairs in (DIALECT, tuple((s, n) for n, s in DIALECT if n not in ONE_WAY)):
+        t = text
+        for a, b in pairs:
+            t = re.sub(rf"(?<!\w){re.escape(a)}(?!\w)", b, t)
+        if t != text:
+            out.append(t)
+    return out
+
+
 def link_value(field: str, written, question: str, cands: Candidates, units: tuple[str, ...] = ()) -> Link:
     """The data value a filter value names, by the steps of the module doc. `units`: the shop's counting units
     (folded, longest first), tried off the front of a product name."""
@@ -170,6 +265,7 @@ def link_value(field: str, written, question: str, cands: Candidates, units: tup
     if not w or not cands:
         return Link(None, 0.0, "none")
     variants = [w] + [w[len(u) + 1:] for u in units if w.startswith(u + " ")][:1]
+    variants += [v for v in (norm(d) for d in dialects(written)) if v and v not in variants]
     for v in variants:
         if v in cands:
             return _one([v], cands, "exact")
@@ -203,4 +299,6 @@ def matches(field: str, column: pd.Series, value: str) -> pd.Series:
     if field in CODED:
         codes = {v: concept(field, v) for v in column.dropna().unique()}  # once per spelling, not per row
         return column.map(codes).eq(value)
+    if field == "vehicle_model":  # §6 Sửa xe: "tên dòng xe chỉ khác hoa/thường hoặc ghi tắt là cùng một dòng"
+        return ledger_lines(column).eq(value) & column.notna()
     return column.astype(str).eq(value) & column.notna()

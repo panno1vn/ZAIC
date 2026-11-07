@@ -12,10 +12,14 @@ READING = ("intent_known", "mapping_ok", "entities_ok")
 
 
 def decide(signals: Signals, result: ExecResult | None) -> Decision:
-    if signals.out_of_scope:  # unanswerable is enabled only once it is measured on train
+    if signals.out_of_scope:  # unanswerable only where measured on train (N37), else abstain
+        if signals.subjective is True:
+            return Decision(kind="unanswerable", reason="dữ liệu không ghi loại thông tin câu hỏi cần (§7)")
         return Decision(kind="abstain", reason="ngoài phạm vi dữ liệu: chưa bật unanswerable")
     if signals.outside_data and all(getattr(signals, g) is True for g in READING)             and signals.twin_ok is not False and signals.terms_known is not False:
         return Decision(kind="unanswerable", reason="kỳ hỏi nằm hoàn toàn ngoài khoảng ngày có dữ liệu của cửa hàng (§7)")
+    if signals.not_recorded and all(getattr(signals, g) is True for g in READING)             and signals.twin_ok is not False and signals.terms_known is not False:
+        return Decision(kind="unanswerable", reason="cửa hàng không ghi loại dữ liệu câu hỏi cần (§7)")
     if result is None:
         return Decision(kind="abstain", reason="không có kết quả")
     failed = [g for g in GATES if getattr(signals, g) is not True]

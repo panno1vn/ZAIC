@@ -22,15 +22,36 @@ def stage(d: dict) -> str:
     return "5 cổng: " + d["decision"].get("reason", "")[:50]
 
 
+def no_result_reason(d: dict) -> str:
+    """Why a plan gave no result, from the log's no_result (N72): the step, and the function or the missing key."""
+    nr = d.get("no_result") or {}
+    w = nr.get("why")
+    if w is None:
+        return "(log cũ, không ghi lý do)"
+    if w == "no_function":
+        return f"chưa có hàm {tuple(nr.get('key') or ())}"
+    if w == "filter_not_taken":
+        return f"bộ lọc hàm không nhận: {nr.get('function')} {nr.get('fields')}"
+    if w == "function_none":
+        return f"hàm trả None: {nr.get('function')}"
+    return w
+
+
 def main(run: str) -> None:
     sys.stdout.reconfigure(encoding="utf-8")
     per, stages, functions, twins = defaultdict(Counter), Counter(), Counter(), Counter()
+    why, where = Counter(), Counter()  # stage 4 split by the log's no_result (N72); `at` only in a replay
     for f in (Path(run) / "logs").glob("q_*.json"):
         d = json.loads(f.read_text(encoding="utf-8"))
         answered = d["decision"]["kind"] != "abstain"
         per[d["business_id"]]["answer" if answered else "blank"] += 1
         if not answered:
             stages[stage(d)] += 1
+            if stage(d).startswith("4"):
+                why[no_result_reason(d)] += 1
+                at = (d.get("no_result") or {}).get("at") or []
+                if at:
+                    where[at[0]] += 1
             continue
         functions[d["result"]["function"]] += 1
         t = d.get("twin") or {}

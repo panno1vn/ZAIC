@@ -1,7 +1,8 @@
 """[C2] Turn the plan's symbolic periods into dates, following rulebook §2 and calendar.csv. Work package G4.
 
-Every period kind and compare kind of the contract (v1.1) except `days_from` with `anchor_price` (the day a price rose
-needs the linked product: done with the price-effect metrics). Flow periods are clipped at as_of_date: records after
+Every period kind and compare kind of the contract (v1.1); `days_from` with `anchor_price` (no day written, "từ hồi X
+lên giá Y") takes the day of the rise from the shop's price list (§5, `price_rise_day`).
+Flow periods are clipped at as_of_date: records after
 today have not happened. Metrics of STOCK_METRICS are always a state at the end of a day, from the start of the data.
 Whatever cannot be resolved returns None, so the question abstains.
 """
@@ -215,6 +216,29 @@ def compare_period(plan: QueryPlan, period: ResolvedPeriod, as_of: date, calenda
     return None
 
 
+def price_rise_day(plan: QueryPlan, db: CanonicalDB | None) -> date | None:
+    """§5 "Hiệu ứng tăng giá: lần tăng giá = ngày D giá mới cao hơn giá liền trước (theo bảng giá); tăng lên cùng một
+    giá nhiều lần thì lấy lần đầu": the first day the product's price list moved up to the plan's anchor price. The
+    product is the plan's one product filter, linked as [C3] links it; None when anything is missing or unclear
+    (public 06/11: "Từ hồi Trà vải (L) lên giá 47.000đ, so 30 ngày…", which no train question asks without a day)."""
+    ph = db.table("price_history") if db is not None else None
+    products = [f for m in plan.measures for f in m.filters if f.field == "product"]
+    if ph is None or len(products) != 1 or not isinstance(products[0].value, str):
+        return None
+    from datamate.nlu import linking  # late import: temporal comes before the linking step in the pipeline
+    key = linking.link_value("product", products[0].value, "", linking.candidates("product", db),
+                             linking.units(db)).value
+    if key is None:
+        return None
+    rows = ph[ph["product_key"].astype(str) == str(key)].dropna(subset=["effective_date", "price"])
+    rows = rows.assign(_day=rows["effective_date"].map(lambda d: date.fromisoformat(str(d)[:10]))).sort_values("_day")
+    prices, days = rows["price"].astype(float).tolist(), rows["_day"].tolist()
+    for i in range(1, len(prices)):
+        if prices[i] == plan.period.anchor_price and prices[i] > prices[i - 1]:
+            return days[i]
+    return None
+
+
 def is_stock(plan: QueryPlan) -> bool:
     return any(m.metric in STOCK_METRICS for m in plan.measures) or (
         plan.rank is not None and plan.rank.by in STOCK_METRICS)
@@ -224,10 +248,16 @@ def resolve(plan: QueryPlan, as_of: date, calendar_csv: Path | str | None = None
             ) -> ResolvedPlan | None:
     """ResolvedPlan with every period as dates, or None when a period cannot be resolved (the question abstains).
 
-    `db` is kept for periods anchored in the data (days_from + anchor_price), resolved with the price-effect metrics.
+    `db` resolves a period anchored in the data: days_from + anchor_price, the day of the price rise (§5).
     """
     stock = is_stock(plan)
     period = None
+    if plan.period is not None and plan.period.kind == "days_from" and plan.period.date is None \
+            and plan.period.anchor_price is not None:
+        day = price_rise_day(plan, db)
+        if day is None:
+            return None
+        plan = plan.model_copy(update={"period": plan.period.model_copy(update={"date": day.isoformat()})})
     if plan.period is not None:
         period = resolve_period(plan.period, as_of, calendar_csv, stock=stock)
         if period is None:

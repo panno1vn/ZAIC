@@ -305,7 +305,7 @@ Chi tiết ở [research/linking.md](research/linking.md).
 
   Điểm giống của câu anh em không tách được hai nhóm: câu đúng nhưng diễn đạt khác có điểm 54–89, câu đọc sai 76–83. Vì vậy chọn **ngưỡng 0**, tức chỉ đòi có câu đã kiểm chứng cùng dạng plan ở cửa hàng khác.
 - [x] **N15 (TB). Cổng làm mất câu đúng chỉ vì loại kỳ.** Lượt có cổng (trước khi sửa) mất 11 câu đúng, phần lớn vì kho có "tháng 3" mà câu hỏi "tháng này". → `twins.twin_shape` gộp loại kỳ theo họ (hôm nay / hôm qua / một ngày; tuần này / tuần trước; tháng này / tháng trước / một tháng). Các kỳ đổi ý câu vẫn tách riêng: "đến hết ngày" (tồn), quý, Tết, khoảng ngày. Trên 749 plan có mapping, số câu đúng bị chặn giảm từ 12 xuống 6.
-- [ ] **N16 (TB). Có nên giữ cổng câu anh em không: số trên train còn sát nhau.**
+- [x] **N16 (TB). Có nên giữ cổng câu anh em không: số trên train còn sát nhau.** **Đã quyết (05/11): tắt cổng.** Lượt chẩn đoán public `tat_cong_cau_anh_em` (lượt 1 cộng thêm 28 câu cổng chặn) được 0,336, so với 0,316. Vậy 28 câu bị chặn gồm **24 đúng / 4 sai**: cổng chặn oan 86%, trong khi cổng chỉ có lợi khi hơn nửa số câu nó chặn là câu sai. Đã đổi `configs/default.json` sang `"twin_threshold": null` (test `test_twin_gate_is_off_by_default`). Train không đổi, vì `eval.mapping` vốn chấm không qua cổng. Chạy lại run4 bằng cấu hình mới trùng khớp hoàn toàn với `outputs/public_run4_twin_off/` (432 câu trả lời = run4 + 38 câu cổng chặn).
   - Sau mọi bản sửa (lượt v2): bật cổng 570 đúng / 0 sai, tắt cổng 575 đúng / 0 sai. Như vậy trên train cổng chỉ làm mất 5 câu đúng: 2 câu Tết, 2 câu ca làm, 1 câu số gói. Lý do là khi đo bỏ ra một cửa hàng, kho thiếu dạng plan của cửa hàng đó.
   - Phép đo duy nhất trên **lỗi đọc sai kiểu mới**, trước khi có luật khớp riêng với chúng, là lượt đầu: cổng chặn 6/7 câu sai và mất 11 câu đúng. Sau N15, số câu đúng mất ở mức 5.
   - Quyết định tạm: **giữ cổng (ngưỡng 0)**. Khi chạy thật, kho có câu của mọi cửa hàng train, nên số câu đúng bị mất sẽ ít hơn con số đo bỏ ra một cửa hàng. Còn lỗi đọc sai kiểu mới ở private thì luật căn cứ chưa biết trước được.
@@ -412,6 +412,20 @@ Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval
     - Hướng nghi ngờ: dữ liệu cửa hàng public bị hiểu sai giống nhau ở cả hai đường mapping (chữ trạng thái đọc theo từ khoá, gộp tên, quy đổi đơn vị), hoặc cách tính / trình bày của hàm xếp hạng, đếm (nhóm B 13%).
     - Hệ quả cho N16: câu lạ vẫn đúng 95%, nên cổng câu anh em (chặn 28 câu) có thể chặn oan; nên nộp thử một lượt tắt cổng.
   - Lượt chẩn đoán tiếp (05/11): tách nhóm B thành xếp hạng (54) và đếm (47); tách theo mẫu mapping (mẫu nào chuyển sang cửa hàng nào); tắt cổng câu anh em.
+  - **Kết quả nộp 05/11** (so từng file với lượt 1: mỗi lượt chỉ đổi đúng nhóm định thử, không câu nào đổi đáp án):
+
+    | Lượt | Đổi so với lượt 1 | Điểm | Đúng | Sai |
+    |---|---|---:|---:|---:|
+    | `tat_cong_cau_anh_em` | +28 câu cổng câu anh em chặn | 0,336 | 24 | 4 (14%) |
+    | `bo_xep_hang` | −54 câu `sales.rank` | 0,276 | 47 | 7 (13%) |
+    | `bo_map_theo_nghia` | −169 câu của 4 cửa hàng ghép cột theo nghĩa | 0,175 | 155 | 14 (8,3%) |
+    | `public_run4` | −7 câu (3 hoà hạng, 4 đổi plan), +31 câu mới | **0,342** | | |
+
+    - Suy ra: `count_where` sai 13 − 7 = **6/47 (13%)**; các cửa hàng còn lại (khớp tên cột hoặc README) sai 27 − 14 = **13/201 (6,5%)**. 23/54 câu xếp hạng nằm trong 4 cửa hàng ghép theo nghĩa, nên hai lượt chẩn đoán có phần chồng nhau.
+    - Run4 so với lượt 1: hiệu (đúng − sai) của phần thay đổi là +26. 31 câu mới có **ít nhất 25 câu đúng** (≥ 81%), dù 7 câu bị bỏ là đúng hay sai. Trong 7 câu bị bỏ có ít nhất 1 câu sai. Chưa tách riêng được tác dụng của cổng hoà hạng (cần nộp run2).
+    - **Đường ghép theo nghĩa giữ lại:** đúng 92%, so với 93,5% ở các cửa hàng khác.
+    - **Tỉ lệ sai cao nhất là các câu xếp hạng và đếm (13%).** Theo thống kê lượt 1, 40/101 câu nhóm này dính tới khách (xếp khách theo số đơn hoặc doanh thu, đếm khách có ≥ N đơn). Nghi ngờ cách nhận ra một khách (khách lẻ, mã khách hay tên hay số điện thoại) ở định dạng mới. Rà trên train.
+    - **Bỏ trống lớn nhất là mapping, không phải độ chính xác:** 6/14 cửa hàng public trượt mọi đường mapping (log run4, chỉ đếm), **360 câu (36%)**. Cả 6 cửa hàng trượt cùng một bộ kiểm tra: không có bảng orders/lines, trạng thái, khoảng ngày, dòng thuộc đơn, tức không dựng được mapping nào. Train chỉ có 2/30 cửa hàng như vậy (biz_123, biz_124: N27). N27 là đòn bẩy lớn nhất.
 - Docker chưa làm (kế hoạch 10–12/11, chờ guideline BTC): llama-server CUDA ≥ 12.8 trong image, chép `assets/` (H14), chạy thử đủ 6 giờ trên máy thuê.
 
 ## M. Phiên 4: cổng hoà hạng, cửa hàng chỉ có đơn, chạy lại từ log (tối 04/11, ngày hệ thống)
@@ -458,11 +472,332 @@ Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval
   - Đọc lại (LLM có cache) các câu train đang không có plan: **thêm 28 câu có plan**. File plan cũ lưu ở `outputs/bank/llm_plans.before_N30.jsonl`. Có test (`tests/test_plan_reading.py`).
   - **Đo N29 phần 2 + N30 (`eval.mapping --llm-url`): 2433 đúng / 0 sai / 567 bỏ trống, PA +0,811** (+26 câu; biz_110 lên 40/40). Log: `outputs/eval_mapping_s4d.log`. 344 test qua.
   - Còn lại trong 25 câu dò: 4 plan sai schema (so sánh theo bộ lọc thiếu `filters`, kỳ `months` ghi start/end, answer_type mâu thuẫn), 3 câu LLM chọn sai chỉ số.
+- [x] **N32 (TB). Plan sai schema ở những dạng đã gặp trên train thì tự sửa** (`nlu/repair.py`; chỉ sửa khi kiểm schema báo lỗi, plan sau khi sửa vẫn qua các cổng căn cứ). Ba dạng, mỗi dạng chỉ có một cách hiểu:
+  - so sánh theo bộ lọc mà viết thành 2 measures, thiếu `compare.filters`: measure đầu là phần được hỏi, measure sau là phần đem ra so (giống plan tay "ca chiều so với ca sáng");
+  - chuỗi tháng ghi bằng start/end: tính số tháng `n`;
+  - câu đếm mà LLM ghi `answer_type` percent: chỉ sửa khi câu hỏi không có từ phần trăm nào.
+  - Đọc lại (LLM có cache): thêm 6 câu train có plan. Có test (`tests/test_plan_repair.py`).
+  - Đo (`eval.mapping --llm-url`): **2439 đúng / 0 sai / 561 bỏ trống, PA +0,813** (+6). Log: `outputs/eval_mapping_s5a.log`.
+- **Chuẩn bị Kaggle K1 và Docker (05/11):**
+  - `tools/kaggle_pack.py` đóng gói mã nguồn (0,5 MB) và train (128 MB) để tải lên một Dataset riêng tư; `kaggle/k1_qwen14b.ipynb` mở gói rồi chạy `tools/kaggle_k1.py`. Script này build llama.cpp cho T4, tải 8B và 14B, chạy K3 trên 2 card cùng lúc, cho 14B đọc 3000 câu train (2 card, `tools/read_plans_shard.py`, cache riêng), rồi chấm `eval.mapping` với cache ghép cột của laptop (mapping giống hệt laptop). `read_plans_shard` đã chạy thử trên laptop; phần chạy trên Kaggle chưa thử được.
+  - Bản nháp `docker/Dockerfile` (CUDA 12.8, llama.cpp sm_120, model nằm sẵn trong image), `docker/predict.sh` (server không lên thì chạy baseline, vẫn có file nộp), `.dockerignore`, hướng dẫn buổi GPU trong `docker/README.md`. Chưa build: phải build trên máy RTX 5090 thuê dạng VM.
 - **Public run3** (code cuối phiên 4, `outputs/public_run3/`): 392 câu trả lời; so với run2: +29 câu (10 nhờ N30, 19 nhờ N29), −4 câu. Chưa nộp, xem kế hoạch nộp ở BAN_GIAO_PHIEN_4.
 - [ ] **N31 (TB). LLM đọc lại câu khác đi khi thẻ dữ liệu (data card) trong prompt đổi.** N29 thêm cột vào mapping làm thẻ dữ liệu đổi, nên 4 câu public run2 có trả lời thì run3 ra plan khác (3 câu không còn plan). Chạy lại với cùng code thì vẫn tất định (run2 khớp lượt 1). Nhưng mọi thay đổi ở mapping đều có thể đổi cách đọc câu ở chỗ khác. Hướng: đo xem thẻ dữ liệu giúp được bao nhiêu câu; nếu ít thì chỉ đưa vào prompt những trường thật sự cần.
 - [ ] **N27 (Cao). Định dạng train mà mọi đường mapping đều trượt: biz_123 (sqlite POS), biz_124 (3 nguồn).** README hai cửa hàng này không mô tả từng cột theo khuôn, nên đường README không đọc được. Đường ghép theo nghĩa thì cần một cửa hàng mẫu cùng tên file, mà train không có cửa hàng anh em nào. Hướng làm: từ điển **tên cột** (tách CamelCase và gạch dưới, bỏ dấu) → cột chuẩn, rút từ mapping của 30 cửa hàng train, đo leave-one-out. Theo ghi chú cũ (trước N22), dev_003 gần biz_124.
 - Nghi ngờ đã xét mà chưa thấy lỗi: chữ trạng thái (`STATUS_WORDS` cặp từ chặt, từ lạ thì cả cửa hàng dừng), khách lẻ (bộ sinh dữ liệu dùng chung cho train và public, nên nhiều khả năng các cách ghi đã gặp hết trên train), phiếu trả hàng (§0: trạng thái lấy theo đơn).
 - Thống kê từ log lượt 1 (chỉ đếm): 101 câu nhóm B gồm 54 xếp hạng (khách theo số đơn k=1: 10; ngày theo doanh thu: 12; mặt hàng theo số lượng: 14; khách theo doanh thu: 8; tháng: 7; lãi: 3) và 47 đếm (khách có ≥ N đơn, kể cả tỉ lệ: 22; đơn ≥ X tiền: 13; ngày ≥ X tiền: 12). **40/101 câu dính tới khách.**
+
+## N. Phiên 6 (đêm 05/11): định dạng lạ (N27), khách vãng lai (N33), README của image
+
+- [x] **N33 (TB). Khách vãng lai ghi bằng chữ chưa gặp thì thành "khách" mua nhiều nhất.** `blank_walk_ins` chỉ biết các cách ghi đã gặp trên train ("khách lẻ", "lẻ", "kl", "khách vãng lai", "vãng lai"). Một cửa hàng ghi "Khách hàng lẻ" hay một mã giữ chỗ thì "khách" đó đứng đầu mọi bảng xếp khách theo số đơn và theo doanh thu, và làm mỗi phép đếm khách dư 1. Kiểu sai này khớp với nhóm sai nhiều nhất ở public (xếp hạng 13%, đếm 13%, 40% số câu của hai nhóm dính tới khách).
+  - Căn cứ (train, 25 cửa hàng có ghi khách): khách vãng lai chiếm **39,2–40,5%** số đơn ở mọi cửa hàng; khách thật đứng đầu chiếm **tối đa 0,6%**.
+  - Sửa: mã khách chiếm từ 5% số đơn trở lên **và** gấp 10 lần số đơn của khách trung vị thì coi là khách vãng lai, có ghi cảnh báo trong `db.warnings`. Không chạm cửa hàng nào trên train (khách thật lớn nhất 0,6%). Có test (`test_a_walk_in_spelling_never_met_is_known_by_its_share_of_orders`): bắt cách ghi lạ chiếm 40%; cửa hàng chỉ có 4 khách thật, mỗi khách 20–30% thì không ai bị coi là vãng lai.
+  - Chưa biết đây có phải nguồn sai ở public không. Cửa hàng không có mã khách mà ghi tên kèm số điện thoại, hay một khách ghi hai kiểu tên, vẫn chưa xét.
+- [ ] **N27 (Cao), phần 1. Cửa hàng có định dạng lạ.**
+  - **Căn cứ:** đếm từ log run4 (không đọc dữ liệu public):
+    - 6/14 cửa hàng public không có mapping, 360 câu;
+    - 5/6 cửa hàng không thử được đường nào ngoài README, tức không có mẫu train nào chung tên file;
+    - 1 cửa hàng còn lại có mẫu nhưng thiếu cột bắt buộc.
+  - **Cách đo mới, chỉ dùng train (`tools/variant_eval.py`):** lấy cửa hàng có mapping tay, đổi tên mọi cột sang tên mà cửa hàng khác dùng cho cùng nghĩa (hoặc viết lại kiểu khác), sửa README cho khớp. Dữ liệu giữ nguyên nên chấm được bằng đáp án train. Bốn kịch bản:
+    - **A**: còn mẫu của chính nó;
+    - **B**: bỏ mẫu của chính nó;
+    - **C1, C2**: như A, B nhưng đổi cả tên file và tên bảng sang "bang_a", "bang_b"…
+  - **Sửa 1, `transfer.stem`:** bảng trong file cơ sở dữ liệu nhận theo tên bảng. Trước đây tên file nằm trong gốc tên, nên sqlite đổi tên file thì không ghép được với mẫu nào (đã chạy thử xác nhận). Bảng `don_hang` của sqlite cũng không gặp được `don_hang.csv` của 3 cửa hàng csv. Có test.
+  - **Sửa 2, `_ask_required_again`:** cột bắt buộc LLM không ghép được thì hỏi lại một lần, chỉ trong các cột chưa dùng. Ví dụ: bản sao của biz_123 mất cột "Số lượng sản phẩm" trong một câu hỏi 8 cột, nên mất cả mapping. Bước kiểm tra "thành tiền khớp số lượng × đơn giá" chặn nếu lần chọn sau sai. Có test.
+  - **Sửa 3, `by_role`:** khi mọi đường khác trượt, LLM ghép bảng của cửa hàng với bảng của từng mẫu theo vai trò (xem tên, cột, giá trị, số dòng), rồi ghép cột theo nghĩa như cũ. Nếu bảng đơn và bảng dòng hàng rơi vào cùng một bảng thì không đoán. Có test.
+  - **Đo:**
+    - kịch bản A: 10/10 bản sao map lại được, **926 đúng / 0 sai**, khớp hoàn toàn mapping tay;
+    - kịch bản B (trước sửa 2 và 3): 7/10, **555 đúng / 0 sai**;
+    - `eval.mapping` (sửa 1–3 cùng N33): **2493 đúng / 0 sai / 507 bỏ trống, PA +0,831** (log `outputs/eval_mapping_s6a.log`). biz_123 từ 0 lên 57 câu.
+  - **Đổi lại, biz_111 mất 3 câu (107 → 104).** Nó giờ ghép theo nghĩa với mẫu biz_123, trước đây đi đường README. Trong lần ghép theo nghĩa, LLM bỏ sót cặp `SLQuyDoi` ↔ "SL quy đổi" (cột không bắt buộc), nên mất `lines.base_qty` và 3 câu "bán chạy nhất" bỏ trống. Chưa sửa: hỏi lại cả cột không bắt buộc thì không bước kiểm tra nào chặn được lần ghép sai.
+- [x] **N34 (TB). Bộ lọc chỉ nhắc lại chỉ số được hỏi** (`grounding.drop_restated_metric`, cùng kiểu N30). Căn cứ, train 05/11:
+  - "tiền khách trả bớt nợ" đọc thành `debt_paid` kèm `payment_method` = "bớt nợ" / "trả nợ" / "mua chịu": 13 câu;
+  - "xe chở được bao nhiêu đợt hàng" đọc thành `delivery_count` kèm `vehicle_model` = "xe chở": 6 câu;
+  - "cộng mọi món tính theo ly" thành bộ lọc `unit` (10 câu), nay chuyển sang đơn vị của chỉ số (§3 "bao nhiêu <đơn vị>"). Chỉ chuyển khi chỉ có một đơn vị.
+
+  Kèm theo: `quantity` với đơn vị mà cửa hàng không hề ghi thì không trả lời, thay vì trả 0. Một câu "… tính theo ly ta" ("ta" là trợ từ) có plan thứ hai với đơn vị "ly ta"; sau khi chuyển bộ lọc, câu này ra `[214, 0]`, sai (đã chạy thử xác nhận). Có test.
+- [x] **N35 (Cao). Mapping chuyển từ mẫu không có sổ thu tiền thì mất mọi câu công nợ và lãi gộp** (`from_readme.with_conventions`, chạy trong `enrich`).
+  - Căn cứ: biz_106 và biz_109 chuyển từ mẫu biz_120 (không có sổ thu, "phải trả cả đơn", giá vốn trên dòng), dù có `SoQuy`, cột "Tổng sau giảm giá", cột "Giá vốn". Phần "Quy ước" của README gọi tên các cột này theo khuôn cố định: "**A** là số tiền trả lần đó; **B** là số khách phải trả cho cả đơn", "**Z** là giá vốn một đơn vị bán" (cơ sở dữ liệu thì ghi `bang.Cot`).
+  - Sửa: khi mapping chưa có thì thêm
+    - `orders.total_due` = B;
+    - `lines.unit_cost` = Z;
+    - `orders.payment_method` = cột duy nhất của bảng đơn mà ≥ 90% giá trị đọc ra phương thức thanh toán;
+    - bảng `payments`: bảng chứa A, chỉ một kiểu bố cục, có đúng một cột mã đơn mà ≥ 95% giá trị là mã đơn có thật, và đúng một cột ngày. Không thoả thì không đoán.
+  - Có test.
+  - Đo trên 2 cửa hàng: biz_106 75 → 98, biz_109 77 → 103, có **1 câu sai**: plan bỏ sót tên khách, xem N36.
+- [x] **N36 (Cao). Plan bỏ sót một tên có trong câu hỏi.** Câu "khách cao thu hạnh ghi nợ thêm bao nhiêu": LLM không ghi khách mà ghi bộ lọc trạng thái, N30 bỏ bộ lọc đó, nên plan còn lại trả tổng của cả cửa hàng. Câu này lộ ra khi N35 có dữ liệu công nợ.
+  - Căn cứ (train): câu nêu tên khách hoặc tên hàng của cửa hàng (từ 2 chữ trở lên, khớp nguyên từ) mà plan không có bộ lọc trường đó chỉ có **1 câu**, chính là câu sai này.
+  - Sửa: `nlu.omitted_names` khi nối tên, ghi vào `ResolvedPlan.omitted`; [V] đặt `entities_ok = False`. Tên nằm trong giá trị của một bộ lọc khác ("nhóm cà phê sữa") thì không tính là bỏ sót. Có test.
+- **Thêm cho N27 (sau khi đo kịch bản B):**
+  - **`by_role` xếp mẫu theo số bảng của cửa hàng mà mẫu đọc được, rồi mới tới tỉ lệ.** Trước đó một sổ chỉ có một bảng được thử trước các bản xuất nhiều bảng.
+  - **`unfilled_extras`:** bảng phụ (không phải đơn, dòng hàng) có cột bắt buộc bị trống thì bỏ riêng bảng đó, không đánh trượt cả cửa hàng. Bản sao của biz_120 có bảng đơn và dòng hàng ghép đúng, nhưng danh mục bị ghép nhầm thành lịch sử giá, nên cả cửa hàng trượt.
+  - **`quantity` và `rank` không còn báo lỗi `KeyError`** khi mapping không có `base_qty` (đã chạy thử xác nhận lỗi). Có test.
+  - **Đo kịch bản B sau các sửa này:** bản sao biz_124 81 đúng / 0 sai (tay 93), biz_120 94 / 0 (tay 115), cả hai qua mẫu biz_123.
+- **N27 phần 1, thêm `requantify`:** khi chỉ riêng kiểm tra "thành tiền khớp số lượng × đơn giá" trượt, thử từng cột số chưa dùng của bảng dòng hàng làm số lượng. Chỉ nhận khi đúng một cột làm mọi kiểm tra qua; hai cột cùng qua thì không đoán. Có test.
+  - Căn cứ: biz_124 thật, ghép bảng theo vai trò với mẫu biz_123. Bảng đã ghép đúng, nhưng LLM lấy "SL cơ bản" (số lượng quy ra đơn vị cơ bản) làm số lượng của dòng, bỏ sót "Slg", nên cả cửa hàng trượt.
+  - Đo: **biz_124 từ 0 lên 85 đúng / 0 sai / 33 bỏ trống** (mapping tay được 93).
+- **N27 phần 1, kịch bản C2 (đổi tên file, bỏ mẫu của chính nó) lộ 5 câu sai ở bản sao biz_123** (ghép theo vai trò với mẫu biz_124). Hai bản sửa:
+  - **Cột mã đơn không mang nghĩa nào khác** (`_one_meaning_each`). LLM lấy cột mã đơn làm luôn mã hàng; cả hai cột đều bắt buộc nên `_one_meaning_each` cũ giữ cả hai. Mã hàng và tên hàng từ một cột thì vẫn hợp lệ (cửa hàng chỉ ghi tên). Có test.
+  - **Kiểm tra bắt buộc mới "mã hàng và tên hàng hợp lý"** (`build.product_check`): ≥ 10 mã hàng, ≥ 50% tên hàng có khoảng trắng.
+    - Căn cứ train: mọi cửa hàng có 50–80 mã hàng, 100% tên có khoảng trắng.
+    - Sau bản sửa trên, mã hàng được hỏi lại và chọn phải cột "Id cửa hàng" (một giá trị). Tên hàng lại là cột mã ("SP0001"), nên bảng xếp hạng ra mã.
+    - Hai test cũ có dữ liệu giả 1–2 mặt hàng tên một chữ, không giống cửa hàng nào; đã sửa dữ liệu cho giống thật.
+  - Đo: bản sao biz_123 ở C2 từ 47 đúng / 5 sai thành **70 đúng / 0 sai** (qua mẫu biz_111).
+  - Đo trước bản sửa: C1 801 / 0 / 225; C2 650 / 5 / 371; train `eval.mapping` 2651 / 0 / 349, PA +0,884 (log `eval_mapping_s6c.log`).
+- **Public run5** (code trước bản sửa C2, `outputs/public_run5/`): 438 câu trả lời, 3 unanswerable. Đếm từ log: đường ghép theo vai trò đã chạy cho 5/6 cửa hàng chưa map được nhưng **chưa cửa hàng nào qua kiểm tra**. Lỗi là thiếu cột bắt buộc ("thiếu bảng"), hoặc nhiều kiểm tra trượt cùng lúc (schema, trạng thái, số âm). Mẫu được chọn phần lớn là sổ một bảng (101, 105, 126, 103). Chưa xem giá trị nào của dữ liệu public (N22).
+- **N27 phần 2, kịch bản E: README sơ sài** (`variant_eval.py --strip-readme`: bỏ mọi mục "Cột trong …", chỉ giữ tên file và "Quy ước"; kèm đổi tên file, bỏ mẫu của chính nó).
+  - **E tái hiện đúng kiểu trượt của public:** 4/10 bản sao (111, 115, 124, 126) trượt y như 6 cửa hàng public (đường README trượt, ghép theo vai trò "thiếu bảng"). 6/10 map được, 497 đúng / 0 sai.
+  - Ba bản sửa:
+    - **`_as_rows`:** mẫu sổ phẳng có mã đơn (đơn và dòng hàng cùng một bảng), cửa hàng không có cột nào gom dòng, thì mỗi dòng là một đơn (§8, mã đơn `_row` như mapping tay biz_126). Trước đó sổ không mã đơn chỉ map được khi có đúng mẫu cùng kiểu. biz_126 ở E từ 0 lên **35 / 0**.
+    - **Giới hạn khi ghép bảng theo vai trò:**
+      - bảng của mẫu đọc trạng thái đơn từ một cột chỉ được ghép với bảng có cột chữ trạng thái (`_has_statuses`, ≥ 90% giá trị đọc ra trạng thái);
+      - bảng của mẫu đọc thành tiền dòng chỉ được ghép với bảng có cột tiền (`_has_amounts`, trung vị ≥ 1.000 đồng);
+      - không bảng nào đạt điều kiện thì không giới hạn.
+
+      Căn cứ: bản sao biz_115 bị ghép sổ bán với "Bảng kê phiếu giao hàng" (cùng mã đơn, tên hàng, số lượng, nhưng không có trạng thái); biz_124 bị ghép dòng hàng với bảng bán theo lô (không có tiền). biz_115 ở E từ 0 lên **100 / 0**.
+    - Công cụ `variant_eval`: cột vừa là mã vừa là tên thì lấy tên khác theo nghĩa "tên". Cột mã không nhận tên của cửa hàng dùng chung một cột cho mã và tên (trước đó bản sao có cột mã tên "Tên hàng hóa", không giống cửa hàng thật).
+  - Còn trượt ở E: 111 (đã ghép bảng đúng nhưng tên hàng chỉ có ở danh mục), 124. Cả hai đều bị kiểm tra chặn, không ra câu sai.
+  - **Đo E sau các sửa: 645 đúng / 0 sai / 381 bỏ trống** (trước 497 / 0); 8/10 bản sao map được.
+  - **Hồi quy đã sửa:** lúc đầu `_as_rows` chạy ở mọi đường ghép theo nghĩa. biz_107 (40 → 29) và biz_126 (40 → 36) khi đó được map bằng mẫu 105 chuyển sang "mỗi dòng một đơn", thay vì đi đường README tốt hơn. Nay chỉ dùng ở đường cuối (ghép theo vai trò): hai cửa hàng trở lại 40/40, bản sao biz_126 ở E vẫn 35 / 0.
+  - Public run7 (code có các sửa này và N38): trùng hoàn toàn run6 (438 câu trả lời). 6 cửa hàng public vẫn chưa map; theo E, các cửa hàng có trạng thái và cột tiền đọc được giờ có thêm cơ hội, nhưng ở public chưa thành mapping.
+- **Đã đo, không đổi: đưa đường README lên trước đường ghép theo nghĩa.** Với 10 cửa hàng train đang map theo nghĩa mà đường README cũng qua, đi README trước được:
+  - thêm: 101 (+4), 103 (+1), 111 (+3), 129 (+4);
+  - mất: 105 (−10);
+  - còn lại không đổi; cả hai đường đều 0 sai.
+
+  Tổng chỉ +2, nằm trong mức nhiễu, nên giữ thứ tự cũ.
+- [x] **N38 (TB). Nhập hàng mà cửa hàng không ghi thì trả không trả lời được (§7).**
+  - Căn cứ (train): phần "## Quy ước" có ở cả 30 README.
+    - Cửa hàng có mục "**Nhập hàng**": 104/104 câu nhập hàng (tổng tiền nhập, giá nhập bình quân, số phiếu, xếp hạng nhà cung cấp) trả lời được.
+    - Cửa hàng không có mục đó: 5/5 câu là unanswerable, kể cả biz_122 dù có file `DonNhapHang`.
+    - Riêng tồn kho thì không dùng được tín hiệu này: cửa hàng không có mục "Tồn kho" vẫn có 12 câu tồn kho trả lời được.
+  - Sửa:
+    - `build.readme_conventions` ghi các mục của "Quy ước" vào `CanonicalDB.conventions`;
+    - [V] đặt `Signals.not_recorded` khi câu hỏi về nhập hàng, "Quy ước" không có mục "nhập hàng", mapping không có bảng nhập, và hai dòng §7 không đổi;
+    - [E] trả `unanswerable` khi đọc được câu, mapping dùng được, tên đã nối.
+  - README không có phần "Quy ước" thì không suy ra gì. Có test.
+- **N22 đổi (06/11): BTC cho phép xem dữ liệu public.** Giữ các giới hạn:
+  - chỉ xem để tìm kiểu lỗi;
+  - mọi bản sửa là quy tắc chung, không có id cửa hàng hay câu hỏi trong code, kể cả comment (`test_no_id_logic` đã bắt một lần 06/11);
+  - không gán nhãn, không viết mapping tay cho cửa hàng public;
+  - mỗi bản sửa có test, train vẫn 0 sai.
+
+  6 cửa hàng public chưa map gồm 4 ngành **không có trong train**: điện thoại (011, 014), sửa xe (012), mẹ và bé (013). Hai cửa hàng còn lại có dạng đã gặp: 003 là bản xuất phần mềm có hoá đơn và chi tiết gộp một sheet, 009 chỉ có bảng hoá đơn.
+- [x] **N39 (Cao). Hai dạng đã gặp mà vẫn không map được.**
+  - **Đơn ghi trùng** (§8 "hai dòng của cùng một đơn giống nhau ở mọi ô: tính một lần"). Đường README cho cửa hàng chỉ có bảng đơn (N26) từ chối khi mã đơn lặp; cửa hàng 009 có 308/22.798 hoá đơn ghi hai lần giống hệt nhau. Nay chỉ từ chối khi hai dòng cùng mã mà khác nhau. Có test.
+  - **Workbook nhiều danh sách:** `_new_groups` gom bảng theo tên file, bỏ cả nhóm khi bố cục khác nhau, nên các sheet bán hàng của 003 không được đưa cho LLM chọn. Nay `layout_groups` tách theo bố cục khi ghép theo vai trò. Có test.
+  - **Bảng đơn và dòng hàng của mẫu cùng ghép vào một sheet gộp:** được phép khi sheet đó có cột mã đơn gom được dòng thành đơn (README của 003: "hoá đơn và chi tiết gộp chung sheet, thông tin hoá đơn lặp lại"). Có test.
+  - **Chữ trạng thái "Khách trả"** đứng riêng một ô là trả hàng; "khách trả tiền" không phải chữ trạng thái. Có test.
+  - **Đo:**
+    - train `eval.mapping` **2656 / 0 / 344**, không đổi;
+    - public run8: **553 câu trả lời** (run6: 438), thêm 116, mất 1. Cửa hàng 003 trả lời 97/129 câu, 009 trả lời 19/21.
+    - Chưa biết 116 câu mới đúng bao nhiêu: nộp cặp run8 và `outputs/public_ablation8/bo_cua_hang_moi.jsonl` để đo.
+- [x] **N40 (Cao). Sổ không có cột trạng thái: trạng thái nằm trong Ghi chú** (§8 của rulebook public, train không có dòng này). Ba cửa hàng public cần: điện thoại 011, 014; mẹ và bé 013.
+  - Phép biến đổi `status_from_note`:
+    - ghi chú nhắc đúng một trạng thái thì lấy trạng thái đó;
+    - mọi ghi chú của đơn không nhắc trạng thái nào thì đơn hoàn thành;
+    - nhắc hai trạng thái thì không rõ.
+
+    Các dòng có ghi chú không nhắc gì (dòng Voucher, dòng tiếp theo của đơn) không tính khi gộp theo đơn.
+  - Đường README nhận "ghi chú của đơn" / "ghi chú" khi không có cột trạng thái. Đường chuyển mapping, khi mẫu có cột trạng thái mà cửa hàng không có, dùng cột "Ghi chú…" duy nhất (cột phần lớn để trống, hoặc không phải chữ trạng thái).
+  - Từ khoá thêm:
+    - "chưa giao" → đang giao;
+    - "mang trả" → trả hàng;
+    - "khách trả" đứng riêng một ô → trả hàng;
+    - "kiểm tra lại" **không** phải trả hàng (ghi chú của tiệm sửa xe "kiểm tra lại tuần sau" từng làm 50 phiếu thành trả hàng).
+  - **Lỗi chung đã sửa: `_fill_down`.** Lệnh `ffill` lấy ô không trống gần nhất của bất kỳ dòng nào phía trên, tức ghi chú hay khách của **đơn trước**. Kết quả: một sổ điện thoại có 834/3.819 đơn thành trả hàng trong khi chỉ có 29 ghi chú trả. Nay dòng tiếp theo lấy ô ở dòng đầu của chính đơn đó. Train không đổi (2656 / 0). Có test.
+- [x] **N41 (TB). Dòng "Voucher", "Dùng n điểm", "Phí ship" là khoản của đơn, không phải dòng hàng** (sổ mẹ và bé public). §1: doanh thu không trừ voucher, không gồm phí giao. Ba loại dòng này chuyển thành `voucher_discount`, `points_discount`, `shipping_fee` của đơn và bỏ khỏi bảng dòng hàng. Train không có dòng nào như vậy. Có test.
+- [x] **N42 (TB). Sổ phiếu sửa xe** (mỗi dòng một phiếu, không mã, không dòng hàng):
+  - đường "chỉ có bảng đơn" nhận sổ không mã (mã `_row`, §8 "bảng không ghi theo đơn");
+  - đọc "tổng tiền cả phiếu" làm doanh thu, thợ làm nhân viên, "các việc đã làm" thành `services`;
+  - tách biển số và dòng xe từ một ô;
+  - ghi chú "bảo hành" thành `is_warranty`.
+
+  Thêm:
+  - giá trị trung bình một phiếu bỏ phiếu bảo hành (§6 Sửa xe);
+  - danh sách thợ ("họ tên thợ") thành bảng `employees`;
+  - `full_employee_names` đổi tên gọi có danh xưng ("A.Phúc", "a Phúc", "Phúc") sang họ tên khi khớp đúng một người.
+
+  Có test.
+- [x] **N43 (TB). Tên hàng ghi tắt** (sổ điện thoại public: "hàng bán, có thể ghi tắt, tra ở sheet Ghi tắt"). `expand_abbreviations` tìm bảng có:
+  - một cột khoá chứa ≥ 20% tên trong sổ;
+  - một cột tên dài hơn, cùng cột khoá phủ ≥ 80% tên trong sổ, so theo dạng chuẩn hoá (§8).
+
+  Khi có thì mã và tên hàng tra qua bảng đó (`lookup` có `fold`). Kèm theo, `sane_base_units`: cột đơn vị cơ bản có hơn 30 giá trị thì bỏ (train tối đa 15). Có test.
+  - **Hồi quy đã sửa:** bản đầu của `expand_abbreviations` kích hoạt cả ở sổ ghi theo mã ("SP001") có danh mục mã và tên, rồi đổi mã hàng thành tên hàng. Train mất 67 câu (111, 123, 127, 129); public run9 lần đầu đã dừng giữa chừng. Nay đòi ≥ 10% tên trong sổ bán ghi thẳng tên đầy đủ (sổ điện thoại public: 56/115; sổ ghi theo mã: 0). Bốn cửa hàng trở lại 107, 63, 109, 112. Có test.
+- [x] **N44 (TB). Chỉ số theo ngành của §6 public** (schema plan đã có sẵn tên chỉ số, prompt không đổi):
+  - sửa xe:
+    - `ticket_count`: mọi phiếu, kể cả bảo hành;
+    - `avg_ticket_value`: chỉ phiếu có thu tiền;
+    - `vehicle_count`: số biển số khác nhau;
+    - `warranty_count`;
+    - `warranty_rate`: phiếu bảo hành / phiếu có thu tiền.
+
+    Bộ lọc thêm: thợ, dòng xe (không phân biệt hoa thường, §6), phiếu bảo hành. Chỉ chạy ở sổ có biển số.
+  - mẹ và bé: `voucher_discount`, `points_discount`, `shipping_fee_total`. Là số dương, theo ngày của hoá đơn, chỉ đơn không huỷ, không trả.
+  - điện thoại: `trade_in_amount`. Đường README đọc thêm các cột cấp đơn của sổ gộp: "tiền bớt cho cả đơn", "tiền thu máy cũ", "số tiền khách trả cho cả đơn".
+  - Cửa hàng không có cột tương ứng thì không trả lời. Có test, kỳ vọng tính tay theo từng dòng luật.
+  - **Chưa làm:**
+    - sửa xe: hoa hồng thợ, lượt theo việc ("sửa điện", "thay dầu láp"), xe khách quen;
+    - điện thoại: dòng máy, hãng, máy mới hay cũ, trả góp, bảo hành;
+    - mẹ và bé: số sữa, size bỉm, khách thành viên mới.
+- **Kết quả:** cả 6 cửa hàng public trước đây chưa map nay đều map được (đo trực tiếp bằng `map_by_transfer`): 003 và 014 qua ghép theo vai trò, 009 và 012 qua đường chỉ có bảng đơn, 011 qua README, 013 qua ghép theo nghĩa. **Chưa đo độ chính xác:** 4 cửa hàng thuộc ngành không có trong train; xem `docs/CAN_XAC_MINH.md`.
+
+### Phiên 8 (06/11)
+- [x] **N45 (CAO). Cửa hàng chỉ có bảng đơn mà có thêm bảng phụ bị coi là chưa dùng được.**
+  - Triệu chứng: sổ sửa xe public trả lời 0/50 ở run9. Mọi kiểm tra của mapping đều qua (6060 phiếu), nhưng `Mapping.ok` đòi tập bảng **đúng bằng** `{"orders"}`. N42 thêm bảng `employees` (danh sách thợ), nên `ok = False`. Pipeline không gọi LLM (46 câu không có plan), cổng `mapping_ok` chặn nốt 4 câu baseline đã tính ra số.
+  - Sửa: "chỉ có bảng đơn" = không có bảng `lines` và bảng `orders` có `goods_amount`, như `frames.orders_only` vẫn dùng. Bảng phụ không ảnh hưởng.
+  - Test: `test_contracts.py::test_an_orders_only_shop_with_a_side_table_is_usable`, `test_repair_ledger.py` (khẳng định `m.ok`). Train không đổi (2656/0).
+- [x] **N46 (TB). Khái niệm mới của rulebook public, chung cho mọi ngành:**
+  - §2 "trung bình mỗi ngày thứ X của kỳ": tổng của kỳ chia cho số ngày thứ X trong kỳ, kể cả ngày không có đơn (`aggregate: avg_per_weekday`, có sẵn trong schema nhưng hàm từng từ chối). Trung bình tiền làm tròn về đồng (§9). `avg_per_day` chia cho mọi ngày của kỳ.
+  - §6 "thợ làm nhiều nhất": theo số lượt xe, kể cả phiếu bảo hành (`rank employee by ticket_count`).
+  - §3 "nhân viên, thợ chăm chỉ nhất": nhiều ngày có đơn nhất (`work_days`). "Khách trung thành nhất": nhiều ngày có mua nhất (`days_with_purchase`).
+  - §6 "xe tới nhiều lần, xe khách quen": xe theo biển số, chỉ đếm phiếu có thu tiền (`count_where` thực thể `vehicle`).
+  - Mã luật chỉ được dẫn khi plan dùng đến (rulebook train không có các dòng này). Có test tính tay (`test_industry_metrics.py`).
+- [x] **N47 (TB). Hoa hồng thợ** (README của sổ sửa xe public: "Hoa hồng (%): phần trăm hoa hồng của thợ, tính trên tổng Tiền các phiếu thợ làm trong tháng"):
+  - cột chuẩn `employees.commission_pct`, đọc từ README ("phần trăm hoa hồng");
+  - chỉ số `commission` = phần trăm × tiền các phiếu người đó làm trong kỳ, làm tròn về đồng. Chỉ trong một tháng (gốc tính là tiền của tháng). Có người trong kỳ thiếu phần trăm thì bỏ trống;
+  - xếp hạng nhân viên có `with_values` thành bảng §9 (`["nhan_vien", <số đo>]`), trước đây luôn bỏ trống.
+  - Rủi ro đã chặn: không có chỉ số này, LLM có thể đọc "thợ X lãnh bao nhiêu hoa hồng" thành doanh thu của thợ X; cổng thuật ngữ không bắt được vì "hoa hồng" là từ của README, không phải rulebook.
+- [x] **N48 (TB). Sổ sửa xe: việc trong ô "Làm gì", dòng xe viết tắt.**
+  - `nlu/jobs.py`: bảng các cách gọi việc sửa xe, theo cách đọc §6 ("nhớt" trơn là nhớt máy; "ruột" trơn là thay ruột; sửa điện không gồm bóng đèn, ắc quy) và tên thường dùng của nghề (BD/bdtq = bảo dưỡng; NSD = nhông sên dĩa; bình = ắc quy; nhớt láp = nhớt hộp số = dầu láp). Bộ lọc `service` lấy phiếu có việc đó, bỏ phiếu bảo hành. Sổ có một ô không đọc được thì mọi câu lọc theo việc bỏ trống. Trên sổ public: 6060/6060 phiếu đọc được.
+  - `linking.model_lines`: §6 "tên dòng xe chỉ khác hoa/thường hoặc ghi tắt là cùng một dòng". Gộp: cùng chữ cái ("shmode"), là một phần các từ ("Vision" của Vision 110, "Alpha" của Wave Alpha), chữ đầu ("AB" của Air Blade), phần đầu ("Ex" của Exciter); "Wave α" đọc là alpha. Cách viết có thể thuộc hai dòng ("Wave" khi có cả Wave Alpha và Wave RSX) thì không gộp, và câu lọc theo dòng xe bỏ trống.
+    - Lỗi đã bắt: trước đó "Air Blade" chỉ nối với đúng cách viết đó, nên sẽ đếm thiếu phiếu "AB", "airblade" mà vẫn trả lời; "Wave Alpha", "SH Mode", "Vision" thì hoà giữa các cách viết, không nối được.
+    - `norm` sửa lỗi gõ telex nên "Air" thành "ai"; tên dòng xe dùng cách gấp chữ không sửa telex.
+  - Xếp hạng theo dòng xe (`RankEntity` thêm `vehicle_model`).
+  - **Gợi ý trong prompt** (`prompt.hints`): vài dòng cách viết plan cho sổ sửa xe, hoa hồng, "trung bình mỗi thứ X". Chỉ thêm khi cửa hàng có dữ liệu đó (cột biển số, cột phần trăm hoa hồng) hoặc câu hỏi dùng từ đó. Không câu train nào nhận gợi ý (có test), nên prompt của 3000 câu train giữ nguyên từng byte và 3000 plan đã kiểm chứng vẫn dùng được.
+  - Căn cứ xem dữ liệu public: chỉ xem kiểu ghi của ô "Làm gì" và "Xe" (luật N22 đã gỡ, giới hạn "chỉ tìm kiểu định dạng"). Bảng tên việc là tri thức ngành chung, không có id cửa hàng, không gán gì cho câu hỏi.
+- [x] **N49 (CAO). K1 trên Kaggle: Qwen3-14B so với Qwen3-8B, và 4 lỗ hổng cổng.**
+  - Kết quả (`outputs/kaggle_k1/` trong zip; plan 14B chép vào `outputs/bank/llm_plans.14b_kaggle.jsonl`):
+    - K3, 149 plan tay: 8B khớp hoàn toàn 82,6%, 14B 83,2% (+0,6 điểm; ngưỡng §11 là ≥ 3 điểm). JSON hợp lệ 93,3% / 94,6%.
+    - Tốc độ trên T4: 8B 3,0 giây/câu, 14B 5,8 giây/câu.
+    - `eval.mapping` cùng code hôm nay: 8B **2656 đúng / 0 sai**, 14B **2652 đúng / 10 sai** (PA +0,885 / +0,881).
+    - Hai model đọc giống hệt nhau 2617/3000 câu.
+  - **Quyết định: giữ Qwen3-8B.** Không hơn rõ, chậm gấp đôi, sai nhiều hơn; giữ 8B thì image Docker nhẹ hơn (5 GB so với 9 GB) và chạy private được trên laptop.
+  - 10 câu sai của 14B là plan đọc sai mà lọt qua mọi cổng. 8B cũng có thể đọc như vậy ở cửa hàng lạ, nên thêm cổng (`grounding.ungrounded_measures`):
+    - **phần và tổng** (5 câu): "tổng cộng mấy ly size M, cộng tất cả các món" thành [ly size M, mọi ly]. Hai measure cùng chỉ số, bộ lọc của một cái là tập con thật của cái kia, mà câu chỉ hỏi một số (không có hai từ hỏi, không có "mỗi loại / lần lượt / hai số") → bỏ;
+    - **k câu hỏi nêu** (3 câu): "3 khách nào nợ nhiều nhất" mà k để mặc định 1. `stated_k` đọc "top N", "N khách/món/… nào"; số trong ngày tháng ("27/10 khách nào") hay sau từ chỉ thời gian ("tháng 3 khách nào") không tính;
+    - **cùng kỳ năm trước** (1 câu): "ca chiều hơn hay kém ca sáng" thành so với năm trước, kỳ so rơi ngoài dữ liệu nên ra unanswerable (sai). Cần chữ "năm trước / năm ngoái / cùng kỳ" hoặc câu nêu hai năm khác nhau;
+    - **ngưỡng chỉ nhắm số 0** (1 câu): "không bán được lần nào" thành `order_presence = 0`; hàm chỉ thấy đối tượng có mặt trong kỳ nên luôn ra 0. `count_where` bỏ trống khi ngưỡng nhận 0 mà không nhận 1. "Dưới 3 đơn" vẫn đếm như cũ.
+  - Trên 3000 plan 8B, các cổng mới chỉ chặn 1 plan ("bảng 3 khách" đọc thành k=1, vốn không thể đúng). Có test (`test_k1_gates.py`).
+  - **Đo lại với các cổng mới** (`outputs/eval_mapping_s8c.log`, `_s8c_14b.log`): 8B 2656 / 0 / 344 (PA +0,885); 14B **2652 / 0** / 348 (PA +0,884). Hai model hoà nhau.
+  - **Bài học (xem tiếp N53):** "0 sai" của 8B trên train không phải số đo độc lập. Các cổng được dựng dần từ lỗi của chính 8B trên chính 3000 câu này, nên model nào khác cũng sẽ lộ những kiểu sai mà cổng chưa thấy. Ở public và private, 8B gặp cửa hàng lạ là tình huống tương tự. Plan của một model khác trên train là một bộ thử rẻ để tìm lỗ hổng cổng; nên dùng tiếp nếu còn giờ GPU (chỉ lúc phát triển, không dùng khi dự đoán).
+- [x] **N50 (CAO). Nhóm hàng có trong README mà mapping không lấy** (public: 4 cửa hàng cũ, khoảng 30 câu theo nhóm bị bỏ trống vì không nối được tên nhóm).
+  - Nguyên nhân: `enrich` chỉ thêm nhóm hàng vào bảng danh mục khi mapping **đã có** bảng đó. Các cửa hàng này chỉ có `orders` + `lines`; nhóm nằm ngay trên dòng hàng ("Phân loại: nhóm hàng", "Nhóm hàng: nhóm hàng") hoặc trong một danh mục mapping bỏ qua ("Loại sản phẩm: nhóm hàng", "Nhóm: nhóm hàng" của sổ "nối qua tên hàng").
+  - Sửa (`from_readme._line_group`): mapping chưa có nhóm thì lấy cột "nhóm hàng" của chính dòng hàng; không có thì tra danh mục theo mã hàng, hoặc theo tên hàng (so không phân biệt cách viết, §8); file dòng hàng không có mục README thì nối theo cột danh mục **cùng tên cột**.
+  - Kết quả: train **2681 / 0** (trước 2656; biz_121 83 → 88, biz_122 83 → 93). Public (chạy lại run9 từ log): +14 câu trả lời. Có test.
+- [x] **N51 (TB). Tên Bắc – Nam** (public: "Lạc rang muối 200g" cho "Đậu phộng rang muối 200g", "Đậu phụ rán giòn" cho "Đậu hũ chiên giòn"). `linking.dialects`: thêm biến thể đổi từ miền Bắc sang miền Nam và ngược lại (lạc/đậu phộng, đậu phụ/đậu hũ, rán/chiên, vừng/mè, ngô/bắp, lợn/heo, dứa/thơm…). Chỉ đổi trên chữ **còn dấu**: "lạc" không phải "lắc" (khoai tây lắc); "lac" không dấu thì không đổi. Public: +4 câu. Có test.
+- [x] **N52 (TB). Khái niệm §3 public (H4):** khách sộp (giá trị trung bình một đơn cao nhất, chỉ khách từ 3 đơn), khách hay đổi ý (nhiều đơn huỷ nhất), mặt hàng được ưa chuộng (có mặt trong nhiều đơn nhất), giờ cao điểm (khung một giờ nhiều đơn nhất, đáp án là giờ bắt đầu, number). Mỗi xếp hạng dẫn đúng mã luật của khái niệm (`RANK_TERMS`), nên cổng thuật ngữ biết hàm đọc đúng từ. Gợi ý prompt chỉ khi câu dùng từ đó (public 9 câu, train 0). Có test tính tay.
+- [x] **N53 (CAO). Mã luật dẫn theo điều kiện không được kiểm** (bắt trước khi chạy). Cổng "luật không đổi" kiểm các mã trong `pipeline.rule_ids()`, dựng từ luật khai báo lúc đăng ký hàm. Bốn mã chỉ dẫn khi plan dùng tới ("trung bình mỗi thứ X", việc trong ô Làm gì, thợ làm nhiều nhất, xe khách quen) không nằm trong đó, nên [V] coi là luật đã mất và mọi câu như vậy sẽ bỏ trống. Test đơn vị không thấy vì gọi thẳng hàm tính. Sửa: `sales.CONDITIONAL_RULES` đưa vào `rule_ids()`; test `test_rank_terms.py` kiểm mọi mã mà các hình plan mới dẫn đều nằm trong danh sách và qua rulebook public.
+- [x] **N55 (CAO). Sổ sửa xe với LLM (50 câu public dev_012): 0 → 37 → 43 câu trả lời.** Đọc log từng câu ở mức hình plan (không tự tính đáp án để đối chiếu), các kiểu đọc sai có hệ thống và cách sửa chung:
+  - **bảng "từng / mọi thợ" với k = 1** (2 câu đã trả lời bảng 1 dòng, gần như chắc sai): `grounding.widen_each_table`: bảng có số đo, k = 1, câu không nêu số lượng mà có "bảng / từng / mọi / các / tất cả" → lấy mọi đối tượng. Gợi ý hoa hồng ghi rõ "k null, không filter employee";
+  - **"3/26" đọc thành ngày 26/03/2026**: `month_of_short_year`. Người Việt viết ngày trước tháng, nên "M/YY" với YY > 12 là tháng M năm 20YY; chỉ sửa đúng dấu hiệu ngày = YY, tháng = M, năm = 20YY;
+  - **quý thiếu số** ("Quý 4/2025" thành `{"kind": "quarter", "year": 2025}`, sai schema): `repair._fill_number` lấy số quý/tháng duy nhất câu nêu;
+  - **`is_warranty` lặp ý chỉ số** ("phiếu có thu tiền … trung bình 1 phiếu" ghi `is_warranty = false`, cổng chỉ nhận chữ "bảo hành"): bỏ bộ lọc khi chỉ số đã nói điều đó (`avg_ticket_value` / false; `warranty_count`, `warranty_rate` / true). "Tiệm lên bao nhiêu phiếu" mà ghi `is_warranty = false` vẫn bị chặn;
+  - **"đếm phiếu" thành "đếm đơn có ≥ 1 phiếu"**: `count_as_value` đổi về `value` của chính chỉ số đó (cùng nghĩa); ngưỡng khác giữ nguyên;
+  - gợi ý: mã từng thứ trong tuần ("thứ Tư" từng thành `thu`, "thứ 3" thành `wed`, cả hai bị cổng chặn); việc sửa xe là `service`, không phải `product_group`; từ miền Trung "mô / rứa / ni" (bật cho câu có từ đó; "răng" bỏ vì train có "kem đánh răng").
+  - Còn bỏ trống, đúng là nên bỏ: plan thêm `is_warranty` câu không nói; "thứ 3" vẫn ra `wed`; plan ghi cả 4 tên thợ; hoà hạng; "thợ mô làm ra nhiều tiền nhất" bị cổng thuật ngữ khớp với "thợ làm nhiều nhất" của §6 (plan đúng nhưng cổng khớp lỏng; để an toàn).
+  - Có test (`test_plan_rewrites.py`).
+- [x] **N56 (CAO). run10 (đủ 1000 câu, 06/11): 681 câu trả lời** (run9 608): 598 giữ nguyên, 79 mới (45 ở dev_012), 6 mất, 1 đổi giá trị. Cả 7 câu đổi đều do LLM đọc ra plan khác run9: schema thêm `commission`, `vehicle_model` làm grammar đổi, đường giải mã đổi theo ở vài câu. Bài học: **mọi thay đổi schema/prompt đổi cách đọc của một phần câu cũ**; phải so từng câu với lượt trước.
+  - Từ 7 câu đó, sửa chung:
+    - cổng "cùng kỳ năm trước" chỉ nhận năm 4 chữ số, chặn oan "tháng 7/26 so với tháng 7/25": `stated_months` đọc cả M/YY;
+    - "th 6/26 so với th 6/25" đọc thành `previous` (tháng 6 so với tháng 5, **một câu sai mới**; `temporal` bỏ qua kỳ ghi kèm khi kind là previous): cổng mới, câu nêu cùng một tháng của hai năm thì không được là `previous`. Chặn 3 câu trả lời của run10, cả 3 sai kiểu này;
+    - "khách trả nợ" ghi thêm `payment_method = debt` (mã) nên bị chặn: bộ lọc mã "debt" trên chỉ số công nợ là lặp ý, bỏ đi (+4 câu);
+    - "**từ 10 củ trở lên**" (10 triệu) đọc thành ngưỡng 10 đồng ở run9, gần như chắc **sai**: `scale_money` nhân theo đơn vị câu viết (củ, triệu, tr: × 10⁶; k, nghìn, ngàn: × 10³) khi plan ghi đúng con số trơn.
+  - `tools/replay_run.py`: log có `reading.llm_raw` (từ run10) thì đọc lại từ đầu ra LLM đã ghi qua đúng `parse_question` hôm nay (cổng, sửa plan, so baseline), chỉ bỏ bước gọi model. Áp các sửa trên lên run10 không cần chạy lại 37 phút: 684 câu trả lời (`outputs/replay/run10_s8`).
+  - Train sau mọi sửa: **2681 / 0** (PA +0,894). Có test (`test_plan_rewrites.py`).
+  - **Nộp 06/11: 0,608** (run9 0,540). 646 đúng / 38 sai. Phần mới đều ≥ 93% đúng (sổ sửa xe 42/3, dev_003+009 117/3, điện thoại 26/1, mẹ và bé 32/0). 31 câu sai nằm ở 8 cửa hàng cũ; bộ nộp 07/11 khoanh vùng theo hàm (`docs/CAN_XAC_MINH.md`).
+- [x] **N57 (TB). Chữ của public mà cổng `metric` không biết** (log run10: 143 câu không plan, 106 bị cổng đọc loại, nhiều nhất `metric=order_count` 23 câu). "đh" là viết tắt "đơn hàng" (14/23), "o đờ" là "order", §3 "giờ cao điểm" tính theo số đơn; "doanhthu" viết liền; tiền có đơn vị và số đứng trước ("từ 40tr trở lên", không nhận "k" đứng một mình vì "k" còn là "không"). Không câu train nào chứa các chữ này (đã kiểm), nên train không đổi. Phần lớn câu bị chặn ở `metric=revenue` là chặn **đúng** (LLM đọc "bnhiu đh", "bán bnhiu đĩa" thành doanh thu); giữ nguyên. run10 áp thêm: +18 câu trả lời (`outputs/replay/run10_s9`, 702 câu). Có test.
+- [x] **N58 (CAO). Năm hai chữ số "th 6/25" bị bỏ, §2 đặt tháng vào năm nay: 14 câu trả lời sai năm** (run10, gồm 2/3 câu sai của dev_003 và 1/3 của dev_012 đo được ngày 06/11). `_year_grounded` chỉ nhận năm 4 chữ số, nên năm 2025 LLM ghi đúng bị coi là "câu không nêu" và bị bỏ; §2 ("tháng M không ghi năm là của năm nay") đưa tháng 6 về 2026. Cùng nguyên nhân: chuỗi tháng "th 12/25, th 1/26, th 2/26" bị cổng tháng chặn (5 câu).
+  - Sửa: `stated_months` đọc "M/YY" (YY từ 20 đến 35, để "ngày 6/12" không thành 2012) và "M/YYYY"; năm câu viết hai chữ số là năm câu đã nêu; plan tháng không ghi năm mà câu viết "M/YY" của đúng tháng đó thì lấy năm ấy; cổng tháng và cổng chuỗi tháng nhận dạng này.
+  - Train không có câu nào viết "M/YY" (kiểu định dạng riêng của public), nên train không đổi. run10 áp lại: 15 câu đổi giá trị, 6 câu mới, 708 câu trả lời (`outputs/replay/run10_s10`). Có test.
+  - `tools/replay_run.py` ghi log từng câu (để dựng lượt chẩn đoán từ bản chạy lại).
+- [x] **N59 (TB). Ba dạng JSON sai schema sửa được** (run10: 32 đầu ra sai schema). `repair.py`:
+  - "đơn bị huỷ chiếm mấy %" thành [cancel_count, order_count] kiểu percent (6 câu): nghĩa duy nhất là `cancel_rate` (§1);
+  - kiểu đáp án LLM ghi "list" / "date" cho plan một con số (9 câu): trường tuỳ chọn, bỏ đi để hình plan quyết định khi câu không hỏi nhiều số; cổng chỉ số vẫn kiểm (các plan đọc nhầm như "số viên nhập" thành tồn kho vẫn bị chặn);
+  - chuỗi tháng ghi thành một tháng ("Dthu th7, th8, th9/2025 lần lượt", 8 câu): các tháng câu nêu theo thứ tự, liền nhau và tăng, năm của plan; cổng tháng kiểm năm như thường (không ghi năm thì vẫn chặn).
+  - Phần còn lại là đọc sai (ca "store", "T10" ghi vào ca, `is_warranty` ở sổ điện thoại…), để chặn.
+  - **Không đo được trên train**: 3000 plan train đã lưu đều hợp lệ, và cache cũ khoá theo prompt đã đổi. Vì vậy giữ ba phép thật hẹp, mỗi phép một nghĩa. run10 áp thêm: +13 câu (`outputs/replay/run10_s11`, 721 câu). Có test.
+  - Rà ngày tháng có hệ thống sau N58: các dạng chỉ public có là "M/YY" (76 câu, N58), "M-YYYY" (40 câu: 23 câu đã trả lời đều đúng tháng, năm), "T8" (74). Trên 503 câu đã trả lời có ghi năm, năm câu viết đều nằm trong kỳ tính ra.
+- [x] **N60 (TB). "T5/2025" là tháng, và "từ hồi X lên giá Y" không ghi ngày.**
+  - "Trong T5/2025, trung bình một đơn…", "Hồi T3/2025 bị huỷ mấy đơn" đọc thành bộ lọc thứ Sáu / thứ Tư (6 plan bị cổng thứ chặn). Thứ trong tuần không bao giờ đi với năm: `drop_month_as_weekday` bỏ bộ lọc thứ khi câu có "T<số>/<năm>" và không có chữ chỉ thứ nào khác. +5 câu.
+  - "Từ hồi Trà vải (L) lên giá 47.000đ, so 30 ngày kể từ ngày đổi giá…": train luôn ghi ngày, public thì không. LLM tự đoán một ngày (6 plan bị cổng ngày chặn). `anchor_by_price`: kỳ `days_from` có ngày câu không ghi, mà câu nêu đúng một giá mới ("lên (giá) N đ/đồng") → dùng giá làm mốc (`anchor_price`, như plan tay của train).
+  - **`temporal` chưa từng làm `anchor_price`** (docstring cũ: "trừ days_from có anchor_price"). `price_rise_day`: §5 "lần tăng giá = ngày D giá mới cao hơn giá liền trước (theo bảng giá); tăng lên cùng một giá nhiều lần thì lấy lần đầu" → ngày đầu tiên bảng giá của mặt hàng (nối tên như [C3]) tăng lên đúng giá đó; thiếu bảng giá, không nối được tên, hay không có lần tăng nào thì bỏ trống. +6 câu.
+  - Train không có plan nào dùng `anchor_price`, và chỉ 1 câu có dạng "T<số>". run10 áp thêm: 732 câu trả lời (`outputs/replay/run10_s13`). Có test.
+- [x] **N61 (TB). Kênh "sàn TMĐT", "tại tiệm"** chưa có trong bảng đồng nghĩa (`assets/linking/synonyms.json`), dù rulebook §4 nhắc "đơn bán qua sàn TMĐT" và một sổ public ghi kênh "Sàn TMĐT", "Tại tiệm". Thêm mã `marketplace` ("sàn tmđt", "sàn thương mại điện tử") và "tại tiệm", "tại cửa hàng" cho `store`; không có "sàn" đứng một mình ("gạch lát sàn"). Nguồn ghi trong `_nguon`. Train 2681 / 0. +3 câu.
+- [x] **N62 (CAO). Nợ chia theo tuổi nợ** ("nợ còn lại chia theo tuổi nợ 0–7, 8–15 và trên 15 ngày"). Train có 5 câu (đáp án list), public 6 câu; tất cả bỏ trống vì hàm nợ không hiểu bộ lọc tuổi nợ, và LLM ghi ba khoảng dạng chữ vào một bộ lọc.
+  - `grounding.split_debt_ages`: mỗi khoảng một measure `debt_total`, ngưỡng số ("0–7" thành ≥ 0 và ≤ 7; "trên 15" thành > 15; "15+" sau "8–15" thành > 15), theo thứ tự câu hỏi.
+  - `debt._owing`: lọc theo tuổi nợ = ngày X − ngày đặt (§4 "đơn đặt hôm nay có tuổi nợ 0 ngày"); dẫn luật `§4.tuoi_no`.
+  - **Train: 3/5 câu thành đúng, 0 sai** (2681 → 2684, PA +0,895); 2 câu còn trống (một cửa hàng chưa map được nợ). Public +4. Có test tính tay.
+- [x] **N63 (TB). Sổ bán ghi tên hàng, danh sách thuốc khoá theo mã SKU** (public: nhà thuốc có `DanhSachThuoc.xlsx` "Thuốc kê đơn"; 5 câu kê đơn / không kê đơn bỏ trống). `enrich`: khi mapping không có danh mục và dòng hàng mang **tên** hàng, thêm danh mục khoá theo tên, chỉ mang các cột thuốc (hoạt chất, kê đơn) tra qua mã SKU của chính danh mục; không thêm đơn vị cơ bản (số lượng giữ quy đổi cũ). Public: cờ kê đơn đủ 100% dòng, +12 câu. Có test.
+  - **Train: danh mục khoá theo tên mở 35 câu đúng, 0 sai** (biz_121 88 → 106, biz_122 93 → 110; hai nhà thuốc train cũng ghi tên hàng trên sổ bán). Train 2684 → **2719 / 0, PA +0,906**.
+- [x] **N64 (TB). Cửa hàng điện thoại (H2): loại hàng, dòng máy, hãng, số lượng.**
+  - Loại hàng: sheet "Ghi tắt" cho tên đầy đủ và **Loại** (máy mới, máy cũ, phụ kiện). `transfer._kind_of_goods`: danh mục khoá theo tên đầy đủ (khoá dòng hàng đã mang sau N43) nhận cột `category`; chưa có danh mục thì dựng từ sheet đó. `expand_abbreviations` áp được cả lên mapping đã tra sẵn (chạy lại từ log).
+  - Dòng máy, hãng: `build.phone_lines` theo đúng §6 ("phần tên đứng trước …GB; không có …GB thì cả tên"; hãng = chữ đầu, iPhone là Apple), chỉ bật khi ≥ 20% tên hàng có "…GB" (không cửa hàng train nào). Bộ lọc dòng hàng nhận `product_line`.
+  - `nlu.product_as_attribute`: LLM ghi "máy cũ", "Xiaomi Redmi Note 14" vào bộ lọc **tên hàng**; tên không nối được mà trùng đúng (sau khi gấp chữ) một loại hàng / dòng máy / hãng / nhóm hàng duy nhất của cửa hàng → đổi sang bộ lọc đó.
+  - **Sổ không ghi đơn vị** (chỉ "SL", không bảng quy đổi): mỗi mặt hàng bán theo một đơn vị, nên số lượng ghi là số lượng cơ bản (`derive_base_qty`); chữ đơn vị trong câu ("chiếc", "máy") không bắt khớp đơn vị cửa hàng (vì cửa hàng không có). Trước đó mọi câu "bán mấy chiếc" của hai sổ điện thoại đều trống.
+  - Tên vùng miền thêm: ngao/nghêu, cá tràu/cá quả/cá lóc, trát → tô (một chiều: "tô phở"), găng tay/bao tay.
+  - Train không đổi (2719 / 0). run10 áp thêm: +14 câu (`outputs/replay/run10_s18`, 765 câu). Có test (`test_phone_shop.py`).
+- [x] **N65 (TB). Quy đổi đơn vị ghi bằng lời trong README.** Một sổ vật liệu public: "Hàng theo bó: Ống PVC … D32, … D50, … D90 bán theo bó, 1 bó = 10 cây", bảng danh mục không có dòng này → 1398 dòng không có số lượng cơ bản, mọi câu số lượng và bán chạy của cửa hàng bỏ trống. `build.readme_conversions`: đọc "- Tên hàng: 1 bao = 5 kg" (README train, cạnh bảng của chúng) và "A, B, C bán theo bó, 1 bó = 10 cây"; chỉ thêm dòng mà bảng quy đổi chưa có, cho tên hàng trùng đúng tên sổ ghi. Public +6 câu, không câu nào đổi giá trị. Có test.
+- [x] **N66 (TB). Đơn giao từ N đợt; trạng thái "đang ship".**
+  - "Đơn đặt tháng 6/2025, tới hôm nay có mấy đơn đã giao từ 2 đợt trở lên": `industry.orders_by_batches`, đơn theo ngày đặt, đợt giao tính đến hết hôm nay (§6 public "giao nhiều đợt: tính đến hết hôm nay; đợt đã chở vẫn tính dù đơn sau đó trả hàng"). Có test tính tay.
+  - "đang ship", "chờ ship" là đơn đang giao (`STATUS_WORDS`): 3 đơn không rõ trạng thái làm mọi câu đếm đợt giao của các ngày đó bỏ trống. `transfer.refresh_status_words` cho bản chạy lại đọc lại từ trạng thái như một lượt mới.
+- [x] **N67 (CAO). Cột "số lượng đã đổi ra đơn vị cơ bản" bị map làm số lượng của dòng** (một cửa hàng train chuyển từ mẫu, LLM chọn cột). Lộ ra khi N65 thêm quy đổi từ README: "bán bao nhiêu lon" thành 611 (đáp án 59), hai câu bán chạy lệch thứ tự, **3 câu sai trên train**. Trước đó lỗi bị che vì số lượng cơ bản trống nên câu bỏ trống. `enrich` sửa theo nghĩa README: cột README gọi "số lượng đã đổi ra đơn vị cơ bản" là `base_qty`; nếu `qty` đang lấy đúng cột ấy thì trả về cột README gọi "số lượng". Train: **2730 / 0, PA +0,910** (sau N65 + N66 + N67). Public không đổi giá trị câu nào. Có test.
+  - Bài học: một bản sửa đúng có thể làm lộ lỗi cũ đang bị một câu bỏ trống che đi; lượt train đủ sau mỗi thay đổi là thứ bắt được.
+- [x] **N68 (CAO). Sổ phụ của cửa hàng điện thoại** (`datamate/mapping/side_books.py`, gọi trong `build_canonical`; mỗi sổ nhận ra theo tên cột README nêu trong quy ước; một sổ đọc lỗi chỉ bỏ sổ đó, không làm hỏng cửa hàng):
+  - mapping sai được sửa theo README: "**Khách trả** là số tiền khách trả cho cả đơn" là tổng tiền đơn (mapping chuyển từ mẫu lấy nhầm cột tiền của dòng); cột "hình thức thanh toán" toàn số tiền thì bỏ (`drop_amount_as_method`);
+  - khách: ô "Khách" ghi tên kèm số điện thoại theo nhiều kiểu → khách là số điện thoại, tên là phần trước (§3);
+  - sổ thu máy cũ → `orders.trade_in_amount` theo "Trừ vào (STT sổ bán)"; chỉ số `amount_due_total` (§6 "khách phải trả");
+  - sổ bảo hành → `warranty_visits`, nối đơn qua IMEI; `warranty_count`, `warranty_rate` theo §6 điện thoại (lượt có ngày nhận trong kỳ / máy bán trong kỳ, không tính phụ kiện); xếp hạng dòng máy theo lượt bảo hành và theo số lượng;
+  - sổ nợ, sổ góp → `payments` (trả lúc mua, trả nợ, góp), `installments` (kỳ k hạn ngày "Hạn góp" của tháng thứ k sau tháng mua), hình thức nợ / trả góp; đơn trả góp là đơn nợ (§6). Chỉ số mới `overdue_amount` ("kỳ có hạn trước ngày hỏi mà chưa góp đủ"), `overdue_installment_count` (số khách); nợ lọc được theo hình thức ("tiền góp chưa trả");
+  - gợi ý prompt cho cửa hàng điện thoại (dòng trả góp chỉ khi câu có "góp": gợi ý chung làm LLM gắn bộ lọc trả góp vào câu khác).
+  - Cổng mới cho các kiểu đọc sai gặp khi chạy: "hợp đồng trả góp còn bao nhiêu" thành tổng khách phải trả; "% đơn có thu máy cũ" thành tổng tiền; "máy bán tháng 8 đã mang lại bảo hành" thành lượt bảo hành của tháng; "trung bình mỗi đơn khách phải trả" thành giá trị đơn theo doanh thu; "khách X góp tới hạn mấy kỳ" và "tiền góp quá hạn" thành số khách; "khách phải trả, sau khi trừ…" thành hai số; "% tiền bán máy" không ghi mẫu số.
+  - Hai cửa hàng điện thoại: 40 → 58 câu trả lời. Train không đổi. Có test.
+- [x] **N69 (TB). Mẹ và bé (§6).**
+  - Danh mục khoá theo tên có Hãng, "Số / Size" (`products.brand`, `stage`, `size`). Bộ lọc số sữa / size bỉm theo cột danh mục; hàng để trống thì không thuộc số, size nào. Hàng có trong danh mục mà ô Hãng trống là không có hãng.
+  - "sữa bột số 2" ghi vào tên hàng → nhóm + số (`product_as_attribute`).
+  - Cột chữ "Quy đổi: 1 thùng = 4 bịch" của danh mục (`catalogue_conversions`): 9124 dòng trước đó không có số lượng cơ bản.
+  - Mẫu số tỉ trọng "% số bịch bỉm": nhóm "bỉm tã" được nhận khi câu viết "bỉm" (chỉ ở mẫu số).
+  - Danh sách thành viên ("Ngày đăng ký thành viên") → `customers.registered_date`, khoá theo tên như sổ bán; `new_customer_count`.
+  - dev_013: +6 câu, 2 câu đổi giá trị (size theo danh mục và quy đổi thùng ra bịch). Train 2730 / 0. Có test.
+- [x] **N70 (TB). Tỉ trọng có mẫu số chép y tử số** ("dthu đơn bán tại quầy chiếm bn % tổng dthu của shop", share_of = doanh thu tại quầy): đáp án 100% bất kể dữ liệu, đáp án đúng 89,26%. `whole_not_part`: mẫu số là toàn cửa hàng.
+- [x] **N71 (TB). "Dthu th 3/26 tăng trưởng bao nhiêu % so th 3/25"** đọc thành compare previous có ghi kỳ so sánh 3/2025: previous bỏ qua kỳ đã ghi. `written_last_year`: tháng của năm khác plan đã ghi là kỳ so sánh (kind period). +3 câu.
+- **Kết quả nộp 07/11: 0,744** (run10_s27m, 802 câu: 773 đúng / 29 sai). Chẩn đoán theo hàm ở 8 cửa hàng cũ: so sánh 3 sai / 73, xếp hạng 4 / 70, đếm theo ngưỡng 6 / 58, một số có bộ lọc 4 / 72; 12 câu sai còn lại chưa khoanh vùng (`docs/CAN_XAC_MINH.md`). 198 câu bỏ trống: 93 có plan mà hàm không ra kết quả (log không ghi lý do, việc tiếp theo), 76 bị cổng đọc loại, 11 sai schema. Bàn giao: `docs/BAN_GIAO_PHIEN_8.md`.
+- [x] **N54 (TB). Log ghi lý do không có plan.** Run9 có 140 câu ở các cửa hàng đã map không có plan (14,7%; train 2,8%) mà log không nói vì sao. `parse_question(..., trace=)` ghi vào log mục `reading`: đầu ra thô của LLM, lỗi gọi, plan sai schema (sửa được hay không), cổng đọc loại vì đâu, plan của baseline khi hai bên đọc khác. Không đổi hành vi. `tools/replay_run.py` nhận thêm `trace` (thiếu thì mọi câu chạy lại sẽ lỗi) và `--enrich`.
+- [x] **N37 (TB). Câu "ngoài phạm vi" không nêu thời gian thì trả không trả lời được (§7).**
+  - Căn cứ (train): 8 câu LLM đọc là ngoài phạm vi. 7 câu không có mốc thời gian (tay nghề, thái độ, liều dùng thuốc) đều là unanswerable. Câu thứ 8 có "tháng 12/2025" ("nhân viên bán giỏi nhất tháng 12/2025") là câu xếp hạng bị đọc nhầm, vẫn bỏ trống.
+  - Sửa:
+    - `Signals.subjective`, tính khi hai dòng §7 không đổi và câu hỏi không có mốc thời gian (`verify._TIME`);
+    - [E] trả `unanswerable`;
+    - `collect_signals` nhận thêm `question` (pipeline, `check_plans`, `train_blanks`).
+  - Có test. Public: run4 có 5 câu dừng ở "ngoài phạm vi".
+- **README trong image** (`docker/README_IMAGE.md`, chép vào `/app/README.md`) và `tools/` trong image. Thể lệ đòi "source code (training and inference)" và README. README ghi cách chạy, định dạng log, các bước của phương pháp, tài sản dựng từ train và lệnh dựng lại, giấy phép của model và thư viện.
+
+### Phiên 9 (07/11)
+- [x] **N72 (TB). Log ghi lý do có plan mà không ra kết quả.** Lượt 0,744 có 93 câu bỏ trống ở bước này mà log chỉ ghi `result: null`.
+  - `metrics.execute(..., trace=)` ghi vào log mục `no_result`: `no_function` (khoá intent / metric / entity chưa có hàm), `filter_not_taken` (bộ lọc hàm không khai báo), `function_none` (hàm chạy rồi trả None); pipeline thêm `period_unresolved` (kỳ không giải được). Không đổi hành vi: đọc lại ba nguồn của 0,744 ra đúng từng câu của `run10_s27m`.
+  - `datamate/diagnose.py`: khi `diagnose.ENABLED` (chỉ `tools/replay_run.py` bật), chạy lại hàm dưới `sys.settrace` và ghi chuỗi dòng `return None` (hàm ngoài ⟵ hàm con đã trả None ⟵ …, tối đa 6 tầng; comprehension và generator trong suốt). `predict` không bật.
+  - `tools/run_stats.py` tách bước 4 theo lý do và theo dòng dừng.
+  - Kết quả trên 93 câu:
+    - 42 bộ lọc không áp được: 33 giá trị không nối được, phần lớn chặn đúng (nhóm hàng cửa hàng không ghi, LLM lặp một bộ lọc 10 lần, mỗi kiểu 1–2 câu); 9 lọc theo ca ở cửa hàng không có giờ (→ N73);
+    - 19 chưa có hàm cho khoá (giá trị tồn kho, hạn dùng gần nhất, hàng hết cuối ngày…), 5 hàm không nhận bộ lọc, 1 kỳ không giải được;
+    - 6 xếp hạng tăng dần hoặc kèm giá trị (hàm chặn có chủ ý);
+    - 8 nợ, 5 nhập hàng: phần lớn ở hai cửa hàng map theo mẫu một file (biz_101), nên sổ nhập và danh mục không được map; một cửa hàng ghi nợ trong ô Note, chỉ có tình trạng cuối dữ liệu, không có ngày trả;
+    - 7 lẻ (giá trị đơn trung bình hay số đơn huỷ lọc theo mặt hàng…).
+  - Hướng sau: `sibling_files` xếp mẫu theo tỉ lệ bảng của **mẫu** ghép được, nên mẫu một file thắng mẫu ghép được cả sổ nhập. Xếp theo số file của **cửa hàng** được dùng thì hợp hơn, nhưng đổi mapping của hai cửa hàng đang trả lời tốt và cần LLM: chỉ làm khi có thời gian đo lại cả train.
+- [x] **N73 (TB). Giờ đặt đơn từ cột README gọi là "thời điểm đặt đơn".** Hai cửa hàng public map theo mẫu một file đọc ngày đơn từ "Ngày giao dịch / Ngày xuất: ngày bán" bên cạnh "Giờ bán: thời điểm đặt đơn (ngày giờ)": `has_time` = False, 9 câu lọc theo ca (§2) bỏ trống. `from_readme.with_order_hour` (gọi trong `enrich`) đổi `order_time` sang cột đó khi mọi đơn giữ nguyên ngày, cột đọc được ngày giờ trên mọi đơn và có giờ khác 0h. Public: đúng 9 câu ca trống → trả lời, không câu nào khác đổi. Có test.
+- [x] **N74 (TB). Lô, hạn dùng, hết hàng cuối ngày (§5, §6 Nhà thuốc).** N72 cho thấy 9 câu public "chưa có hàm" ở nhà thuốc dev_006 (đã map đủ `lots`, `lot_sales`): `nearest_expiry`, `stock_value` theo khoảng hạn dùng, `list_items expiring_within`, `out_of_stock_end_of_day`.
+  - `datamate/metrics/lots.py`. Tồn còn lại của một lô tại hết ngày D = nhập (phiếu ngày ≤ D) − bán của đơn đặt ≤ D (đơn huỷ không lấy) + hàng trả theo **ngày trả** ≤ D. Kiểm trước khi viết trên nhà thuốc train: tổng các lô = thẻ kho ở **80/80** mặt hàng tại 3 ngày (tính hàng trả theo ngày đặt: 78/80). Lô không rõ ngày nhập hoặc ngày trả chỉ tính ở cuối dữ liệu.
+  - Khoảng hạn dùng [D, D + N] lấy từ `n` của danh sách, bộ lọc `expiry_within_days`, hoặc kỳ câu hỏi ghi (range, next_n_days). Hai nguồn khác nhau (public: range 120 ngày bên bộ lọc 365) thì không có số. Bộ lọc "gte N" chỉ nhận khi kỳ ghi đúng khoảng đó (kho plan train có "gte 90" bên range D..D + 90). `stock_value` không có khoảng hạn dùng (§5 "giá trị hàng tồn kho" theo giá vốn danh mục) chưa làm.
+  - Hết hàng cuối ngày: hàng có bản ghi tồn kho (hàng mua về để bán; món pha chế không có), tồn hết ngày bằng 0 theo `stock_base_qty`.
+  - Đáp án train bằng mapping tay: 4/4 lô gần hết hạn, tiền vốn 7 899 400, danh sách 120 ngày đúng thứ tự, số lô 5, hết hàng 1. `eval_cached`: **2731 / 0 / 269** (+1: biz_120; biz_123, biz_124 bị bỏ khỏi bộ mẫu nên map tự động không có bảng lô). Public: dev_006 +8 câu, không câu nào khác đổi. Có test (`tests/test_lots.py`).
+- [x] **N75 (Cao). run11: lượt LLM đủ 1000 câu bằng code cuối, chạy từ bản chép code như trong image.**
+  - `outputs/snap_run11/` chỉ có `datamate/`, `assets/`, `configs/` (đúng ba thư mục Dockerfile chép). Không LLM: 1000 câu, 0 lỗi, 211 giây. Có LLM (`outputs/public_run11`): 1000 câu, 0 lỗi, 0 hết giờ, **2321 giây** (38,7 phút) trên laptop.
+  - So với `run10_s32m` (ghép từ đọc lại ba nguồn): **992/1000 giống từng câu**. 8 câu khác đều do đầu ra thô của LLM khác (sinh tham lam, seed cố định; nguyên nhân là prompt đổi kể từ lượt gốc hoặc llama-server dùng lại KV cache): run11 đọc đúng hơn 4 câu ("bán mấy đĩa" theo đơn vị, "từ 10 củ" là doanh thu, "mấy khách quá hạn góp", "dthu wan mik" không phải kênh), lượt gốc đúng hơn 4. Docker sẽ dao động cỡ này.
+  - Hai cách đọc sai của run11 sửa bằng quy tắc chung:
+    - `grounding.rate_as_value`: `share` của một chỉ số vốn là tỉ lệ (`cancel_rate`, `warranty_rate`), không có `share_of` → `value` ("đơn huỷ chiếm bao nhiêu % toàn bộ đơn" là tỉ lệ huỷ §1);
+    - `repair._fix_series_months`: chuỗi tháng vắt qua năm ("th 12/25, th 1/26, th 2/26") bị ghi thành tháng đầu → các tháng câu ghi, khi liên tiếp và tháng đầu khớp plan.
+  - `run11_s33` (run11 đọc lại bằng code này): +2 câu, không câu nào khác đổi; so với lượt 0,744: 21 câu mới, 2 câu thành trống. Train 2731 / 0, CACHE MISSES 0. Có test.
 
 ## Thứ tự xử lý đề xuất
 1. **T4 sáng:** sửa H1–H7, sinh lại schema, thêm test cho từng mục.

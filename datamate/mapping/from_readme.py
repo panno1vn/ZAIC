@@ -24,6 +24,7 @@ import pandas as pd
 from datamate.contracts import ColumnMap, Mapping, RawBusiness, TableMap
 
 from . import transfer as T
+from .build import build_canonical
 
 # phrases naming the time of an order, the first found wins: the hand mappings read the column with the hour ("thời
 # điểm đặt đơn" of a pharmacy export; "giờ đặt đơn" of two ledgers, a full date and time there), else "ngày bán"
@@ -47,6 +48,32 @@ ORDER_COLUMNS = (  # orders in their own table
     ("tong tien hang cua don", "goods_amount", "money"),  # "cộng thành tiền các dòng": checked against the lines
     ("tien hang cua don", "goods_amount", "money"),
     ("so khach phai tra cho ca don", "total_due", "money"),
+)
+# N40, public READMEs (06/11): phrases train never used, each for one meaning the lists above know (a phrase starting
+# with one: "số hoá đơn, ghi ở mọi dòng của hoá đơn…"); the order's note stands for the status in a ledger without a
+# status column (public rulebook §8)
+PHRASE_ALIASES = (
+    ("ma don", ("so hoa don", "so thu tu don")),
+    ("thanh tien sau giam", ("thanh tien cua dong",)),
+    ("ten hang", ("hang ban",)),
+    ("don gia", ("don gia mot",)),  # "đơn giá một máy / một cái"
+    ("tien hang cua don", ("tong tien ca phieu",)),  # N42: a repair ticket's money
+    ("ngay ban", ("ngay sua",)),
+    ("ma nhan vien ban", ("tho lam phieu",)),
+    ("cac viec da lam", ("cac viec da lam",)),
+    ("dong xe va bien so", ("dong xe va bien so",)),
+    ("ho ten", ("ho ten tho", "ho ten nhan vien")),
+    ("phan tram hoa hong", ("phan tram hoa hong",)),  # "phần trăm hoa hồng của thợ, tính trên tổng Tiền…"
+    ("tien thu may cu", ("tien thu may cu",)),
+    ("tien bot cho ca don", ("tien bot cho ca don",)),
+    ("so tien khach tra cho ca don", ("so tien khach tra cho ca don",)),
+    ("ghi chu cua don", ("ghi chu cua don", "ghi chu")),
+)
+FLAT_ORDER_COLUMNS = (  # the order's cells in a flat ledger (lines and orders one table)
+    ("kenh ban", "channel", "text"),
+    ("tien bot cho ca don", "order_discount", "money"),  # a public phone ledger's "Bớt" (N44)
+    ("tien thu may cu", "trade_in_amount", "money"),  # "tiền thu máy cũ của khách, trừ vào tiền đơn"
+    ("so tien khach tra cho ca don", "total_due", "money"),  # "số tiền khách trả cho cả đơn, đã trừ bớt…"
 )
 GOODS = ("tien hang cua don", "tong tien hang cua don")  # §1 revenue of an order, in a shop without lines
 
@@ -95,6 +122,12 @@ class _Table:
         self.by_phrase: dict[str, list[str]] = {}
         for column, p in phrases.items():
             self.by_phrase.setdefault(p, []).append(column)
+        for canonical, aliases in PHRASE_ALIASES:  # N40: the same meanings in words train never used
+            if canonical not in self.by_phrase:
+                hits = [c for c, p in phrases.items() if any(p == a or p.startswith((a + " ", a + ","))
+                                                              for a in aliases)]
+                if hits:
+                    self.by_phrase[canonical] = hits
 
     def has(self, *phrases: str) -> bool:
         return all(p in self.by_phrase for p in phrases)
@@ -139,6 +172,18 @@ def _lookup(target: str, source: str, table: _Table | None, key: str, value: str
                                                           "value": table.col(value), "keep_missing": False})
 
 
+def _has_status(t: _Table) -> bool:
+    return t.has("trang thai don") or t.has("ghi chu cua don")
+
+
+def _status_column(t: _Table) -> tuple[str | None, bool]:
+    """The order status column, and whether it is the order's note (N40: §8 of the public rulebook, a ledger without
+    a status column writes the status in its note)."""
+    if t.has("trang thai don"):
+        return t.col("trang thai don"), False
+    return t.col("ghi chu cua don"), True
+
+
 def _status_map(raw: RawBusiness, ids: list[str], column: str) -> dict[str, str]:
     words = {w: T.read_word("orders", "status", w) for w in T._raw_values(raw, ids, column)}
     return {w: v for w, v in words.items() if v is not None}
@@ -179,10 +224,10 @@ def map_from_readme(raw: RawBusiness) -> tuple[Mapping | None, str]:
     order_id = lines.col("ma don")
     if order_id is not None:
         grain = "order"
-        orders = _one(others, lambda t: t.has("ma don", "trang thai don") and any(p in t.by_phrase for p in ORDER_TIME))
+        orders = _one(others, lambda t: t.has("ma don") and _has_status(t) and any(p in t.by_phrase for p in ORDER_TIME))
         flat = orders is None
         if flat:
-            if not (lines.has("trang thai don") and any(p in lines.by_phrase for p in ORDER_TIME)):
+            if not (_has_status(lines) and any(p in lines.by_phrase for p in ORDER_TIME)):
                 return None, "không thấy bảng đơn (mã đơn, ngày, trạng thái)"
             orders = lines
         if not T._groups_rows(pd.concat([t.frame[order_id] for t in raw.tables if t.table_id in lines.ids],
@@ -190,27 +235,30 @@ def map_from_readme(raw: RawBusiness) -> tuple[Mapping | None, str]:
             return None, "cột mã đơn của dòng hàng không gom dòng thành đơn"
         oid = orders.col("ma don")
     else:
-        if not (lines.has("trang thai don") and any(p in lines.by_phrase for p in ORDER_TIME)):
+        if not (_has_status(lines) and any(p in lines.by_phrase for p in ORDER_TIME)):
             return None, "sổ không mã đơn mà không có ngày và trạng thái"
         if T._has_order_ids(raw, lines.ids):
             return None, "README không ghi mã đơn nhưng có cột gom dòng thành đơn"
         grain, orders, flat, oid, order_id = "line_is_record", lines, False, "_row", "_row"
-    time, status = _order_time(orders, raw), orders.col("trang thai don")
+    time, (status, in_note) = _order_time(orders, raw), _status_column(orders)
     if oid is None or time is None or status is None:
         return None, "bảng đơn có hai cột cùng nghĩa mã đơn, ngày hoặc trạng thái"
     cols.insert(0, _cm("order_id", order_id))
     # a flat export's one discount column is the lines' (LINE_COLUMNS); the amount check tells if it is not
     ocols =[_cm("order_id", oid), _cm("order_time", time, "datetime"), _cm("has_time", None, const=False),
+             _cm("status", status, transform="status_from_note") if in_note else
              _cm("status", status, transform="order_status_from_lines") if flat else _cm("status", status)]
     ocols += _customer_columns(orders, clients)
     if not flat and orders is not lines:
         for phrase, target, parse in ORDER_COLUMNS:
             if (c := orders.col(phrase)) is not None and target not in {x.target for x in ocols}:
                 ocols.append(_cm(target, c, parse))
-    elif (c := orders.col("kenh ban")) is not None:
-        ocols.append(_cm("channel", c))
+    else:  # a flat ledger: the order's cells on its rows (N44, public phone ledgers)
+        for phrase, target, parse in FLAT_ORDER_COLUMNS:
+            if (c := orders.col(phrase)) is not None and target not in {x.target for x in ocols}:
+                ocols.append(_cm(target, c, parse))
     out = [TableMap(target="orders", sources=orders.ids, columns=ocols,
-                    value_maps={"status": _status_map(raw, orders.ids, status)}),
+                    value_maps={} if in_note else {"status": _status_map(raw, orders.ids, status)}),
            TableMap(target="lines", sources=lines.ids, columns=cols)]
 
     # ---- the tables around them, each only when one table plays the part and its key is the lines' key
@@ -268,26 +316,76 @@ def _customer_columns(orders: _Table, clients: _Table | None) -> list[ColumnMap]
 def _orders_only(raw: RawBusiness, tables: list[_Table]) -> tuple[Mapping | None, str]:
     """A shop that records orders without their lines (a train README: "mỗi dòng một đơn hàng, không có chi tiết mặt
     hàng"): one row per order with its code, day, status and goods amount, the §1 revenue of the order. Revenue, order
-    counts, customers and days are answered from it; every figure that needs the lines finds none and abstains."""
-    orders = _one(tables, lambda t: t.has("ma don", "trang thai don") and any(p in t.by_phrase for p in ORDER_TIME)
+    counts, customers and days are answered from it; every figure that needs the lines finds none and abstains.
+    N42: a ledger of tickets with no code (a repair shop's, public 06/11: "mỗi dòng một lượt xe vào sửa, không ghi mã
+    phiếu") has one order per row (§8 "bảng không ghi theo đơn: mỗi dòng là một lần ghi"); its status is in its note
+    (N40), its warranty tickets are those whose note says "bảo hành", its jobs and its vehicle (model and plate in one
+    cell) are read too."""
+    orders = _one(tables, lambda t: _has_status(t) and any(p in t.by_phrase for p in ORDER_TIME)
                   and any(p in t.by_phrase for p in GOODS))
     if orders is None:
         return None, "README không mô tả đúng một bảng dòng hàng, cũng không mô tả bảng đơn có tiền hàng"
-    oid, time, status, goods = orders.col("ma don"), _order_time(orders, raw), orders.col("trang thai don"),         orders.first(GOODS)
-    if oid is None or time is None or status is None or goods is None:
-        return None, "bảng đơn có hai cột cùng nghĩa mã đơn, ngày, trạng thái hoặc tiền hàng"
-    ids = pd.concat([f[oid] for f in orders.frames(raw)], ignore_index=True).dropna()
-    if not ids.is_unique:
-        return None, "bảng đơn không có dòng hàng mà mã đơn lặp lại"
+    oid, time, goods = orders.col("ma don"), _order_time(orders, raw), orders.first(GOODS)
+    status, in_note = _status_column(orders)
+    if time is None or status is None or goods is None:
+        return None, "bảng đơn có hai cột cùng nghĩa ngày, trạng thái hoặc tiền hàng"
+    grain = "order"
+    if oid is None:
+        # the README describes every column and none is a code: each row is one record (§8). The row-grouping test of
+        # sales ledgers does not apply: tickets of one day or one price follow each other
+        if orders.has("ma don"):
+            return None, "bảng đơn có hai cột cùng nghĩa mã đơn"
+        grain, oid = "line_is_record", "_row"
+    else:
+        # §8 "hai dòng của cùng một đơn giống nhau ở mọi ô: tính một lần" (a public shop: 308 invoices written twice,
+        # alike in every cell); two rows of one id that differ are no orders-only table
+        rows = pd.concat(orders.frames(raw), ignore_index=True).drop_duplicates()
+        if not rows[oid].dropna().is_unique:
+            return None, "bảng đơn không có dòng hàng mà mã đơn lặp lại"
     clients = _one([t for t in tables if t is not orders], lambda t: t.has("ma khach", "ten") and not t.has("ma don"))
     ocols = [_cm("order_id", oid), _cm("order_time", time, "datetime"), _cm("has_time", None, const=False),
-             _cm("status", status)] + _customer_columns(orders, clients)
+             _cm("status", status, transform="status_from_note") if in_note else _cm("status", status)]
+    ocols += _customer_columns(orders, clients)
     for phrase, target, parse in ORDER_COLUMNS:
         if (c := orders.col(phrase)) is not None and target not in {x.target for x in ocols}:
             ocols.append(_cm(target, c, parse))
+    if goods not in {x.source for x in ocols if x.target == "goods_amount"}:
+        ocols = [x for x in ocols if x.target != "goods_amount"] + [_cm("goods_amount", goods, "money")]
+    for phrase, target in ORDER_ATTRIBUTES:
+        if (c := orders.col(phrase)) is not None and target not in {x.target for x in ocols}:
+            ocols.append(_cm(target, c))
+    ocols += _repair_columns(orders, raw, status if in_note else None)
     out = [TableMap(target="orders", sources=orders.ids, columns=ocols,
-                    value_maps={"status": _status_map(raw, orders.ids, status)})]
-    return Mapping(record_grain="order", tables=out, notes=["dựng từ mô tả cột trong README (chỉ có bảng đơn)"]), ""
+                    value_maps={} if in_note else {"status": _status_map(raw, orders.ids, status)})]
+    # N42: the staff list ("họ tên thợ"): the ledger's nicknames become its full names (build.full_employee_names)
+    staff = _one([t for t in tables if t is not orders], lambda t: t.has("ho ten"))
+    if staff is not None and (name := staff.col("ho ten")) is not None:
+        sc = [_cm("employee_key", name), _cm("employee_name", name)]
+        if (c := staff.col("ngay vao lam")) is not None:
+            sc.append(_cm("start_date", c, "date"))
+        if (c := staff.col("phan tram hoa hong")) is not None:  # "phần trăm hoa hồng của thợ, tính trên…"
+            sc.append(_cm("commission_pct", c, "number"))
+        out.append(TableMap(target="employees", sources=staff.ids, columns=sc))
+    return Mapping(record_grain=grain, tables=out, notes=["dựng từ mô tả cột trong README (chỉ có bảng đơn)"]), ""
+
+
+PLATE = r"\d{2}[A-Z]{1,2}\d?-\d{3}\.?\d{2}"  # Vietnamese plates: 59B6-219.16, 51L3-168.55, 29A-123.45
+
+
+def _repair_columns(orders: _Table, raw: RawBusiness, note: str | None) -> list[ColumnMap]:
+    """N42: a repair ledger's jobs ("các việc đã làm"), vehicle model and plate ("dòng xe và biển số" in one cell) and
+    warranty tickets (a note saying "bảo hành")."""
+    out = []
+    if (c := orders.col("cac viec da lam")) is not None:
+        out.append(_cm("services", c))
+    if (c := orders.col("dong xe va bien so")) is not None:
+        out.append(_cm("vehicle_plate", c, transform="regex_extract", args={"pattern": f"({PLATE})", "group": 1}))
+        out.append(_cm("vehicle_model", c, transform="regex_extract",
+                       args={"pattern": rf"^\s*(.*?)\s*{PLATE}", "group": 1}))
+    if note is not None and any("bao hanh" in T._fold(v) for v in T._raw_values(raw, orders.ids, note)):
+        out.append(_cm("is_warranty", note, "bool", transform="note_contains",
+                       args={"map": {"bảo hành": True}, "default": False}))
+    return out
 
 
 # ---------------------------------------------------------------- attributes the README names (N29)
@@ -306,7 +404,10 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
     - on the catalogue: product group, active ingredient and prescription flag, from the catalogue itself or from a
       drug list by the product code the catalogue already carries;
     - a mapping with no catalogue at all gets the README's, when the lines' product column is the README's "mã hàng".
-    A filter on an attribute the shop does not record still abstains (the frames find no column)."""
+    A filter on an attribute the shop does not record still abstains (the frames find no column).
+    Then what the README's conventions name for debts and cost (N35, `with_conventions`), and the order's hour from
+    the README's "thời điểm đặt đơn" when the mapping read only its day (N73, `with_order_hour`)."""
+    mapping = with_order_hour(drop_amount_as_method(with_conventions(mapping, raw), raw), raw)
     tables = [t for t in (_Table(ids, phrases_of(raw, ids)) for ids in groups(raw)) if t.phrases]
     if not tables:
         return mapping
@@ -335,6 +436,18 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
             if "product_group" not in have and (c := t.col("nhom hang")) is not None:
                 add.append(_cm("product_group", c))
             add += _drug_columns(t, others, plain_source(tm, "product_key"), have)
+        elif t is not None and tm.target == "lines" and (base := t.col("so luong da doi ra don vi co ban")) is not None:
+            # the README's base quantity column (a train shop moved from an example, 06/11: "Quy ra ĐV lẻ" read as the
+            # line's quantity beside the line's unit "thùng"; once README conversions existed it was counted 24 times)
+            fixed = []
+            if plain_source(tm, "qty") == base and (q := t.col("so luong")) is not None and q != base:
+                fixed.append("qty")
+                tm = tm.model_copy(update={"columns": [c.model_copy(update={"source": q}) if c.target == "qty" else c
+                                                       for c in tm.columns]})
+                have = {c.target for c in tm.columns}
+            if "base_qty" not in have:
+                add.append(_cm("base_qty", base, "qty"))
+            added += [f"lines.{x}" for x in fixed]
         if add:
             added += [f"{tm.target}.{a.target}" for a in add]
             tm = tm.model_copy(update={"columns": list(tm.columns) + add})
@@ -352,9 +465,275 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
             pc += _drug_columns(catalogue, [x for x in tables if x is not catalogue], k, set())
             out.append(TableMap(target="products", sources=catalogue.ids, columns=pc))
             added += [f"products.{c.target}" for c in pc]
+        elif key is not None and catalogue is not None and (k := catalogue.col("ma hang")) is not None \
+                and (n := catalogue.col("ten")) is not None \
+                and ((lt is not None and lt.phrases.get(key) in ("ten hang", "ten")) or n == key):
+            # the lines carry the product NAME (public 06/11: a pharmacy whose drug list, keyed by SKU, says which
+            # drugs need a prescription; 5 questions by prescription abstained): a catalogue keyed by that name,
+            # with only what the drug list adds, read by the catalogue's own SKU (no base unit: quantities keep
+            # the conversions they had)
+            drugs = _drug_columns(catalogue, [x for x in tables if x is not catalogue], k, set())
+            if drugs:
+                pc = [_cm("product_key", n), _cm("product_name", n)] + drugs
+                out.append(TableMap(target="products", sources=catalogue.ids, columns=pc))
+                added += [f"products.{c.target}" for c in pc]
+    # a catalogue keyed by product name with attributes of its own (public mẹ-và-bé shop, 06/11: "Hãng", "Số / Size:
+    # số của sữa (theo tuổi) hoặc size (bỉm, núm ti)"; §6 "số sữa, size bỉm lấy theo cột Số / Size của danh mục")
+    if lines is not None and not any(tm.target == "products" for tm in out):
+        lt, key = home(lines), plain_source(lines, "product_key")
+        cat = _one(tables, lambda x: (x.has("ten hang") or x.has("ten")) and (x.has("hang") or x.has("so cua sua"))
+                   and not x.has("ma don") and not x.has("ma hang"))
+        n = (cat.col("ten hang") or cat.col("ten")) if cat is not None else None
+        if n is not None and key is not None and len(cat.ids) == 1 \
+                and ((lt is not None and lt.phrases.get(key) in ("ten hang", "ten")) or n == key):
+            pc = [_cm("product_key", n), _cm("product_name", n)]
+            if (c := cat.col("hang")) is not None:
+                pc.append(_cm("brand", c))
+            if (c := cat.col("so cua sua")) is not None:
+                pc += [_cm("stage", c), _cm("size", c)]
+            if (c := cat.col("nhom hang")) is not None:
+                pc.append(_cm("product_group", c))
+            out.append(TableMap(target="products", sources=cat.ids, columns=pc))
+            added += [f"products.{c.target}" for c in pc]
+    # a member list with the day each member registered (public mẹ-và-bé shop, 06/11: "Ngày đăng ký: ngày đăng ký
+    # thành viên"; §6 "khách thành viên mới trong tháng: số khách có Ngày đăng ký trong tháng đó")
+    if not any(tm.target == "customers" for tm in out):
+        members = _one(tables, lambda x: x.has("ngay dang ky thanh vien") and (x.has("ten khach") or x.has("ten")))
+        if members is not None:
+            name = members.col("ten khach") or members.col("ten")
+            phone = members.col("so dien thoai")
+            # keyed by the name, as the orders know their customers ("nối qua tên khách"); a phone key would link a
+            # customer filter to no order at all
+            mc = [_cm("customer_key", name), _cm("customer_name", name),
+                  _cm("registered_date", members.col("ngay dang ky thanh vien"), "date")]
+            if phone:
+                mc.append(_cm("phone", phone))
+            out.append(TableMap(target="customers", sources=members.ids, columns=mc))
+            added.append("customers.registered_date")
+    # still no product group: the lines' own, or a left-out catalogue's by product code or name
+    if lines is not None and not any(c.target == "product_group" for tm in out for c in tm.columns):
+        lt = home(lines)
+        if group := _line_group(lt, [x for x in tables if x is not lt], plain_source(lines, "product_key"),
+                                plain_source(lines, "product_name")):
+            out = [tm.model_copy(update={"columns": list(tm.columns) + group}) if tm is lines else tm for tm in out]
+            added.append("lines.product_group")
     if not added:
         return mapping
     return mapping.model_copy(update={"tables": out, "notes": list(mapping.notes) + ["bổ sung từ README: " + ", ".join(added)]})
+
+
+ORDER_MOMENT = "thoi diem dat don"  # "Giờ bán: thời điểm đặt đơn (ngày giờ)"
+
+
+def with_order_hour(mapping: Mapping, raw: RawBusiness) -> Mapping:
+    """N73. The order's time from the column the README calls "thời điểm đặt đơn", when the mapping reads the order's
+    day from another column and so has no hour (public 07/11: two shops moved from a one-file example read "Ngày giao
+    dịch: ngày bán" / "Ngày xuất: ngày bán" beside "Giờ bán: thời điểm đặt đơn (ngày giờ)"; 9 questions by shift
+    abstained, §2 "ca sáng, ca chiều theo giờ tạo đơn"). Only when every order keeps its day, so no figure by day
+    changes: the column must read as a date and time on every order, with some hour not midnight."""
+    orders = next((tm for tm in mapping.tables if tm.target == "orders"), None)
+    if orders is None:
+        return mapping
+    has = next((c for c in orders.columns if c.target == "has_time"), None)
+    now = next((c for c in orders.columns if c.target == "order_time"), None)
+    if has is None or has.const is not False or now is None or now.transform is not None or not now.source:
+        return mapping
+    t = _one([x for x in (_Table(ids, phrases_of(raw, ids)) for ids in groups(raw)) if x.phrases],
+             lambda x: bool(set(x.ids) & set(orders.sources)))
+    moment = t.col(ORDER_MOMENT) if t is not None else None
+    if moment is None or moment == now.source:
+        return mapping
+    cols = [c.model_copy(update={"source": moment, "parse": "datetime"}) if c is now else
+            c.model_copy(update={"const": True}) if c is has else c for c in orders.columns]
+    timed = orders.model_copy(update={"columns": cols})
+    try:
+        a = build_canonical(raw, Mapping(record_grain=mapping.record_grain, tables=[orders])).table("orders")
+        b = build_canonical(raw, Mapping(record_grain=mapping.record_grain, tables=[timed])).table("orders")
+    except Exception:
+        return mapping
+    if a is None or b is None or len(a) != len(b) or a["order_time"].isna().any() or b["order_time"].isna().any():
+        return mapping
+    days = a.set_index("order_id")["order_time"].dt.normalize()
+    new = b.set_index("order_id")["order_time"]
+    if not days.index.is_unique or not new.index.is_unique or set(days.index) != set(new.index):
+        return mapping
+    if not (new.dt.normalize().reindex(days.index) == days).all() or not (new.dt.normalize() != new).any():
+        return mapping
+    tables = [timed if tm is orders else tm for tm in mapping.tables]
+    return mapping.model_copy(update={"tables": tables,
+                                      "notes": list(mapping.notes) + ["bổ sung từ README: orders.order_time có giờ"]})
+
+
+AMOUNT_SHARE = 0.9  # share of a payment-method column's values that read as money amounts: it holds no method
+
+
+def drop_amount_as_method(mapping: Mapping, raw: RawBusiness) -> Mapping:
+    """A payment-method column whose cells are amounts ("20.100.000đ", "19300k": a public phone ledger's "Khách trả",
+    taken for the method by a mapping moved from an example, 06/11) names no method: dropped, so the debt figures do
+    not read every order as an unknown method."""
+    from datamate.loader.parse import parse_money
+    out = []
+    for tm in mapping.tables:
+        src = next((c.source for c in tm.columns if c.target == "payment_method" and c.transform is None), None)
+        if tm.target == "orders" and src:
+            values = [v for f in _frames_of(raw, tm) if src in f.columns for v in f[src].dropna().astype(str)
+                      if v.strip()]
+            if values and sum(parse_money(v) is not None for v in values) >= AMOUNT_SHARE * len(values):
+                tm = tm.model_copy(update={"columns": [c for c in tm.columns if c.target != "payment_method"]})
+        out.append(tm)
+    return mapping.model_copy(update={"tables": out}) if out != list(mapping.tables) else mapping
+
+
+def _line_group(lines: _Table | None, others: list[_Table], key: str | None, name: str | None) -> list[ColumnMap]:
+    """The product group of a shop whose mapping has none (public, 06/11: four shops whose README names "nhóm hàng",
+    30 questions by group abstained): the lines' own "nhóm hàng" column, else the group of a catalogue the mapping
+    left out, read by the lines' product code, or by the product name when the shop keeps no codes ("nối qua tên
+    hàng"), names compared however written (§8)."""
+    if lines is not None and (c := lines.col("nhom hang")) is not None:
+        return [_cm("product_group", c)]
+    catalogue = _one(others, lambda x: x.has("nhom hang") and not x.has("ma don"))
+    if catalogue is None or len(catalogue.ids) != 1:
+        return []
+    said = lines.phrases if lines is not None else {}
+    for source, phrase, fold in ((key, "ma hang", False), (name, "ten hang", True), (key, "ten hang", True)):
+        if source is not None and said.get(source) == phrase and catalogue.col(phrase) is not None:
+            looked = _lookup("product_group", source, catalogue, phrase, "nhom hang")
+            if looked is not None:
+                return [looked.model_copy(update={"args": {**looked.args, "fold": fold}})]
+    # the lines' file has no README section: a catalogue column of the very same header that the README calls the
+    # product's code or name
+    for source in dict.fromkeys(s for s in (key, name) if s is not None):
+        phrase = catalogue.phrases.get(source)
+        if phrase in ("ma hang", "ten hang", "ten") and catalogue.col(phrase) == source:
+            looked = _lookup("product_group", source, catalogue, phrase, "nhom hang")
+            if looked is not None:
+                return [looked.model_copy(update={"args": {**looked.args, "fold": phrase != "ma hang"}})]
+    return []
+
+
+# N35: the conventions of a README name the columns of debts and cost in a fixed form (train, 05/11: 7 READMEs with
+# a payment ledger, 4 with the cost of a sale), whether or not the README describes each column:
+#   "**Công nợ**: mỗi lần khách trả tiền cho một đơn là một dòng, **Giá trị** là số tiền trả lần đó; **Tổng sau giảm
+#   giá** là số khách phải trả cho cả đơn."   "**Giá vốn**: **Giá vốn** là giá vốn một đơn vị bán."
+# (a database writes `thanh_toan.SoTienThu`). A mapping moved from an example without them had none: two train shops
+# moved from a pharmacy export lost every debt and gross-profit question (44 questions, 05/11).
+CONVENTIONS = (("so tien tra lan do", "paid_amount"), ("so khach phai tra cho ca don", "total_due"),
+               ("gia von mot don vi ban", "line_cost"),
+               # a public phone ledger (06/11): "**Khách trả** là số tiền khách trả cho cả đơn (không phải của dòng)"
+               ("so tien khach tra cho ca don", "total_due"))
+_NAMED = re.compile(r"(?:\*\*([^*]+)\*\*|`(?:[^`.]+\.)?([^`]+)`) là ([^;]+)")
+PAYMENT_WORDS_MIN = 0.9  # share of a column's distinct values read as payment methods (cash, transfer, debt, cod…)
+ORDER_IDS_MIN = 0.95  # share of a payment table's order ids found among the orders
+
+
+def conventions(readme: str) -> dict[str, str]:
+    """Role (paid_amount, total_due, line_cost) -> the column the README's conventions name for it; a role named
+    twice with two columns has none."""
+    seen: dict[str, set[str]] = {}
+    for line in readme.splitlines():
+        if not line.lstrip().startswith("- **"):
+            continue
+        for m in _NAMED.finditer(line):
+            meaning = T._fold(m.group(3))
+            for phrase, role in CONVENTIONS:
+                if meaning.startswith(phrase):
+                    seen.setdefault(role, set()).add((m.group(1) or m.group(2)).strip())
+    return {role: names.pop() for role, names in seen.items() if len(names) == 1}
+
+
+def _frames_of(raw: RawBusiness, tm: TableMap) -> list[pd.DataFrame]:
+    from .build import source_ids
+    ids = set(source_ids(tm, [t.table_id for t in raw.tables]))
+    return [t.frame for t in raw.tables if t.table_id in ids]
+
+
+def _payment_column(frames: list[pd.DataFrame], exclude: set[str] = frozenset()) -> str | None:
+    """The one column whose values are payment methods ("Tiền mặt", "Ghi nợ", "Thu hộ (COD)"…), read with the
+    linking vocabulary; none, or two: None."""
+    from datamate.nlu import linking
+    found = []
+    for c in dict.fromkeys(str(c) for f in frames for c in f.columns):
+        if c in exclude:
+            continue
+        values = {str(v).strip() for f in frames if c in f.columns for v in f[c].dropna().unique()[:200]} - {""}
+        read = {v: linking.concept("payment_method", v) for v in values}
+        if values and sum(x is not None for x in read.values()) >= PAYMENT_WORDS_MIN * len(values) \
+                and len({x for x in read.values() if x}) >= 2:
+            found.append(c)
+    return found[0] if len(found) == 1 else None
+
+
+def with_conventions(mapping: Mapping, raw: RawBusiness) -> Mapping:
+    """What the README's conventions name, where the mapping has none: the amount due of an order, the cost of a sale
+    on the lines, and the payments (the table holding the README's paid amount, with one column of order ids all
+    found among the orders' and one date column). Debts also need the payment method of the orders: the one orders
+    column whose values read as payment methods."""
+    named = conventions(raw.readme)
+    tables = {tm.target: tm for tm in mapping.tables}
+    orders, lines = tables.get("orders"), tables.get("lines")
+    if not named or orders is None:
+        return mapping
+    added: dict[str, list[ColumnMap]] = {}
+    o_frames = _frames_of(raw, orders)
+    o_cols = {str(c) for f in o_frames for c in f.columns}
+    have = {c.target for c in orders.columns}
+    line_level = {c.source for c in (lines.columns if lines is not None else []) if c.target == "line_amount"}
+    due = next((c for c in orders.columns if c.target == "total_due"), None)
+    if due is not None and due.source in line_level and named.get("total_due") in o_cols - line_level:
+        # the order's amount due read from the lines' amount column (a public phone ledger moved from an example, 06/11)
+        # while the README names the order's own column: the README's
+        orders = orders.model_copy(update={"columns": [c for c in orders.columns if c.target != "total_due"]})
+        mapping = mapping.model_copy(update={"tables": [orders if tm.target == "orders" else tm for tm in mapping.tables]})
+        have.discard("total_due")
+    if "total_due" not in have and named.get("total_due") in o_cols:
+        added.setdefault("orders", []).append(_cm("total_due", named["total_due"], "money"))
+    if "payment_method" not in have and "paid_amount" in named:
+        used = {s for c in orders.columns for s in [c.source, *c.sources] if s}
+        if (c := _payment_column(o_frames, used)) is not None:
+            added.setdefault("orders", []).append(_cm("payment_method", c))
+    if lines is not None and "unit_cost" not in {c.target for c in lines.columns} \
+            and named.get("line_cost") in {str(c) for f in _frames_of(raw, lines) for c in f.columns}:
+        added.setdefault("lines", []).append(_cm("unit_cost", named["line_cost"], "money"))
+    out = [tm.model_copy(update={"columns": list(tm.columns) + added[tm.target]}) if tm.target in added else tm
+           for tm in mapping.tables]
+    notes = [f"{t}.{c.target}" for t, cs in added.items() for c in cs]
+    if "payments" not in tables and (pay := _payments_table(raw, orders, named.get("paid_amount"))) is not None:
+        out.append(pay)
+        notes.append("payments")
+    if not notes:
+        return mapping
+    return mapping.model_copy(update={"tables": out, "notes": list(mapping.notes) + [
+        "bổ sung từ quy ước README: " + ", ".join(notes)]})
+
+
+def _payments_table(raw: RawBusiness, orders: TableMap, amount: str | None) -> TableMap | None:
+    from .build import source_ids
+    if amount is None:
+        return None
+    oid = next((c.source for c in orders.columns if c.target == "order_id" and c.transform is None), None)
+    o_ids = set(source_ids(orders, [t.table_id for t in raw.tables]))
+    if oid is None:
+        return None
+    known = {str(v).strip() for t in raw.tables if t.table_id in o_ids and oid in t.frame.columns
+             for v in t.frame[oid].dropna()}
+    holders = [t for t in raw.tables if t.table_id not in o_ids and amount in map(str, t.frame.columns)]
+    layouts = {tuple(sorted(map(str, t.frame.columns))) for t in holders}
+    if not holders or len(layouts) != 1 or not known:
+        return None  # no table, or two layouts naming the amount: no guess
+    frames = [t.frame for t in holders]
+    ids_cols, dates = [], []
+    for c in (str(c) for c in frames[0].columns if str(c) != amount):
+        values = [str(v).strip() for f in frames for v in f[c].dropna()]
+        if values and sum(v in known for v in values) >= ORDER_IDS_MIN * len(values):
+            ids_cols.append(c)
+        elif T._dates(frames, c):
+            dates.append(c)
+    if len(ids_cols) != 1 or len(dates) != 1:
+        return None
+    columns = [_cm("order_id", ids_cols[0]), _cm("paid_time", dates[0], "datetime"), _cm("amount", amount, "money")]
+    if (m := _payment_column(frames, {ids_cols[0], dates[0], amount})) is not None:
+        columns.append(_cm("method", m))
+    return TableMap(target="payments", sources=[t.table_id for t in holders], columns=columns)
 
 
 def _drug_columns(catalogue: _Table, others: list[_Table], key: str | None, have: set[str]) -> list[ColumnMap]:
