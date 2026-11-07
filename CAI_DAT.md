@@ -250,17 +250,16 @@ Mỗi file kiểm một phần, tên file nói phần đó: `test_metrics_*.py` 
 | File | Đọc khi |
 |---|---|
 | `PHAN_VIEC_NHOM.md` | **đọc đầu tiên**: 5 task, câu hỏi tự nghiên cứu, mốc |
-| `BAN_GIAO_PHIEN_9.md` | tình hình mới nhất, việc tiếp theo |
-| `HAN_CHE_VA_CAI_THIEN.md` | lịch sử mọi bản sửa (N1–N77): vấn đề, căn cứ, kết quả |
+| `HAN_CHE_VA_CAI_THIEN.md` | lịch sử mọi bản sửa (N1–N79): vấn đề, căn cứ, kết quả |
 | `CAN_XAC_MINH.md` | các lượt nộp, điểm, cách đọc bài nộp chẩn đoán |
 | `KE_HOACH_DataMate.md` | kế hoạch tổng, phương án dự phòng |
 | `architecture/`, `contracts.md` | sơ đồ kiến trúc, mô tả hợp đồng dữ liệu |
-| `BAN_GIAO_PHIEN_2…8.md` | bàn giao các phiên trước |
 
 ### Không có trong repo (tự tạo hoặc nhận riêng)
 | Đường dẫn | Từ đâu |
 |---|---|
 | `data/` | tải từ BTC (bước 4) |
+| `local/` | ghi chép cá nhân, bàn giao giữa các phiên làm việc: chỉ nằm trên máy mỗi người |
 | `outputs/` | gói của trưởng nhóm (bước 5); mọi lượt chạy của bạn cũng ghi vào đây |
 | `.venv/` | tạo ở bước 3 |
 | model `.gguf` | tải ở bước 7 |

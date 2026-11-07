@@ -103,7 +103,7 @@ Ví dụ đọc: lượt A được 0,520 thì nhóm A sai (116 − 20) / 2 = 48
 | 5 | run6 | `outputs/public_ablation6/bo_khach.jsonl` | xếp hạng khách (20) | giả thuyết N33 khách vãng lai | rà nhận diện khách |
 
 Lượt 2–5 dựng từ run6. Nếu đã nộp run8 làm lượt đủ thì dựng lại 2–5 từ run8 cho khớp:
-`python tools/ablate.py outputs/public_run8 --out ... --function ... --metric ...` (lệnh ở `BAN_GIAO_PHIEN_6.md`).
+`python tools/ablate.py outputs/public_run8 --out ... --function ... --metric ...` (xem `python tools/ablate.py --help`).
 
 ## Cửa hàng ngành mới (map được từ 06/11, chưa đo độ chính xác)
 Mỗi cửa hàng nộp một lượt bỏ trống riêng câu của nó, dựng từ lượt đủ mới nhất:

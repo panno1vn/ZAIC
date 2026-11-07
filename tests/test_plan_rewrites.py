@@ -258,3 +258,12 @@ def test_orders_counted_with_dh_and_no_money_word_are_the_number_of_orders():
     assert read is not None and read.measures[0].metric == "order_count" and read.measures[0].filters == []
     money = "30 ngày gần nhất các đơn thu được bao nhiêu tiền?"
     assert grounding.orders_not_money(money, plan(raw)).measures[0].metric == "revenue"
+
+
+def test_which_month_was_highest_is_no_series():
+    """N78, public 07/11: "doanh thu cao nhất rơi vào tháng nào trong 3 tháng" read (on a retry) as the 3 figures."""
+    raw = {"intent": "series", "measures": [{"metric": "revenue"}], "period": {"kind": "months", "end": "2026-02", "n": 3}}
+    q = "Doanh thu cao nhất rơi vào tháng nào trong 3 tháng từ th12/2025 đến th2/2026?"
+    assert nlu.accept_plan(q, plan(raw), AS_OF) is None
+    each = "Doanh thu 3 tháng từ th12/2025 đến th2/2026 mỗi tháng bao nhiêu?"
+    assert nlu.accept_plan(each, plan(raw), AS_OF) is not None

@@ -41,11 +41,17 @@ class _Logged:
 
     def __init__(self, reading: dict):
         self.reading = reading
+        self.calls = 0
 
     def generate_json(self, messages, schema):
+        self.calls += 1
         if "llm_raw" not in self.reading:
             raise RuntimeError(f"replay: lượt gốc gọi LLM lỗi ({self.reading.get('llm_error')})")
-        return self.reading["llm_raw"]
+        if self.calls == 1:
+            return self.reading["llm_raw"]
+        if "llm_raw_retry" in self.reading:  # N78: the run's second call, with the error of the first
+            return self.reading["llm_raw_retry"]
+        raise RuntimeError("replay: lượt gốc không gọi lại (log trước N78)")
 
 
 def _kind(answer: dict) -> str:

@@ -183,7 +183,7 @@ Xong khi: tests/test_parse_money.py qua hết; đã chạy trên 44 cửa hàng 
 3. **Mỗi ngày 3 khối:**
    - *Sáng, 5 giờ:* việc khó hoặc chưa chắc làm được.
    - *Chiều, 5 giờ:* việc chắc làm được, kèm test.
-   - *Tối, 4 giờ:* chạy đánh giá trên train, phân tích lỗi, cập nhật `HAN_CHE`, `TIEN_DO`, commit.
+   - *Tối, 4 giờ:* chạy đánh giá trên train, phân tích lỗi, cập nhật `HAN_CHE`, commit.
 4. **Không bao giờ để train có câu sai mà không biết vì sao.** Mỗi câu sai phải có lý do ghi trong file hạn chế, hoặc đã có cổng chặn.
 
 ### Lịch
@@ -234,7 +234,7 @@ Vì vậy K3 (04/11) dời sang ngày thuê GPU đầu tiên. Nên thuê sớm h
 
 ## 10. Kế hoạch chi tiết các việc lớn tiếp theo (viết cuối phiên 2)
 
-*Căn cứ của thứ tự ưu tiên (đo trên train, xem [BAN_GIAO_PHIEN_2.md](BAN_GIAO_PHIEN_2.md)):*
+*Căn cứ của thứ tự ưu tiên (đo trên train, 04/11):*
 - Câu hỏi sinh theo mẫu: sau khi che số, 90% câu có câu giống ≥ 90% ở một cửa hàng khác.
 - 16/30 cửa hàng có "anh em" dùng gần cùng bộ tên cột.
 - K3: Qwen3-8B đọc đúng 83,7% plan.
@@ -408,7 +408,7 @@ Vì vậy, điểm tới từ ba thứ: **phủ đủ các mẫu câu bằng hà
 
 ## 11. Kế hoạch 05–16/11 trong lúc chờ BTC, có Kaggle (viết cuối phiên 4)
 
-*Bối cảnh: train 2433 đúng / 0 sai (PA +0,811); public lượt 1 được 0,316. N22: chỉ dùng train cho tới khi BTC trả lời. Chi tiết số đo ở [BAN_GIAO_PHIEN_4.md](BAN_GIAO_PHIEN_4.md).*
+*Bối cảnh: train 2433 đúng / 0 sai (PA +0,811); public lượt 1 được 0,316. N22: chỉ dùng train cho tới khi BTC trả lời. Chi tiết số đo ở [HAN_CHE_VA_CAI_THIEN.md](HAN_CHE_VA_CAI_THIEN.md).*
 
 ### Chia máy
 | Máy | Dùng cho | Không dùng cho |
@@ -423,7 +423,7 @@ Dữ liệu trên Kaggle: chỉ **train**, để dạng Dataset **riêng tư**, 
 ### Lịch
 | Ngày | Trưởng nhóm | Claude (trên train) | Kaggle / GPU thuê | Xong khi |
 |---|---|---|---|---|
-| **05/11** | Nộp 5 lượt (BAN_GIAO_PHIEN_4); commit; xác minh số điện thoại Kaggle | Sửa plan sai schema (tự sửa các lỗi hay gặp); viết notebook Kaggle K1 và gói code | | Có 5 điểm nộp; schema sửa xong có test; notebook chạy thử được |
+| **05/11** | Nộp 5 lượt (xem CAN_XAC_MINH); commit; xác minh số điện thoại Kaggle | Sửa plan sai schema (tự sửa các lỗi hay gặp); viết notebook Kaggle K1 và gói code | | Có 5 điểm nộp; schema sửa xong có test; notebook chạy thử được |
 | 06/11 | Tạo Dataset riêng tư trên Kaggle: `data/train` nén (~190 MB) và gói code | Sửa theo kết quả chẩn đoán (nhóm sai nhiều nhất); hàm còn thiếu: công nợ, tồn kho, số lượng theo đơn vị; tối viết Dockerfile, `predict.sh` | **K1:** K3 (123 plan tay) với 8B và 14B; 14B đọc 3000 câu train (2 card, 2 server song song) | Biết 14B hơn 8B bao nhiêu điểm plan đúng; train vẫn 0 sai |
 | 07/11 | | N27 mapping tổng quát: từ điển tên cột, cộng LLM dựng mapping, đo leave-one-out trên biz_123 / 124 | **K2:** dựng lại kho đã kiểm chứng (`build_bank`) bằng model đã chọn | Kho mới có các plan của N30 |
 | 08/11 | | N27 (tiếp); chạy public trên laptop, nộp 1 lượt thật | | N27 map được ≥ 1 trong 2 cửa hàng, 0 sai |

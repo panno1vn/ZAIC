@@ -20,3 +20,26 @@ Thumbs.db
 
 # model weights (downloaded on the GPU machine, never committed)
 *.gguf
+
+# Personal / per-session files: handoffs between work sessions, scratch notes (stay on your machine)
+local/
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Secrets: API keys and tokens never go into the repo
+.env
+*.env
+kaggle.json
+
+# Logs and tool caches
+*.log
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# model weights of any format (docker/models/ keeps only its .gitkeep)
+*.safetensors
+docker/models/*
+!docker/models/.gitkeep

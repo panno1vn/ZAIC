@@ -6,6 +6,7 @@ when the baseline also reads the question, both readers agree: two readings that
 """
 from __future__ import annotations
 
+import json
 import unicodedata
 from datetime import date
 
@@ -49,6 +50,22 @@ def canonical_plan(plan: QueryPlan) -> dict:
     return d
 
 
+RETRY_ASK = ("JSON vừa viết không hợp lệ với schema: {error}\nHãy viết lại plan cho đúng câu hỏi trên, sửa đúng chỗ sai, "
+             "chỉ dùng các giá trị schema cho phép; câu không nói tới điều gì thì không thêm bộ lọc đó.")
+
+
+def _valid_plan(out, question: str) -> tuple[QueryPlan | None, str | None]:
+    """(the plan, None) when `out` is valid; (the repaired plan, the error) when N32 repairs it; (None, the error)."""
+    try:
+        return QueryPlan.model_validate(out), None
+    except Exception as e:  # N32: an invalid shape seen on train, rewritten into the plan it means
+        fixed = repair.repair(out, question, str(e))
+        try:
+            return (QueryPlan.model_validate(fixed) if fixed is not None else None), str(e)
+        except Exception:
+            return None, str(e)
+
+
 def llm_plan(question: str, as_of: date, card: DataCard, llm: LLMClient,
              bank: prompt.ExampleBank | None = None, exclude_ids: frozenset[str] = frozenset(),
              trace: dict | None = None) -> QueryPlan | None:
@@ -64,21 +81,56 @@ def llm_plan(question: str, as_of: date, card: DataCard, llm: LLMClient,
         trace["llm_error"] = type(e).__name__
         return None
     trace["llm_raw"] = out
-    try:
-        plan = QueryPlan.model_validate(out)
-    except Exception as e:  # N32: an invalid shape seen on train, rewritten into the plan it means; else no plan
-        fixed = repair.repair(out, question, str(e))
+    plan, error = _valid_plan(out, question)
+    if plan is None and error is not None:
+        # N78: one more call with the output and what is wrong with it (run11 07/11: 14 public outputs broke the
+        # schema in a way no repair knows, e.g. a shift filter "store"); greedy decoding repeats itself, the error does
+        # not. The retried plan goes through every gate as any other.
+        retry = messages + [{"role": "assistant", "content": json.dumps(out, ensure_ascii=False)},
+                            {"role": "user", "content": RETRY_ASK.format(error=error[:600])}]
         try:
-            plan = QueryPlan.model_validate(fixed) if fixed is not None else None
-        except Exception:
-            plan = None
-        trace["invalid"] = "repaired" if plan is not None else "unrepaired"
-        if plan is None:
-            return None
+            again = llm.generate_json(retry, prompt.PLAN_SCHEMA)
+        except Exception as e:
+            trace["retry_error"] = type(e).__name__
+            again = None
+        if again is not None:
+            trace["llm_raw_retry"] = again
+            plan, _ = _valid_plan(again, question)
+        trace["retry"] = "ok" if plan is not None else "failed"
+    if plan is None:
+        trace["invalid"] = "unrepaired"
+        return None
+    if error is not None and "retry" not in trace:
+        trace["invalid"] = "repaired"
     plan, problems = plan_problems(question, plan, as_of)
+    if problems and GROUND_RETRY and "retry" not in trace:
+        # N79: the plan has parts the question gives no ground for (most often the LLM read one case as another: "bnhiu
+        # đh" as revenue); one more call shown those parts, at most one retry per question. The new plan meets the
+        # same gates, and the twin gate after them.
+        trace["rejected_first"] = problems
+        retry = messages + [{"role": "assistant", "content": json.dumps(out, ensure_ascii=False)},
+                            {"role": "user", "content": RETRY_GROUND.format(parts=", ".join(problems))}]
+        try:
+            again = llm.generate_json(retry, prompt.PLAN_SCHEMA)
+        except Exception as e:
+            trace["retry_error"] = type(e).__name__
+            again = None
+        second = None
+        if again is not None:
+            trace["llm_raw_retry"] = again
+            second, _ = _valid_plan(again, question)
+        if second is not None:
+            plan, problems = plan_problems(question, second, as_of)
+        trace["retry"] = "ok" if second is not None and not problems else "failed"
     if problems:
         trace["rejected"] = problems
     return None if problems else plan
+
+
+GROUND_RETRY = False  # N79: one retry when the grounding gates refuse a plan; OFF until measured on train (prod_train)
+RETRY_GROUND = ("Plan vừa viết có phần câu hỏi không nói tới, hoặc đọc sai loại câu: {parts}.\nĐọc lại câu hỏi và viết "
+                "lại plan chỉ theo đúng điều câu hỏi hỏi: đúng chỉ số (tiền, số đơn, số lượng, số khách…), đúng loại câu "
+                "(một số, so sánh, xếp hạng, danh sách…), không thêm bộ lọc hay kỳ mà câu không nêu.")
 
 
 def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> tuple[QueryPlan, list[str]]:

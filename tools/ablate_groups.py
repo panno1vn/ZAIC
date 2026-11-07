@@ -6,7 +6,7 @@ into abstain. Submitted beside the run, wrong answers of a group = (n − (score
 
 Groups (by the answering function and plan): compare, rank, count_where, value with filters, share/series/trend/debt/
 stock/industry, value without filters. --only-shops limits every group to those shops (the others' answers kept).
-Counts only, no question or answer printed (the public data rule of docs/BAN_GIAO_PHIEN_7.md).
+Counts only, no question or answer printed (the public data rule: CAI_DAT.md, "Luật bắt buộc").
 """
 from __future__ import annotations
 

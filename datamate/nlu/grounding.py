@@ -264,6 +264,9 @@ _PURCHASE = r"\bnhap\b"
 _SALES = {"revenue", "quantity", "order_count"}
 
 
+_WHICH_TIME = r"\b(?:thang|ngay|tuan|quy|nam|thu|gio|khung gio) nao\b"
+
+
 def ungrounded_measures(question: str, plan: QueryPlan) -> list[str]:
     """What the plan measures that the question's words do not ask for: a metric without its word, a list where the
     question counts, a count where it lists."""
@@ -322,6 +325,8 @@ def ungrounded_measures(question: str, plan: QueryPlan) -> list[str]:
         bad.append("compare=same_period_last_year")  # "ca chiều hơn hay kém ca sáng" compared with last year
     if plan.compare is not None and plan.compare.kind == "previous" and _year_over_year(months):
         bad.append("compare=previous")  # "th 6/26 so với th 6/25" read as June against May (run10, 06/11)
+    if plan.intent in ("series", "value") and re.search(_WHICH_TIME, t) and re.search(r"\bnhat\b", t):
+        bad.append("asks=which_time")  # N78: "doanh thu cao nhất rơi vào tháng nào trong 3 tháng" read as the series
     return bad
 
 

@@ -20,7 +20,7 @@ DataMate trả lời câu hỏi số liệu của cửa hàng theo năm bước:
 | Test | 466 qua |
 | Lượt đủ 1000 câu có LLM | 38,7 phút trên laptop, 0 lỗi |
 
-Lịch sử và lý do của từng quyết định: `docs/HAN_CHE_VA_CAI_THIEN.md` (mục N1–N75). Tình hình mới nhất: `docs/BAN_GIAO_PHIEN_9.md`.
+Lịch sử và lý do của từng quyết định: `docs/HAN_CHE_VA_CAI_THIEN.md` (mục N1–N75). Lượt nộp và điểm: `docs/CAN_XAC_MINH.md`.
 
 ## Cài đặt (ngày đầu, ai cũng làm)
 1. Clone repo, tạo môi trường Python 3.10:
@@ -39,7 +39,7 @@ Lịch sử và lý do của từng quyết định: `docs/HAN_CHE_VA_CAI_THIEN.
    .venv\Scripts\python.exe tools/eval_cached.py
    ```
    `eval_cached` mất khoảng 15 phút và phải in `đúng 2747 · sai 0`, `CACHE MISSES: 0`.
-5. Việc nào cần LLM thì mở llama-server với model `Qwen3-8B-Q4_K_M.gguf` (lệnh ở `docs/BAN_GIAO_PHIEN_9.md`). File model khoảng 5 GB: tải ở mạng mạnh.
+5. Việc nào cần LLM thì mở llama-server với model `Qwen3-8B-Q4_K_M.gguf` (cài đặt và lệnh ở `CAI_DAT.md`, bước 7). File model khoảng 5 GB: tải ở mạng mạnh.
 
 ## Luật bắt buộc (vi phạm có thể bị loại)
 - Không có id cửa hàng hay id câu hỏi trong code, kể cả comment. `tests/test_no_id_logic.py` sẽ bắt.
