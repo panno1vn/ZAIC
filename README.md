@@ -3,6 +3,8 @@
 Agent trả lời câu hỏi tiếng Việt trên dữ liệu kinh doanh của cửa hàng nhỏ (csv, xlsx, sqlite).
 Kiến trúc: [docs/architecture/DataMate_kien_truc_v2.png](docs/architecture/DataMate_kien_truc_v2.png) · Kế hoạch: [docs/KE_HOACH_DataMate.md](docs/KE_HOACH_DataMate.md)
 
+**Thành viên mới: đọc [CAI_DAT.md](CAI_DAT.md)** (cài đặt Windows và Linux, giải thích từng thư mục), rồi [docs/PHAN_VIEC_NHOM.md](docs/PHAN_VIEC_NHOM.md).
+
 ## Cài đặt (Windows, Python 3.10+)
 
 ```bash

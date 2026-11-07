@@ -407,7 +407,7 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
     A filter on an attribute the shop does not record still abstains (the frames find no column).
     Then what the README's conventions name for debts and cost (N35, `with_conventions`), and the order's hour from
     the README's "thời điểm đặt đơn" when the mapping read only its day (N73, `with_order_hour`)."""
-    mapping = with_order_hour(drop_amount_as_method(with_conventions(mapping, raw), raw), raw)
+    mapping = with_side_tables(with_order_hour(drop_amount_as_method(with_conventions(mapping, raw), raw), raw), raw)
     tables = [t for t in (_Table(ids, phrases_of(raw, ids)) for ids in groups(raw)) if t.phrases]
     if not tables:
         return mapping
@@ -520,6 +520,99 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
     if not added:
         return mapping
     return mapping.model_copy(update={"tables": out, "notes": list(mapping.notes) + ["bổ sung từ README: " + ", ".join(added)]})
+
+
+SIDE_TABLES = {"purchases": ("product_key", "lines", 0.8), "inventory": ("product_key", "lines", 0.8),
+               "deliveries": ("order_id", "orders", 0.95), "payments": ("order_id", "orders", 0.95)}
+
+
+def with_side_tables(mapping: Mapping, raw: RawBusiness) -> Mapping:
+    """N77. The side tables a mapping moved from an example lacks (its example's shop kept no receipts, stock or
+    deliveries), taken from the mapping the README alone builds, when the README describes them (public 07/11: two
+    shops moved from a one-file example lost their receipts and stock; 5 purchase questions abstained; train: a shop
+    lost its deliveries, 9 questions). Only a table no table of the mapping already reads, and only when its keys are
+    the mapping's own: most of its products are products the lines sell, most of its orders are orders the mapping
+    has; else the two mappings name things differently and the table stays out. Stock dates are then settled as for
+    any mapping (transfer._settle_constants: dated the last day only where the README says so)."""
+    have = {tm.target for tm in mapping.tables}
+    if not {"orders", "lines"} <= have or set(SIDE_TABLES) <= have:
+        return mapping
+    try:
+        readme_mapping, _ = map_from_readme(raw)
+    except Exception:
+        return mapping
+    if readme_mapping is None:
+        return mapping
+    used = {s for tm in mapping.tables for s in tm.sources}
+    wanted = [tm for tm in readme_mapping.tables
+              if tm.target in SIDE_TABLES and tm.target not in have and not set(tm.sources) & used]
+    if not wanted:
+        return mapping
+    core = [tm for tm in mapping.tables if tm.target in ("orders", "lines")]
+    borrowed = []
+    for tm in wanted:
+        key, home, share = SIDE_TABLES[tm.target]
+        if _keys_match(tm, core, mapping, raw, key, home, share):
+            borrowed.append(tm)
+        elif key == "product_key" and (rekeyed := _rekey_products(tm, mapping, readme_mapping)) is not None                 and _keys_match(rekeyed, core, mapping, raw, key, home, REKEY_SHARE):
+            borrowed.append(rekeyed)
+    # a borrowed table must not break the mapping (public 07/11: a stock list with 1 blank cell of 61 failed the
+    # required-cells check and every question of the shop abstained): each one kept only if no check newly fails
+    before = _failed_checks(T._settle_constants(mapping, raw), raw)
+    kept = [tm for tm in borrowed if before is not None and _failed_checks(T._settle_constants(
+        mapping.model_copy(update={"tables": list(mapping.tables) + [tm]}), raw), raw) == before]
+    if not kept:
+        return mapping
+    out = mapping.model_copy(update={"tables": list(mapping.tables) + kept, "notes": list(mapping.notes) + [
+        "bảng phụ từ README: " + ", ".join(tm.target for tm in kept)]})
+    return T._settle_constants(out, raw)
+
+
+def _failed_checks(mapping: Mapping, raw: RawBusiness) -> set[str] | None:
+    """Names of the checks the mapping fails (build.run_checks); None when it cannot be built."""
+    try:
+        return {c.name for c in T.run_checks(build_canonical(raw, mapping), raw.readme) if not c.passed}
+    except Exception:
+        return None
+
+
+REKEY_SHARE = 0.98  # a product key translated through the sales file must name the lines' products almost all
+
+
+def _keys_match(tm: TableMap, core: list[TableMap], mapping: Mapping, raw: RawBusiness, key: str, home: str,
+                share: float) -> bool:
+    """Built together with the mapping's orders and lines, as the run builds them (the spellings of one name are merged
+    across tables there), the share of the table's keys that are keys of `home` is at least `share`."""
+    try:
+        db = build_canonical(raw, Mapping(record_grain=mapping.record_grain, tables=core + [tm]))
+    except Exception:
+        return False
+    new, ref = db.table(tm.target), db.table(home)
+    if new is None or ref is None or new.empty or key not in new.columns or key not in ref.columns:
+        return False
+    if new[key].isna().mean() > 1 - share:
+        return False
+    values, known = set(new[key].dropna().astype(str)), set(ref[key].dropna().astype(str))
+    return bool(values) and len(values & known) / len(values) >= share
+
+
+def _rekey_products(tm: TableMap, mapping: Mapping, readme_mapping: Mapping) -> TableMap | None:
+    """The side table keyed by the product code where the mapping keys its lines by the product name (public 07/11:
+    receipts by "SP0001", sales lines by "7Up lon"): the code translated into the name through the one sales file both
+    mappings read, where each row carries both. Kept only when that translation names the lines' own products for
+    nearly every code (REKEY_SHARE, checked by the caller): a wrong key would put receipts on the wrong product."""
+    def plain(m: Mapping, target: str) -> tuple[list[str], str | None]:
+        lt = next((t for t in m.tables if t.target == "lines"), None)
+        c = next((c for c in lt.columns if c.target == target), None) if lt is not None else None
+        return (list(lt.sources) if lt is not None else []), (c.source if c is not None and c.transform is None else None)
+    r_src, code = plain(readme_mapping, "product_key")
+    m_src, name = plain(mapping, "product_key")
+    if len(r_src) != 1 or r_src != m_src or not code or not name or code == name:
+        return None
+    cols = [c.model_copy(update={"transform": "lookup", "args": {"table": r_src[0], "key": code, "value": name,
+                                                                 "keep_missing": False, "fold": True}})
+            if c.target == "product_key" else c for c in tm.columns]
+    return tm.model_copy(update={"columns": cols})
 
 
 ORDER_MOMENT = "thoi diem dat don"  # "Giờ bán: thời điểm đặt đơn (ngày giờ)"

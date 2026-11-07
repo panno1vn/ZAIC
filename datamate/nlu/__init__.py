@@ -16,7 +16,8 @@ from datamate.verify import LINKED_FIELDS, filter_keys
 
 from . import baseline, jobs, linking, prompt, repair
 from .grounding import (anchor_by_price, count_as_value, drop_month_as_weekday, drop_restated_metric,
-                        drop_restated_status, drop_ungrounded_years, month_of_short_year, rate_as_value, scale_money,
+                        drop_restated_status, drop_ungrounded_years, month_of_short_year, orders_not_money,
+                        rate_as_value, scale_money, unit_filter_as_unit,
                         split_debt_ages, ungrounded_dates, ungrounded_filters, ungrounded_measures, whole_not_part,
                         widen_each_table, written_last_year)
 
@@ -84,7 +85,7 @@ def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> 
     """The plan after the drops (years the question does not state, restated filters) and what in it has no ground
     in the question: filters, days, measures (grounding.py)."""
     plan = scale_money(question, count_as_value(month_of_short_year(question, widen_each_table(question, plan))))
-    plan = rate_as_value(plan)
+    plan = orders_not_money(question, unit_filter_as_unit(question, rate_as_value(plan)))
     plan = whole_not_part(split_debt_ages(drop_month_as_weekday(question, anchor_by_price(question, plan, as_of))))
     plan = written_last_year(plan)
     plan = drop_ungrounded_years(question, plan, as_of)
@@ -132,7 +133,7 @@ def link_entities(plan: ResolvedPlan, db: CanonicalDB, question: str = "") -> Re
     """Fill plan.linked / plan.link_scores: each name a filter carries, as written -> the data value it names
     (linking.py, G6). A name is left out when no value is clearly meant; [V] then makes the question abstain.
     `link_scores` keeps the best score of every name tried, linked or not, for the logs."""
-    plan = product_as_attribute(plan, db)
+    plan = product_as_attribute(unit_or_all_as_product(plan, db), db)
     p = plan.plan
     measures = list(p.measures) + ([p.share_of] if p.share_of else [])
     filters = [f for m in measures for f in m.filters] + list((p.compare.filters or []) if p.compare else [])
@@ -159,6 +160,38 @@ def link_entities(plan: ResolvedPlan, db: CanonicalDB, question: str = "") -> Re
 
 
 ATTRIBUTE_FIELDS = ("category", "product_line", "brand", "product_group")
+_EVERY = {"tat ca", "tat ca cac mon", "tat ca mon", "tat ca mat hang", "tat ca cac mat hang", "moi mat hang", "moi mon",
+          "toan bo", "toan bo mat hang", "cac mon", "all", "tat ca khach", "moi khach", "all customers"}
+
+
+def unit_or_all_as_product(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
+    """N76. A product filter that names no product of the shop but one of its counting units ("hôm qua bán được bao
+    nhiêu ly": product = ly; train 07/11, 3 questions) is the unit the quantity counts in; a product or customer filter
+    that names every one ("tất cả các món", "mọi mặt hàng", customer = all) is no filter. Only on a quantity, and
+    only a value that links to no product."""
+    p = plan.plan
+    cands = units = None
+    measures, changed = [], False
+    for m in p.measures:
+        kept, unit = [], m.unit
+        for f in m.filters:
+            v = linking.norm(f.value) if isinstance(f.value, str) and f.op == "eq" else None
+            if v is not None and f.field in ("product", "customer") and v in _EVERY and len(p.measures) == 1:
+                # one figure only: "mấy ly size M, cộng tất cả các món" read as [size M, every item] asks one figure
+                # (train 07/11: dropping the second filter answered a list of two, 2 wrong)
+                changed = True
+                continue
+            if v is not None and f.field == "product" and m.metric == "quantity":
+                if cands is None:
+                    cands, units = linking.candidates("product", db), linking.units(db)
+                if v in units and (unit is None or linking.norm(unit) == v)                         and linking.link_value("product", f.value, "", cands, ()).value is None:
+                    unit, changed = f.value, True
+                    continue
+            kept.append(f)
+        measures.append(m.model_copy(update={"filters": kept, "unit": unit}) if kept != list(m.filters) else m)
+    if not changed:
+        return plan
+    return plan.model_copy(update={"plan": p.model_copy(update={"measures": measures})})
 
 
 def product_as_attribute(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:

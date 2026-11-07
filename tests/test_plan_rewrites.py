@@ -237,3 +237,24 @@ def test_a_share_of_the_cancel_rate_is_the_cancel_rate():
     revenue = {"intent": "share", "measures": [{"metric": "revenue", "filters": [{"field": "channel", "value": "store"}]}],
                "period": {"kind": "this_month"}}
     assert grounding.rate_as_value(plan(revenue)).intent == "share"
+
+
+def test_a_unit_written_as_a_filter_is_the_unit_and_without_money_words_a_quantity():
+    """N76, run11 07/11: "quán bán dc bnhiu đĩa" read as revenue filtered by unit = đĩa."""
+    raw = {"intent": "value", "period": {"kind": "this_week"},
+           "measures": [{"metric": "revenue", "filters": [{"field": "unit", "value": "đĩa"}]}]}
+    read = nlu.accept_plan("Tuan nay quan ban dc bnhiu dia?", plan(raw), AS_OF)
+    assert read is not None and read.measures[0].metric == "quantity" and read.measures[0].unit == "đĩa"
+    assert read.measures[0].filters == []
+    money = grounding.unit_filter_as_unit("Tuần này bán bao nhiêu tiền đĩa cơm?", plan(raw))
+    assert money == plan(raw)  # a money word: left to the gates (run11: "doanh thu … bao nhiêu hỉ", a particle as unit)
+
+
+def test_orders_counted_with_dh_and_no_money_word_are_the_number_of_orders():
+    """N76, run11 07/11: "30 ngày gần nhất được bnhiu đh" read as revenue (completed orders)."""
+    raw = {"intent": "value", "period": {"kind": "last_n_days", "n": 30},
+           "measures": [{"metric": "revenue", "filters": [{"field": "order_status", "value": "completed"}]}]}
+    read = nlu.accept_plan("30 ngày gần nhất được bnhiu đh nhỉ?", plan(raw), AS_OF)
+    assert read is not None and read.measures[0].metric == "order_count" and read.measures[0].filters == []
+    money = "30 ngày gần nhất các đơn thu được bao nhiêu tiền?"
+    assert grounding.orders_not_money(money, plan(raw)).measures[0].metric == "revenue"

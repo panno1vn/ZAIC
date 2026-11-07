@@ -16,7 +16,7 @@ DataMate trả lời câu hỏi số liệu của cửa hàng theo năm bước:
 |---|---|
 | Public tốt nhất | **0,744** (773 đúng, 29 sai, 198 trống) |
 | Ứng viên nộp kế | `outputs/replay/run11_s33` (821 câu trả lời) |
-| Train | **2731 đúng / 0 sai / 269 trống** |
+| Train | **2747 đúng / 0 sai / 253 trống** |
 | Test | 466 qua |
 | Lượt đủ 1000 câu có LLM | 38,7 phút trên laptop, 0 lỗi |
 
@@ -38,7 +38,7 @@ Lịch sử và lý do của từng quyết định: `docs/HAN_CHE_VA_CAI_THIEN.
    .venv\Scripts\python.exe -m pytest -q
    .venv\Scripts\python.exe tools/eval_cached.py
    ```
-   `eval_cached` mất khoảng 15 phút và phải in `đúng 2731 · sai 0`, `CACHE MISSES: 0`.
+   `eval_cached` mất khoảng 15 phút và phải in `đúng 2747 · sai 0`, `CACHE MISSES: 0`.
 5. Việc nào cần LLM thì mở llama-server với model `Qwen3-8B-Q4_K_M.gguf` (lệnh ở `docs/BAN_GIAO_PHIEN_9.md`). File model khoảng 5 GB: tải ở mạng mạnh.
 
 ## Luật bắt buộc (vi phạm có thể bị loại)
@@ -65,7 +65,7 @@ Lịch sử và lý do của từng quyết định: `docs/HAN_CHE_VA_CAI_THIEN.
 ## Mốc
 | Ngày | Việc |
 |---|---|
-| 08/11 | cài đặt xong, ra đúng số; đọc tài liệu của task |
+| 08/11 | cài đặt theo CAI_DAT.md, ra đúng số; đọc tài liệu của task |
 | 09/11 tối | mỗi người gửi ghi chú nghiên cứu ngắn: trả lời các câu hỏi ở mục "Tự nghiên cứu", và định làm gì |
 | 10–12/11 | làm, mở PR |
 | **12/11 22:00** | **hạn merge cho Docker lần 1**: chỉ PR đã merge và đủ số đo mới vào image |
@@ -155,7 +155,7 @@ Lịch sử và lý do của từng quyết định: `docs/HAN_CHE_VA_CAI_THIEN.
 - **Hướng B:** xếp mẫu theo số file **của cửa hàng** được dùng. Mapping của bao nhiêu cửa hàng train và public sẽ đổi? Cách này cần llama-server và rủi ro hơn.
 - Nợ ghi trong Note: §4 cho tính được gì khi chỉ có tình trạng cuối? Có lẽ chỉ câu hỏi đúng ngày cuối dữ liệu.
 
-**Xong khi.** `eval_cached` ≥ 2731 đúng, 0 sai, CACHE MISSES 0. Đọc lại public bằng `--enrich` cho thấy câu nào đổi và vì sao. Có test cho mỗi đường mới.
+**Xong khi.** `eval_cached` ≥ 2747 đúng, 0 sai, CACHE MISSES 0. Đọc lại public bằng `--enrich` cho thấy câu nào đổi và vì sao. Có test cho mỗi đường mới.
 
 **Phạm vi file.** `datamate/mapping/*`.
 

@@ -423,6 +423,53 @@ def count_as_value(plan: QueryPlan) -> QueryPlan:
                                      "measures": [{"metric": t.metric, "filters": [f.model_dump() for f in filters]}]})
 
 
+def unit_filter_as_unit(question: str, plan: QueryPlan) -> QueryPlan:
+    """N76. A counting unit written as a filter ("quán bán dc bnhiu đĩa": revenue, filter unit = đĩa; "hqua bán đc mấy
+    gói": order_count, filter unit = gói; run11 07/11, 4 such plans refused): the unit the measure counts in. A
+    question with no money word then counts goods, so the measure is the quantity (§3). One unit filter, equal
+    values only; a measure that already has another unit stays as it is."""
+    t = " ".join(tokens(question))
+    measures, changed = [], False
+    for m in plan.measures:
+        units = [f for f in m.filters if f.field == "unit"]
+        values = {str(f.value).strip() for f in units if isinstance(f.value, str) and f.op == "eq"}
+        if not units or len(values) != 1 or len(values) != len({str(f.value) for f in units}) \
+                or (m.unit and m.unit.strip() not in values):
+            measures.append(m)
+            continue
+        if re.search(_MONEY, t) or m.metric not in ("revenue", "order_count", "quantity"):
+            measures.append(m)  # "doanh thu … bao nhiêu hỉ": a particle read as a unit beside a money word (run11)
+            continue
+        measures.append(m.model_copy(update={"metric": "quantity", "unit": values.pop(),
+                                             "filters": [f for f in m.filters if f.field != "unit"]}))
+        changed = True
+    if not changed:
+        return plan
+    update = {"measures": measures}
+    if plan.rank is not None and plan.rank.by in ("revenue", "order_count") and len(measures) == 1 \
+            and measures[0].metric == "quantity":
+        update["rank"] = plan.rank.model_copy(update={"by": "quantity"})
+    return plan.model_copy(update=update)
+
+
+_ORDER_WORDS = r"\b(?:dh|don|don hang|hoa don|bill|bil|order|o do)\b"
+
+
+def orders_not_money(question: str, plan: QueryPlan) -> QueryPlan:
+    """N76. "30 ngày gần nhất được bnhiu đh", "Hnay tổng bnhiu đh" read as revenue (run11 07/11, refused by the
+    measure gate): a question that counts orders ("đh", "đơn") and writes no money word asks the number of orders.
+    One revenue measure, a value or a comparison, no unit."""
+    t = " ".join(tokens(question))
+    if plan.intent not in ("value", "compare", "series") or len(plan.measures) != 1:
+        return plan
+    m = plan.measures[0]
+    if m.metric != "revenue" or m.unit or re.search(_MONEY, t) or re.search(_PERCENT, t) \
+            or not re.search(_COUNTING + r"(?: \w+){0,2} " + _ORDER_WORDS, t):
+        return plan
+    kept = [f for f in m.filters if not (f.field == "order_status" and f.value == "completed")]
+    return plan.model_copy(update={"measures": [m.model_copy(update={"metric": "order_count", "filters": kept})]})
+
+
 RATES = frozenset({"cancel_rate", "warranty_rate"})  # metrics that are already a percent of a whole the rulebook fixes
 
 

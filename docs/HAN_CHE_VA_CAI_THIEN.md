@@ -799,6 +799,18 @@ Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval
     - `repair._fix_series_months`: chuỗi tháng vắt qua năm ("th 12/25, th 1/26, th 2/26") bị ghi thành tháng đầu → các tháng câu ghi, khi liên tiếp và tháng đầu khớp plan.
   - `run11_s33` (run11 đọc lại bằng code này): +2 câu, không câu nào khác đổi; so với lượt 0,744: 21 câu mới, 2 câu thành trống. Train 2731 / 0, CACHE MISSES 0. Có test.
 
+- [x] **N76 (TB). Ba luật viết lại cho các cặp nhầm của LLM** (lời khuyên 07/11: LLM nhầm giữa vài case; sửa theo cặp, đo hai mặt). Lập từ sheet câu trống 07/11.
+  - `grounding.unit_filter_as_unit`: bộ lọc `unit` ("quán bán dc bnhiu **đĩa**", "hqua bán đc mấy **gói**") → đơn vị của chỉ số, chỉ số là số lượng; chỉ khi câu không có chữ về tiền ("doanh thu … bao nhiêu **hỉ**": trợ từ đọc thành đơn vị, giữ nguyên cho cổng).
+  - `grounding.orders_not_money`: doanh thu mà câu đếm "đh / đơn" và không có chữ về tiền → số đơn ("30 ngày gần nhất được bnhiu đh").
+  - `nlu.unit_or_all_as_product` (bước nối tên): bộ lọc mặt hàng là một đơn vị của shop ("bao nhiêu ly": product = ly) → đơn vị; "tất cả các món", "mọi mặt hàng" → bỏ bộ lọc, **chỉ khi plan có một chỉ số** (lần đo đầu: "mấy ly size M, cộng tất cả các món" thành danh sách hai số, 2 câu train sai).
+  - Đo hai mặt: train **2738 / 0 / 262** (+7, PA +0,913, CACHE MISSES 0). Public (`run11_s34` so với `run11_s33`): 7 câu trống → trả lời, 1 câu đổi giá trị ("Quý 3/2025 quán bán được bnhiu đh" trước trả doanh thu, nhiều khả năng là một câu sai). Có test.
+
+- [x] **N77 (TB). Bảng phụ mượn từ README khi mapping chuyển từ mẫu thiếu** (`from_readme.with_side_tables`, gọi trong `enrich`). Sheet câu trống 07/11: 67 câu train, 10 câu public dừng vì shop thiếu bảng (sổ nhập, tồn, giao hàng, thanh toán): mẫu được chọn không có bảng đó.
+  - Mượn bảng (purchases, inventory, deliveries, payments) của mapping dựng từ README khi khoá khớp, kiểm bằng cách **dựng chung** với đơn và dòng hàng như lúc chạy (cách viết của một tên được gộp xuyên bảng): ≥ 80% mặt hàng / ≥ 95% đơn của bảng mượn có trong mapping.
+  - Khoá mã ↔ tên khác nhau (sổ nhập theo "SP0001", dòng bán theo tên): dịch mã sang tên qua file bán có cả hai cột (`lookup`), chỉ khi ≥ 98% khớp; sai khoá sẽ đặt tiền nhập lên nhầm mặt hàng. Dòng bán chia nhiều file thì chưa dịch (dev_008 chưa được).
+  - Bảng mượn không được làm hỏng phép kiểm nào (lần đo đầu: sổ tồn có 1/61 ô trống làm hỏng "cột bắt buộc đủ giá trị", **cả 50 câu của shop thành trống**; giờ bảng đó bị loại riêng).
+  - Đo: train **2747 / 0 / 253** (+9, PA +0,916, CACHE MISSES 0). Public (`run11_s35` so với `s34`): +2 câu tiền nhập, không câu nào mất. Có test (`tests/test_side_tables.py`).
+
 ## Thứ tự xử lý đề xuất
 1. **T4 sáng:** sửa H1–H7, sinh lại schema, thêm test cho từng mục.
 2. **T4–T5:** K2 (cả nhóm), K3 (người có kinh nghiệm), K1 review chéo.

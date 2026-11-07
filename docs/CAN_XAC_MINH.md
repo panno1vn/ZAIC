@@ -31,7 +31,7 @@ Trong `outputs/public_ablation12/`, so với **S27 = 0,744** (cùng file gốc `
 
 | # | File | Nhóm (số câu) |
 |---|---|---|
-| 0 | `outputs/replay/run11_s33/submission.jsonl` | **lượt chính mới** (07/11 phiên 9): run11 (lượt LLM đủ, N75) đọc lại bằng code cuối, 821 câu trả lời. So với S27: **21 câu mới** (9 câu ca N73, 8 câu lô / hạn dùng / hết hàng N74, 4 câu run11 đọc đúng hơn) và **2 câu thành trống** (LLM của run11 đọc lệch, cổng chặn). Nếu 2 câu đó vốn đúng: điểm − 0,744 = (đúng − sai của 21 câu) − 0,002. Bản ghép không LLM tương ứng: `outputs/replay/run10_s32m` (819 câu) |
+| 0 | `outputs/replay/run11_s35/submission.jsonl` | **lượt chính mới, thay s33/s34** (N76 + N77: thêm 9 câu, 1 câu đổi giá trị; 830 câu trả lời). Bản trước: (07/11 phiên 9): run11 (lượt LLM đủ, N75) đọc lại bằng code cuối, 821 câu trả lời. So với S27: **21 câu mới** (9 câu ca N73, 8 câu lô / hạn dùng / hết hàng N74, 4 câu run11 đọc đúng hơn) và **2 câu thành trống** (LLM của run11 đọc lệch, cổng chặn). Nếu 2 câu đó vốn đúng: điểm − 0,744 = (đúng − sai của 21 câu) − 0,002. Bản ghép không LLM tương ứng: `outputs/replay/run10_s32m` (819 câu) |
 | 1 | `bo_share_series_no_kho.jsonl` | cửa hàng cũ: tỉ trọng, chuỗi tháng, xu hướng, công nợ, nhập, giao (70) |
 | 2 | `bo_value_tron.jsonl` | cửa hàng cũ: một con số không bộ lọc (179) |
 | 3 | `bo_moi_003_009.jsonl` | dev_003 + dev_009 (132) |
