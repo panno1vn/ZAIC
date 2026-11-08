@@ -151,10 +151,23 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
     if asked & _STOCK_ASKED and not re.search(r"\b(?:ton|kho|lo)\b", text) \
             and not any(db.has(t) for t in ("inventory", "lots")):
         return "tồn kho"
+    # N121. Customers in a shop that records none, debts in a shop that keeps none (train: two shops whose README has
+    # no column about customers: every customer question unanswerable, 8 / 8; two whose README never writes "nợ":
+    # every debt question unanswerable, 3 / 3). A README column "…khách…" or a mapped customer key is a record.
+    customer_asked = (fields & {"customer", "customer_group"}) or asked & _CUSTOMER_METRICS or (
+        plan.rank is not None and plan.rank.entity == "customer") or (
+        plan.threshold is not None and plan.threshold.entity == "customer")
+    if customer_asked and not any(re.search(r"\bkhach\b", line) for line in readme if line.lstrip().startswith("-")) \
+            and not _has(db, ("orders",), "customer_key"):
+        return "khách hàng"
+    if asked & _DEBT_METRICS and not re.search(r"\bno\b|\bghi so\b|\bchiu\b", text) and not db.has("payments"):
+        return "công nợ"
     return None
 
 
 _STOCK_ASKED = frozenset({"stock_qty", "stock_value"})
+_CUSTOMER_METRICS = frozenset({"customer_count", "new_customer_count", "debtor_count"})
+_DEBT_METRICS = frozenset({"debt_total", "debt_amount", "debt_paid", "debt_added", "debtor_count", "overdue_amount"})
 
 
 def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: CanonicalDB, mapping: Mapping,

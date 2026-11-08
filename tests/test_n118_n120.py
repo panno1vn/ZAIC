@@ -56,3 +56,14 @@ def test_a_question_that_counts_in_a_unit_is_a_quantity():
     kept, _ = nlu.plan_problems("tháng 5/2026 bán cơm chiên dương châu được bao nhiêu tiền",
                                 QueryPlan.model_validate(raw), AS_OF)
     assert kept.measures[0].metric == "revenue"
+
+
+def test_a_unit_the_question_does_not_count_in_is_replaced_by_the_one_it_does():
+    """N122: "mấy kg nếp cái hoa vàng" read with unit "cái" (a word of the name), "nhiêu phần topping" with "đơn vị"."""
+    from datamate.nlu import unit_from_question
+    db = CanonicalDB(tables={"lines": pd.DataFrame({"order_id": ["1", "2"], "product_key": ["Nếp cái", "Ly"],
+                                                     "product_name": ["Nếp cái", "Ly"], "unit": ["kg", "cái"]})})
+    for q, unit in (("tháng 2/2026 cửa hàng bán được mấy kg nếp cái hoa vàng", "cái"), ("bán được mấy kg nếp", "đơn vị")):
+        raw = {"intent": "value", "period": {"kind": "this_month"},
+               "measures": [{"metric": "quantity", "unit": unit, "filters": [{"field": "product", "value": "nếp"}]}]}
+        assert unit_from_question(_resolved(raw), db, q).plan.measures[0].unit == "kg", q
