@@ -163,6 +163,23 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
         return "khách hàng"
     if asked & _DEBT_METRICS and not re.search(r"\bno\b|\bghi so\b|\bchiu\b", text) and not db.has("payments"):
         return "công nợ"
+    # N126. A sales channel or a payment method in a shop that records none (§7 "shop không ghi loại thông tin câu hỏi
+    # cần … thì không trả lời được"): "doanh thu bán tại quầy với bán qua điện thoại" in a shop with no channel
+    # column. Train (07/11 study, plans with that filter in shops with no such column): channel 3 / 3 unanswerable,
+    # payment method 2 / 2. A README line about it or a mapped column is a record.
+    # Only a value that is a channel / a payment method (a code of synonyms.json): train "hqua cos tổng cộng nhiêu
+    # ddown" (telex for "đơn") read with payment_method = "dDown" is a misread, not a question about payments.
+    from datamate.nlu import linking  # late import: nlu imports this module
+    coded = {f["field"] for m in plan.model_dump(mode="json", exclude_none=True).get("measures", [])
+             for f in m.get("filters", []) if f.get("field") in ("channel", "payment_method")
+             and all(linking.concept(f["field"], str(v)) for v in (f["value"] if isinstance(f["value"], list)
+                                                                    else [f["value"]]))}
+    if "channel" in coded and not _has(db, ("orders",), "channel") \
+            and not re.search(r"\bkenh\b|\bban qua\b|\bnguon don\b", text):
+        return "kênh bán"
+    if "payment_method" in coded and not _has(db, ("orders",), "payment_method") and not db.has("payments") \
+            and not re.search(r"\bthanh toan\b|\bhinh thuc tra\b|\btra bang\b", text):
+        return "hình thức thanh toán"
     return None
 
 

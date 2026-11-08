@@ -138,7 +138,9 @@ TABLES: dict[str, TableSpec] = {
         _SOURCE,
     )),
     "deliveries": TableSpec("Các đợt giao của đơn (giao nhiều đợt)", (
-        Col("order_id", "str", True), Col("delivery_time", "datetime", True), Col("batch_no", "int"), _SOURCE,
+        Col("order_id", "str", True), Col("delivery_time", "datetime", True), Col("batch_no", "int"),
+        Col("product_key", "str", doc="hàng của dòng giao, khi sổ giao ghi theo từng mặt hàng (N130)"),
+        Col("base_qty", "float", doc="số lượng giao theo đơn vị cơ bản (N130)"), _SOURCE,
     )),
     "shift_reports": TableSpec("Báo cáo tiền mặt theo ca", (
         Col("report_date", "date", True), Col("shift", "str"), Col("cash_amount", "float"), _SOURCE,

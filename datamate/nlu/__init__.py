@@ -22,7 +22,7 @@ from .grounding import (quantity_not_money, anchor_by_price, count_as_value, cou
                         warranty_over_sold, order_amount_named, particle_not_unit, today_not_this_month,
                         order_amount_no_item, stocked_in_as_purchase,
                         debt_age_from_question, in_minus_out, k_not_the_month, rulebook_rank_terms, share_as_value,
-                        weekday_as_stated, which_time_as_rank, whole_as_share_of,
+                        delivered_from_words, this_month_written_short, written_month_over_relative, weekday_as_stated, which_time_as_rank, whole_as_share_of,
                         drop_restated_status, drop_ungrounded_years, month_of_short_year, one_name_no_values,
                         lots_expiring_count, orders_with_group, series_months_as_filters, stray_numeric_filters,
                         threshold_as_value,
@@ -173,6 +173,8 @@ def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> 
     # whole_not_part first: a share_of written as the part itself hides the whole written as a second measure (a full
     # public run 08/11: "bỉm size NB … % tổng số bịch bỉm" read so on one run, without the share_of on the other)
     plan = k_not_the_month(question, whole_as_share_of(whole_not_part(debt_age_from_question(question, plan))))
+    plan = delivered_from_words(question, this_month_written_short(question, plan))  # N128, N130
+    plan = written_month_over_relative(question, plan, as_of)  # N133
     plan = weekday_as_stated(question, share_as_value(question, count_not_list(question, plan)))
     plan = widen_each_table(question, one_name_no_values(question, plan))
     plan = scale_money(question, count_as_value(month_of_short_year(question, plan)))
@@ -322,7 +324,9 @@ GENERIC_VALUES = frozenset({"quan", "wan", "shop", "sop", "tiem", "cua hang", "c
                             # N119: function words typed with telex left on, read as a value (train: "bữa qua cuwar
                             # hàng có bao nhiêu bill" with channel = cuwar, "hqua doanh thu dduwowcj" with payment =
                             # dduwowcj); linking.norm undoes the telex, so they arrive folded as "cua", "duoc"
-                            "cua", "duoc", "roi", "nhe", "nha", "a", "ha"})  # not "dt": "đt" is a phone
+                            "cua", "duoc", "roi", "nhe", "nha", "a", "ha",
+                            # N131: the month word alone ("Dthu th 6/26 … so th 6/25" with product = th)
+                            "t", "th", "thg", "thang"})  # not "dt": "đt" is a phone
 _MONTH_VALUE = re.compile(r"^(?:t|th|thang)\s?\d{1,2}(?:\s\d{2,4})?$")
 GENERIC_FIELDS = ("product", "product_group", "category", "product_line", "brand", "customer", "customer_group",
                   "payment_method", "channel")

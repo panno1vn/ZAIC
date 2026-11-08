@@ -208,6 +208,14 @@ def ungrounded_dates(question: str, plan: QueryPlan, as_of: date | None = None) 
     """The explicit days and month bounds of the plan's periods the question does not write."""
     q = fold(question)
     written = {f"{y:04d}-{m:02d}" for m, y in stated_months(question)}  # "th 12/25" is 2025-12 (run10, 06/11)
+    # N132: a month the question writes without a year ("Dthu th4, th5, th6 mỗi tháng"): §2 "tháng M không ghi năm: của
+    # năm nay nếu không sau hôm nay; sau hôm nay thì của năm trước" gives its year
+    if as_of is not None:
+        for mm in re.findall(r"\b(?:t|th|thg|thang)\s*(\d{1,2})\b(?!\s*\d)(?!\s+nam\s+\d)", q):
+            m = int(mm)
+            if 1 <= m <= 12:
+                y = as_of.year if m <= as_of.month else as_of.year - 1
+                written.add(f"{y:04d}-{m:02d}")
     bad = []
 
     def grounded(v: str) -> bool:
@@ -267,6 +275,11 @@ _MEASURE_WORDS = {
     "delivery_count": r"\b(?:giao|dot|cho)\b",
     "gross_profit": r"\b(?:lai|loi)\b",
     "net_profit": r"\b(?:rong|chi phi)\b",
+    # N127: an average order VALUE needs a money or order word; "trung bình mỗi thứ Tư tiệm xửa mấy nượt xe" (public,
+    # visits per weekday) read as avg_order_value. Train: all 169 avg_order_value plans write one of these ("thu"
+    # alone is also "thứ", the weekday, so only "thu về / thu được")
+    "avg_order_value": r"\b(?:tien|dthu|doanh thu|dt|gia tri|dong|vnd|chi tieu|mua het|tra|thu ve|thu duoc|ban duoc"
+                       r"|bill|hoa don|don|sop)\b",  # §3 "khách sộp nhất": the highest average order value
 }
 _COUNTING = r"\b(?:bao nhieu|bao nhiu|bn|bnhiu|bnhieu|may|dem|so luong|tong so|tong cong)\b"  # not "nhiều" alone
 _PERCENT = r"%|\b(?:phan tram|chiem|ti trong|ty trong|ti le|ty le|phan cua|dong gop)\b"
@@ -281,7 +294,7 @@ _NONE_AT_ALL = r"\b(?:khong|ko|chua)\b(?: \w+){0,3} (?:mat hang|hang|mon|san pha
 _STOCK = r"\b(?:ton kho|con ton|trong kho|kho con|con lai (?:may|bao nhieu|bn)|con (?:bao nhieu|bn|may))\b"
 _UNIT_PRICE = r"\b(?:don gia|gia ban)\b"
 _MONEY = r"\b(?:doanh thu|dthu|dt|revenue|tien|dong|vnd|thu ve|chi tieu)\b"
-_PURCHASE = r"\bnhap\b"
+_PURCHASE = r"\b(?:nhap|cat hang|danh hang)\b"  # N127: "cất / đánh hàng" is buying stock in, not selling
 _SALES = {"revenue", "quantity", "order_count"}
 
 
@@ -549,6 +562,73 @@ def one_name_no_values(question: str, plan: QueryPlan) -> QueryPlan:
     raw["rank"]["with_values"] = False
     raw["rank"]["k"] = 1  # "mặt hàng nào … nhiều máy nhất" written with k empty (public run11): one name
     raw.pop("answer_type", None)  # "table" was derived from with_values: derived again (a copy would keep it)
+    return QueryPlan.model_validate(raw)
+
+
+_THIS_MONTH_SHORT = re.compile(r"\b(?:th|thg|t) (?:nay|ni)\b")  # "th này", "thg nay", "t ni": tháng này
+_WEEK_OR_TODAY = re.compile(r"\b(?:tuan|hom nay|hnay|bua nay|nay la ngay)\b")
+
+
+def this_month_written_short(question: str, plan: QueryPlan) -> QueryPlan:
+    """N128. "Th này sốp bán ra bnhiu lon sữa bột số 4" read with this_week, "Th nay khach tra no cho quan" with today
+    (public): "th" is the system's "tháng" everywhere else ("Th3/2026"). A this_week / today period on a question that
+    writes "th này" and no word of a week or of today is this_month. (Train never writes "th này".)"""
+    p = plan.period
+    if p is None or p.kind not in ("this_week", "today"):
+        return plan
+    t = " ".join(tokens(question))
+    if not _THIS_MONTH_SHORT.search(t) or _WEEK_OR_TODAY.search(t):
+        return plan
+    return plan.model_copy(update={"period": p.model_copy(update={"kind": "this_month"})})
+
+
+def written_month_over_relative(question: str, plan: QueryPlan, as_of: date | None = None) -> QueryPlan:
+    """N133. "2/26 so với cùng kỳ năm trước, doanh thu lên hay xuống bao nhiêu %" read with this_month (public, on
+    both calls; N95 refuses it): the question writes exactly one month with its year and the plan's this / last month
+    is another month: the month the question writes."""
+    p = plan.period
+    if p is None or p.kind not in ("this_month", "last_month") or as_of is None:
+        return plan
+    written = set(stated_months(question))
+    if len(written) != 1:
+        return plan
+    m, y = next(iter(written))
+    ry, rm = (as_of.year, as_of.month) if p.kind == "this_month" else (
+        (as_of.year, as_of.month - 1) if as_of.month > 1 else (as_of.year - 1, 12))
+    if (y, m) == (ry, rm):
+        return plan
+    return plan.model_copy(update={"period": p.model_copy(update={"kind": "month", "year": y, "month": m})})
+
+
+_DELIVERED = re.compile(r"\b(?:cho di|da cho|da giao|xe da giao|giao tong cong|da giao di|da cho giao)\b")
+
+
+def delivered_from_words(question: str, plan: QueryPlan) -> QueryPlan:
+    """N130. "Các đơn đặt tháng 3/2026, tới hôm nay đã chở đi bao nhiêu thùng Sơn Dulux …", "xe đã giao tổng cộng mấy
+    cuộn Dây điện Cadivi … cho khách đặt tháng 4/2025" (public, 3 questions): the quantity of one product delivered,
+    read as the quantity sold (refused: no word of selling) or as the number of batches with a product filter (which
+    batches cannot take). One measure of quantity or batches with one product filter, on a question that says the goods
+    were carried or delivered, is the internal metric delivered_qty; the order statuses the reader added are dropped
+    (§6: batches of orders later returned count)."""
+    t = " ".join(tokens(question))
+    if not _DELIVERED.search(t) or len(plan.measures) != 1 or plan.intent != "value":
+        return plan
+    m = plan.measures[0]
+    products = [f for f in m.filters if f.field == "product"]
+    if m.metric not in ("quantity", "delivery_count") or len(products) != 1 \
+            or any(f.field not in ("product", "order_status") for f in m.filters):
+        return plan
+    # the period is the month the orders were placed in, the one month the question writes ("đơn đặt tháng 3/2026",
+    # "khách đặt tháng 4/2025"); the reader wrote "until 2025-05-01" for the second: taken from the question
+    months = stated_months(question)
+    if len(set(months)) != 1:
+        return plan
+    month, year = months[0]
+    raw = plan.model_dump(mode="json", exclude_none=True)
+    raw["measures"] = [{**raw["measures"][0], "metric": "delivered_qty",
+                        "filters": [products[0].model_dump(mode="json", exclude_none=True)]}]
+    raw["period"] = {"kind": "month", "year": year, "month": month}
+    raw.pop("answer_type", None)
     return QueryPlan.model_validate(raw)
 
 
@@ -1008,12 +1088,16 @@ def scale_money(question: str, plan: QueryPlan) -> QueryPlan:
     writes bare (run9: days with revenue ≥ 10 đồng, i.e. every day). Only when the plan's number is the question's
     number without its unit."""
     t = plan.threshold
-    if t is None or t.metric not in ("revenue", "purchase_amount", "debt_amount"):
+    # N131: "mấy bữa tiệm bán được từ 10 củ trở lên" read as days with a QUANTITY ≥ 10 (public): a quantity bound the
+    # question writes with a money unit is a revenue bound (a count of items has no "củ", "triệu", "k")
+    as_revenue = t is not None and t.metric == "quantity" and t.entity in ("day", "order")
+    if t is None or (t.metric not in ("revenue", "purchase_amount", "debt_amount") and not as_revenue):
         return plan
     for whole, part, unit in _AMOUNT.findall(fold(question)):
         n = float(f"{whole}.{part}") if part else float(whole)  # "1 5 trieu" is 1,5 million once folded
         if t.value == n and _MONEY_UNIT[unit] > 1:
-            return plan.model_copy(update={"threshold": t.model_copy(update={"value": n * _MONEY_UNIT[unit]})})
+            update = {"value": n * _MONEY_UNIT[unit]} | ({"metric": "revenue"} if as_revenue else {})
+            return plan.model_copy(update={"threshold": t.model_copy(update=update)})
     return plan
 
 

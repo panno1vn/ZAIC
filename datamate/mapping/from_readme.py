@@ -296,6 +296,10 @@ def map_from_readme(raw: RawBusiness) -> tuple[Mapping | None, str]:
         dc = [_cm("order_id", shipped.col("ma don")), _cm("delivery_time", shipped.col("ngay giao"), "datetime")]
         if (c := shipped.col("dot giao")) is not None:
             dc.append(_cm("batch_no", c, "number"))
+        # N130: a delivery book written per product line ("Hàng hóa: tên hàng", "Số lượng giao: số lượng đã đổi ra đơn
+        # vị cơ bản"): what each batch carried, for "đã chở đi bao nhiêu thùng <hàng>"
+        if (p := shipped.col(key_phrase)) is not None and (q := shipped.col("so luong da doi ra don vi co ban")) is not None:
+            dc += [_cm("product_key", p), _cm("base_qty", q, "qty")]
         out.append(TableMap(target="deliveries", sources=shipped.ids, columns=dc))
     return Mapping(record_grain=grain, tables=out, notes=["dựng từ mô tả cột trong README"]), ""
 
@@ -520,6 +524,15 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
                 clients = _one(others, lambda x: x.has("ma khach", "nhom khach") and not x.has("ma don"))
                 if (looked := _lookup("customer_group", key, clients, "ma khach", "nhom khach")) is not None:
                     add.append(looked)
+        elif t is not None and tm.target == "deliveries" and "product_key" not in have:
+            # N130: the delivery book's product and base quantity (README "tên hàng", "số lượng đã đổi ra đơn vị cơ
+            # bản"), keyed like the sale lines' product (same README phrase), for "đã chở đi bao nhiêu thùng <hàng>"
+            lt = next((x for x in mapping.tables if x.target == "lines"), None)
+            lkey = plain_source(lt, "product_key") if lt is not None else None
+            lhome = home(lt) if lt is not None else None
+            phrase = lhome.phrases.get(lkey) if lhome is not None and lkey is not None else None
+            if phrase and (p := t.col(phrase)) is not None and (q := t.col("so luong da doi ra don vi co ban")) is not None:
+                add += [_cm("product_key", p), _cm("base_qty", q, "qty")]
         elif t is not None and tm.target == "products":
             if "product_group" not in have and (c := t.col("nhom hang")) is not None:
                 add.append(_cm("product_group", c))

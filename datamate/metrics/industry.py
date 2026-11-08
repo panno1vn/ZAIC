@@ -41,6 +41,48 @@ metric("value", "delivery_count", requires=("deliveries.delivery_time",), rules=
     delivery_count)
 
 
+def delivered_qty(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
+    """N130. "Các đơn đặt tháng 3/2026, tới hôm nay đã chở đi bao nhiêu thùng Sơn Dulux …" (public, a building-materials
+    shop): of the orders placed in the period (§1 "đơn thuộc kỳ theo ngày đặt"), the base quantity of one product the
+    delivery book records delivered by the end of today (§6 "giao nhiều đợt: tính đến hết hôm nay … đợt đã chở vẫn tính
+    dù đơn sau đó trả hàng"). Only in the product's base unit (the README's "số lượng giao" is in base units, no
+    conversion guessed); a batch of a cancelled order has no rule: None."""
+    from datamate.metrics import frames as F
+    from datamate.nlu import linking
+    ms = plan.plan.measures
+    if plan.period is None or len(ms) != 1:
+        return None
+    m = ms[0]
+    products = [f for f in m.filters if f.field == "product"]
+    if len(products) != 1 or len(m.filters) != 1 or products[0].op != "eq":
+        return None
+    key = plan.linked.get(str(products[0].value))
+    d, o = db.table("deliveries"), F.orders(db)
+    if key is None or d is None or o is None or not {"product_key", "base_qty"} <= set(d.columns) \
+            or d["delivery_time"].isna().any():
+        return None
+    base = F.base_units(db).get(str(key))
+    if m.unit and (base is None or linking.norm(m.unit) != linking.norm(base)):
+        return None
+    placed = o[(o["day"] >= plan.period.start) & (o["day"] <= plan.period.end)]
+    if placed["status"].eq("cancelled").any() and d["order_id"].isin(set(placed.loc[placed["status"].eq("cancelled"),
+                                                                                     "order_id"])).any():
+        return None
+    rows = d[d["order_id"].isin(set(placed["order_id"])) & (d["product_key"].astype(str) == str(key))
+             & (d["delivery_time"].dt.date <= plan.as_of)]
+    if rows["base_qty"].isna().any():
+        return None
+    q = float(rows["base_qty"].sum())
+    return ExecResult(value=int(q) if q.is_integer() else q, answer_type="number", source="D1",
+                      function="industry.delivered_qty", rule_ids=sorted(R_DELIVERIES),
+                      requires=["deliveries.delivery_time", "deliveries.order_id", "deliveries.product_key",
+                                "deliveries.base_qty"])
+
+
+metric("value", "delivered_qty", requires=("deliveries.product_key", "deliveries.base_qty"),
+       rules=tuple(sorted(R_DELIVERIES)), filters=("product",))(delivered_qty)
+
+
 def orders_by_batches(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     """"Đơn đặt tháng 6/2025, tới hôm nay có mấy đơn đã giao từ 2 đợt trở lên" (public 06/11, 3 questions): the orders
     placed in the period (by order day, §1) with at least / more than N batches delivered by the end of today (§6
