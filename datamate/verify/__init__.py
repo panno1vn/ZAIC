@@ -148,7 +148,8 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
     # N115. Stock in a shop that keeps none: train "hết hôm nay bia tiger còn mấy lon trong kho" in 4 shops whose README
     # never writes "tồn", "kho" or "lô" and whose mapping has no stock or lot table: 9 / 9 unanswerable; every train
     # shop whose stock question is answerable writes "Tồn kho", "Tồn thực" or "số lô" (lots, §6 Nhà thuốc)
-    if asked & _STOCK_ASKED and not re.search(r"\b(?:ton|kho|lo)\b", text) \
+    # stock words as phrases: a single "kho" is also "khổ" folded ("lưới B40 mạ kẽm khổ 1.5m", a train shop with no stock)
+    if asked & _STOCK_ASKED and not re.search(_STOCK_WORDS, text) \
             and not any(db.has(t) for t in ("inventory", "lots")):
         return "tồn kho"
     # N121. Customers in a shop that records none, debts in a shop that keeps none (train: two shops whose README has
@@ -166,6 +167,7 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
 
 
 _STOCK_ASKED = frozenset({"stock_qty", "stock_value"})
+_STOCK_WORDS = r"\bton (?:kho|thuc|cuoi|dau)\b|\bso lo\b|\bma lo\b|\bkho hang\b|\bhang ton\b|\bthe kho\b"
 _CUSTOMER_METRICS = frozenset({"customer_count", "new_customer_count", "debtor_count"})
 _DEBT_METRICS = frozenset({"debt_total", "debt_amount", "debt_paid", "debt_added", "debtor_count", "overdue_amount"})
 
