@@ -95,3 +95,10 @@ def test_customers_or_debts_in_a_shop_that_records_none_are_unanswerable():
     assert not_recorded(debt, "Tháng này thu hồi được bao nhiêu tiền công nợ?", CanonicalDB(readme=README)) == "công nợ"
     assert not_recorded(debt, "Tháng này thu hồi được bao nhiêu tiền công nợ?",
                         CanonicalDB(readme=README + "- **Còn nợ**: tiền khách còn nợ\n")) is None
+
+
+def test_a_width_written_kho_is_no_stock_column():
+    """N115b: "lưới B40 mạ kẽm khổ 1.5m" folds to "kho": stock is named by phrases, not by a single word."""
+    plan = QueryPlan.model_validate(STOCK)
+    widths = README + "- Lưới B40 mạ kẽm khổ 1.5m: 1 cuộn 10m\n"
+    assert not_recorded(plan, "hết hôm nay bia tiger còn mấy lon trong kho", CanonicalDB(readme=widths)) == "tồn kho"

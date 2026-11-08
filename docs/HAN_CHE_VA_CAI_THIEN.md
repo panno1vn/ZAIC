@@ -965,6 +965,8 @@ Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval
 - [x] **N122 (thấp). Đơn vị câu hỏi đếm thay cho đơn vị đọc sai** (`nlu.unit_from_question`, N80 mở rộng): "mấy kg nếp cái hoa vàng" đọc với đơn vị "cái" (chữ trong tên hàng), "bán ra nhiêu phần topping" với "đơn vị": câu đếm theo đúng một đơn vị của shop thì dùng đơn vị đó. Train biz_101, biz_104: 2 câu, đúng đáp án.
 - Đo: train **2884 / 1 / 115 → 2905 / 0 / 95, PA +0,968** (gồm thước đo khớp N89). Public (đọc lại): không đổi câu nào, 951 / 13 / 36. Có test.
 
+- [x] **N115b. Chữ "kho" một mình không phải sổ tồn**: "lưới B40 mạ kẽm khổ 1.5m" gập dấu thành "kho", nên N115 bỏ sót 3 câu tồn kho của một shop không ghi tồn (unanswerable). Nhận sổ tồn theo cụm ("tồn kho / thực / cuối / đầu", "số lô", "mã lô", "kho hàng", "hàng tồn", "thẻ kho"): mọi shop train có câu tồn kho trả lời được đều khớp, mọi shop không ghi đều không. Train biz_118 112 → 115, 0 sai.
+
 ## Thứ tự xử lý đề xuất
 1. **T4 sáng:** sửa H1–H7, sinh lại schema, thêm test cho từng mục.
 2. **T4–T5:** K2 (cả nhóm), K3 (người có kinh nghiệm), K1 review chéo.
