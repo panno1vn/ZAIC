@@ -944,6 +944,10 @@ Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval
 - Test `tests/test_n112_n113.py` (7 test); schema file sinh lại (`export_schema`); toàn bộ test qua.
 - Đo (đêm 10/11): train `eval_cached` **2801 / 0 / 199** (+2 so với N111: biz_118 "huỷ vì giao trễ", biz_122 "lãi gộp" không giá vốn; log `outputs/eval_cached_n113.log`). Replay s38r → `run11_s66` so với s65: **20 câu khác, 0 lỗi**: 6 câu "ngày phải trả" trống → số; 13 câu trống → unanswerable (nhóm hàng 6, lý do trả / huỷ 3, chủ quan 3, lời không giá vốn 1); 1 câu trả lời → unanswerable (dev_003 "huỷ đơn chủ yếu vì sao", trước trả 90). Bộ nộp 17: `outputs/public_cand17/` (xem CAN_XAC_MINH "Bộ nộp 17").
 
+### Phiên 14 (09/11): ghép từ nhánh task/grade-public phần main chưa có
+- Nhánh `task/grade-public` (chấm tại chỗ bằng đáp án public, `tools/grade_public.py`) có bốn sửa trên main 2df9a08; main c79b1eb đã có ba theo cách riêng: topping chung ô (= N108), khách theo mã khách (= N105, N106), phụ kiện không phải máy (= N102). Chỉ ghép phần còn thiếu:
+- [x] **N114 (TB). Hệ số quy đổi ghi kèm tên đơn vị** (`mapping.build.chained_factors`): README nhà thuốc "Tỉ lệ quy đổi: 1 đơn vị lớn bằng bấy nhiêu đơn vị ngay dưới nó; số kèm tên đơn vị là tính theo đơn vị đó, chỉ có số là tính theo đơn vị cơ bản": "Panadol Extra hộp 15 vỉ x 12 viên" có vỉ = 12, hộp = "15 vỉ" = 180 viên; đọc thành số, hộp là 15 viên nên mọi hộp bán ra thiếu 12 lần (30 hệ số của shop). Chỉ đổi khi đơn vị ghi kèm là một quy đổi khác của chính mặt hàng đó. Đo cùng cách (đọc lại một lượt chạy thật qua main và qua main + N114, chấm bằng đáp án, chỉ số đếm): dev_005 **3 sai → 0**, 947 / 17 / 36 → **950 / 14 / 36, PA 0,930 → 0,936**. Train không có shop nào ghi hệ số kiểu này. Có test (`tests/test_chained_factors.py`).
+
 ## Thứ tự xử lý đề xuất
 1. **T4 sáng:** sửa H1–H7, sinh lại schema, thêm test cho từng mục.
 2. **T4–T5:** K2 (cả nhóm), K3 (người có kinh nghiệm), K1 review chéo.
