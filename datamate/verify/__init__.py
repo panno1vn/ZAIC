@@ -145,7 +145,16 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
         asked.add(plan.rank.by)
     if asked & PROFIT_METRICS and "gia von" not in text and not _has(db, ("lines", "products"), "unit_cost"):
         return "giá vốn"
+    # N115. Stock in a shop that keeps none: train "hết hôm nay bia tiger còn mấy lon trong kho" in 4 shops whose README
+    # never writes "tồn", "kho" or "lô" and whose mapping has no stock or lot table: 9 / 9 unanswerable; every train
+    # shop whose stock question is answerable writes "Tồn kho", "Tồn thực" or "số lô" (lots, §6 Nhà thuốc)
+    if asked & _STOCK_ASKED and not re.search(r"\b(?:ton|kho|lo)\b", text) \
+            and not any(db.has(t) for t in ("inventory", "lots")):
+        return "tồn kho"
     return None
+
+
+_STOCK_ASKED = frozenset({"stock_qty", "stock_value"})
 
 
 def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: CanonicalDB, mapping: Mapping,

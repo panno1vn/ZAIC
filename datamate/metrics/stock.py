@@ -194,7 +194,14 @@ def stock_base_qty(db: CanonicalDB, product: str, day) -> float | None:
     snapshot at the end of its data or a stock card with a record after every movement; both read the same way."""
     inv = db.table("inventory")
     if inv is None:
-        return None
+        # N116: a shop that keeps its stock by lot (§6 Nhà thuốc) and no stock file: the base units left in the
+        # product's lots at the end of the day (lots_left, checked against the stock cards: 80 / 80, N74)
+        from .lots import lots_left  # late import: lots imports this module
+        lots = lots_left(db, day)
+        if lots is None:
+            return None
+        mine = lots[lots["product_key"].astype(str) == product]
+        return float(mine["left"].sum()) if not mine.empty else None
     as_of = pd.to_datetime(inv["as_of"]).dt.date
     rows = inv.assign(day=as_of)[(inv["product_key"].astype(str) == product) & (as_of <= day)]
     rows = rows.sort_values("day", kind="stable")  # records of one day keep their file order: the last is its end
@@ -277,7 +284,8 @@ def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     name = ms[0].metric if ms else None
     if name == "stock_qty":
         value = stock_qty(db, plan, list(ms))
-        rules, requires = R_STOCK, ("inventory.base_qty", "inventory.as_of")
+        rules, requires = R_STOCK, ("inventory.base_qty", "inventory.as_of") if db.has("inventory") else \
+            ("lots.lot_id", "lots.base_qty_in", "lot_sales.lot_id", "lot_sales.base_qty")  # N116: by lot
         answer_type = "list" if isinstance(value, list) else expected_answer_type(plan.plan)
     elif name in FLOWS and len(ms) == 1:
         fn, rules, requires = FLOWS[name]
