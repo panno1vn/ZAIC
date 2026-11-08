@@ -955,6 +955,14 @@ Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval
 - [x] **N117 (TB). Bảng quy đổi từ README khi mapping chuyển từ mẫu không có** (`from_readme._conversion_table`): README "Đơn vị quy đổi: đơn vị lớn", "Tỉ lệ quy đổi: hệ số", "Đơn vị cơ bản"; mapping mẫu chỉ có đơn và dòng hàng, nên mặt hàng bán theo gói và thùng không có đơn vị cơ bản: 9 câu hiệu ứng tăng giá (§5) không ra số. biz_103 100 → 116.
 - Đo: train `eval_cached` **2821 / 0 / 179 → 2852 / 0 / 148, PA +0,940 → +0,951**, CACHE MISSES 0. Public (đọc lại lượt chạy thật): không đổi câu nào (shop public đã có các bảng này), 950 / 14 / 36. Có test (`tests/test_n115_n117.py`). Công cụ: `datamate.eval.mapping --save` (qua `tools/eval_cached.py`) ghi kết quả và bước dừng từng câu train; `check_plans.check` trả thêm lý do quyết định và `no_result`.
 
+- **Đọc lại 57 câu train "không có plan" bằng code hôm nay** (có N79 gọi lại, các luật N80–N113): kho plan train lưu plan của code cũ (None cho câu bị loại). LLM tại chỗ đọc lại: 29 câu có plan; kho cũ ở `outputs/bank/llm_plans.before_N118.jsonl`. Hai cách đọc sai lộ ra:
+  - "khach nu mua tong cong bao nhieu tien": lần gọi lại (N79) bỏ luôn điều kiện khách nữ. `eval_cached` đếm là sai nhưng `pipeline.answer_question` có N89 (giới tính shop không ghi) trả unanswerable, đúng đáp án; `check_plans.check` không đi qua bước này (ghi lại để biết số sai 1 của train là giả).
+  - "bán được mấy đĩa cơm chiên dương châu" đọc thành doanh thu → N120.
+- [x] **N118 (TB). Hoạt chất ghi thành mặt hàng** (`nlu.product_as_attribute`): "Doanh thu thuốc hoạt chất Paracetamol" với product = "Paracetamol" hay "thuốc hoạt chất Povidon iod": khớp đúng một hoạt chất của danh mục thuốc và không khớp mặt hàng nào → lọc theo hoạt chất (bỏ chữ "thuốc (có) hoạt chất" của câu). `PRODUCT_ATTRIBUTES` riêng, không đổi N93. Train biz_119 5 câu.
+- [x] **N119 (thấp). Hư từ gõ telex thành giá trị lọc** (`GENERIC_VALUES` của N88): "bữa qua cuwar hàng có bao nhiêu bill" (channel = cuwar), "hqua doanh thu dduwowcj" (payment = dduwowcj); `linking.norm` gỡ telex thành "cua", "duoc". Vẫn chỉ bỏ khi giá trị không nối được vào giá trị nào của shop.
+- [x] **N120 (TB). Câu đếm theo đơn vị mà đọc thành doanh thu** (`grounding.quantity_not_money`): câu có "mấy / bao nhiêu <đơn vị>" (ly, đĩa, lon, gói…) và không có chữ tiền (doanh thu, tiền, đồng, thu được…) → số lượng theo đơn vị đó (§3). "bán được" là chữ của doanh thu nên cổng số đo không chặn.
+- Đo: train **2852 / 0 / 148 → 2884 / 1 / 115** (câu sai là câu giới tính ở trên, pipeline thật trả unanswerable: thực tế 2885 / 0). Public (đọc lại lượt chạy thật): 950 / 14 / 36 → **951 / 13 / 36, PA 0,936 → 0,938** (1 câu dev_003 sửa đúng). Có test (`tests/test_n118_n120.py`).
+
 ## Thứ tự xử lý đề xuất
 1. **T4 sáng:** sửa H1–H7, sinh lại schema, thêm test cho từng mục.
 2. **T4–T5:** K2 (cả nhóm), K3 (người có kinh nghiệm), K1 review chéo.

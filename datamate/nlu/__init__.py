@@ -17,7 +17,7 @@ from datamate.llm import LLMClient
 from datamate.verify import LINKED_FIELDS, SUBJECTIVE_REASON, filter_keys
 
 from . import baseline, jobs, linking, prompt, repair
-from .grounding import (anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
+from .grounding import (quantity_not_money, anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
                         due_per_order, month_written_as_t, phones_as_whole, trade_in_share, values_together,
                         warranty_over_sold, order_amount_named, particle_not_unit, today_not_this_month,
                         order_amount_no_item, stocked_in_as_purchase,
@@ -181,6 +181,7 @@ def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> 
     plan = trade_in_share(question, values_together(question, due_per_order(question, plan)))
     plan = month_written_as_t(question, warranty_over_sold(question, phones_as_whole(question, plan)))
     plan = order_amount_named(question, today_not_this_month(question, particle_not_unit(plan)))
+    plan = quantity_not_money(question, plan)  # N120
     plan = stocked_in_as_purchase(question, order_amount_no_item(question, plan))
     plan = whole_not_part(split_debt_ages(drop_month_as_weekday(question, anchor_by_price(question, plan, as_of))))
     plan = written_last_year(plan)
@@ -274,6 +275,11 @@ def link_entities(plan: ResolvedPlan, db: CanonicalDB, question: str = "") -> Re
 
 
 ATTRIBUTE_FIELDS = ("category", "product_line", "brand", "product_group")
+# N118. A "product" that is an active ingredient of the drug list (train pharmacy: "Doanh thu thuốc hoạt chất
+# Paracetamol" with product = "Paracetamol" or "thuốc hoạt chất Povidon iod"; §6 Nhà thuốc filters by ingredient):
+# the ingredient, written without the question's own "thuốc (có) hoạt chất" (5 train questions stopped)
+PRODUCT_ATTRIBUTES = ATTRIBUTE_FIELDS + ("active_ingredient",)
+_INGREDIENT_LEAD = re.compile(r"^(?:thuoc\s+)?(?:co\s+)?hoat\s+chat\s+")
 _EVERY = {"tat ca", "tat ca cac mon", "tat ca mon", "tat ca mat hang", "tat ca cac mat hang", "moi mat hang", "moi mon",
           "toan bo", "toan bo mat hang", "cac mon", "all", "tat ca khach", "moi khach", "all customers"}
 
@@ -312,7 +318,11 @@ def unit_or_all_as_product(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
 # "sốp", "tiệm"), its customers in general ("khách"), the figure ("dthu", "tền" for tiền), a particle ("z"), a month
 # ("T8"). Public run11: 9 such plans, every one stopped with no figure.
 GENERIC_VALUES = frozenset({"quan", "wan", "shop", "sop", "tiem", "cua hang", "cuahang", "mik", "minh", "khach",
-                            "khach hang", "dthu", "doanh thu", "tien", "ten", "z", "vay", "nha"})  # not "dt": "đt" is a phone
+                            "khach hang", "dthu", "doanh thu", "tien", "ten", "z", "vay", "nha",
+                            # N119: function words typed with telex left on, read as a value (train: "bữa qua cuwar
+                            # hàng có bao nhiêu bill" with channel = cuwar, "hqua doanh thu dduwowcj" with payment =
+                            # dduwowcj); linking.norm undoes the telex, so they arrive folded as "cua", "duoc"
+                            "cua", "duoc", "roi", "nhe", "nha", "a", "ha"})  # not "dt": "đt" is a phone
 _MONTH_VALUE = re.compile(r"^(?:t|th|thang)\s?\d{1,2}(?:\s\d{2,4})?$")
 GENERIC_FIELDS = ("product", "product_group", "category", "product_line", "brand", "customer", "customer_group",
                   "payment_method", "channel")
@@ -484,8 +494,15 @@ def product_as_attribute(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     def field_of(value) -> str | None:
         if not isinstance(value, str) or linking.link_value("product", value, "", cands, units).value is not None:
             return None
-        hits = [a for a in ATTRIBUTE_FIELDS if linking.norm(value) in linking.candidates(a, db)]
+        hits = [a for a in PRODUCT_ATTRIBUTES if linking.norm(value) in linking.candidates(a, db)]
         return hits[0] if len(hits) == 1 else None
+
+    def ingredient_of(value) -> str | None:
+        """"thuốc (có) hoạt chất X" written as the product: X when it is exactly one ingredient of the drug list."""
+        if not isinstance(value, str):
+            return None
+        rest = _INGREDIENT_LEAD.sub("", linking.norm(value))
+        return rest if rest != linking.norm(value) and rest in linking.candidates("active_ingredient", db) else None
 
     products = db.table("products")
     stages = {}
@@ -513,6 +530,8 @@ def product_as_attribute(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
         for f in m.filters:
             if f.field == "product" and (new := field_of(f.value)):
                 filters.append(f.model_copy(update={"field": new}))
+            elif f.field == "product" and (ingredient := ingredient_of(f.value)):
+                filters.append(f.model_copy(update={"field": "active_ingredient", "value": ingredient}))
             elif f.field == "product" and (pair := group_and_stage(f.value)) and \
                     linking.link_value("product", f.value, "", cands, units).value is None:
                 filters += [f.model_copy(update=x) for x in pair]
