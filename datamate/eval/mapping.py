@@ -20,7 +20,8 @@ from pathlib import Path
 from datamate import loader, rules
 from datamate.contracts import QueryPlan
 from datamate.mapping import transfer
-from datamate.pipeline import prepare_business, rule_ids
+from datamate.nlu.grounding import customer_trait_not_recorded
+from datamate.pipeline import NOT_RECORDED_REASON, prepare_business, rule_ids
 from datamate.predict import connect_llm
 
 from .build_bank import PLANS, current_plans
@@ -69,6 +70,9 @@ def main(argv: list[str] | None = None) -> int:
         outcome = Counter()
         for q in by_business[b]:
             p = plans.get(q["id"])
+            if ctx.mapping.ok and ctx.raw is not None and customer_trait_not_recorded(q["question"], ctx.raw.readme or ""):
+                # as pipeline.answer_question does (N89): the customers' gender or street the shop does not record
+                p = {"intent": "out_of_scope", "out_of_scope_reason": NOT_RECORDED_REASON}
             if not ctx.mapping.ok or p is None:
                 outcome["abstain"] += 1
                 saved.append({"id": q["id"], "business_id": b, "outcome": "abstain",

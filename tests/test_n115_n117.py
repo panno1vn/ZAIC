@@ -79,3 +79,19 @@ def test_a_mapping_that_has_them_keeps_its_own():
         ColumnMap(target="factor", source="Tỉ lệ quy đổi", parse="number")]))
     out = enrich(m, pharmacy())
     assert sum(t.target == "unit_conversions" for t in out.tables) == 1
+
+
+def test_customers_or_debts_in_a_shop_that_records_none_are_unanswerable():
+    """N121: no README column about customers / no "nợ" in the README, and nothing mapped."""
+    count = QueryPlan.model_validate({"intent": "count_where", "period": {"kind": "month", "year": 2025, "month": 10},
+                                      "threshold": {"entity": "customer", "metric": "order_count", "op": "gte",
+                                                    "value": 11}})
+    q = "Bao nhiêu khách mua ít nhất 11 đơn trong tháng 10 năm 2025?"
+    assert not_recorded(count, q, CanonicalDB(readme=README)) == "khách hàng"
+    named = README + "- **Khách**: tên khách (Khách lẻ nếu không lưu)\n"
+    assert not_recorded(count, q, CanonicalDB(readme=named)) is None
+    debt = QueryPlan.model_validate({"intent": "value", "period": {"kind": "this_month"},
+                                     "measures": [{"metric": "debt_paid"}]})
+    assert not_recorded(debt, "Tháng này thu hồi được bao nhiêu tiền công nợ?", CanonicalDB(readme=README)) == "công nợ"
+    assert not_recorded(debt, "Tháng này thu hồi được bao nhiêu tiền công nợ?",
+                        CanonicalDB(readme=README + "- **Còn nợ**: tiền khách còn nợ\n")) is None

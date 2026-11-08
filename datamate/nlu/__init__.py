@@ -376,13 +376,20 @@ def unit_from_question(plan: ResolvedPlan, db: CanonicalDB, question: str) -> Re
     of different base units together)."""
     p = plan.plan
     if (not question or p.share_of is not None or p.rank is not None or p.threshold is not None
-            or p.list_spec is not None or not any(m.metric == "quantity" and not m.unit for m in p.measures)):
+            or p.list_spec is not None or not any(m.metric == "quantity" for m in p.measures)):
         return plan
     found = _counted_in(question, linking.units(db))
     if len(found) != 1:
         return plan
     unit = found.pop()
-    measures = [m.model_copy(update={"unit": unit}) if m.metric == "quantity" and not m.unit else m for m in p.measures]
+
+    # N122: also a unit the question does not count in: "mấy kg nếp cái hoa vàng" read with unit "cái" (a word of the
+    # name), "bán ra nhiêu phần topping" with "đơn vị" (train: 2 quantities with no figure)
+    def wrong(m) -> bool:
+        return m.metric == "quantity" and (not m.unit or linking.norm(m.unit) != unit)
+    if not any(wrong(m) for m in p.measures):
+        return plan
+    measures = [m.model_copy(update={"unit": unit}) if wrong(m) else m for m in p.measures]
     return plan.model_copy(update={"plan": p.model_copy(update={"measures": measures})})
 
 

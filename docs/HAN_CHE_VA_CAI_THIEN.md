@@ -960,6 +960,11 @@ Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval
 - [x] **N120 (TB). Câu đếm theo đơn vị mà đọc thành doanh thu** (`grounding.quantity_not_money`): câu có "mấy / bao nhiêu <đơn vị>" (ly, đĩa, lon, gói…) và không có chữ tiền (doanh thu, tiền, đồng, thu được…) → số lượng theo đơn vị đó (§3). "bán được" là chữ của doanh thu nên cổng số đo không chặn.
 - Đo: train **2852 / 0 / 148 → 2884 / 1 / 115** (câu sai là câu giới tính ở trên, pipeline thật trả unanswerable: thực tế 2885 / 0). Public (đọc lại lượt chạy thật): 950 / 14 / 36 → **951 / 13 / 36, PA 0,936 → 0,938** (1 câu dev_003 sửa đúng). Có test (`tests/test_n118_n120.py`).
 
+- **Thước đo train khớp pipeline:** `eval.mapping` áp N89 (giới tính / đường của khách shop không ghi → unanswerable) như `pipeline.answer_question`; trước đây `eval_cached` bỏ qua bước này nên đếm thiếu (vd. "khách nữ", "khách ở đường X").
+- [x] **N121 (TB). Khách ở shop không ghi khách, nợ ở shop không ghi nợ → không trả lời được** (`verify.not_recorded`): train hai shop README không có cột nào nói tới khách: mọi câu theo khách (đếm khách mua từ N đơn, khách mua nhiều đơn nhất…) unanswerable, 8 / 8; hai shop README không có chữ "nợ": mọi câu nợ unanswerable, 3 / 3. Một cột README "…khách…" hay `customer_key` đã map là có ghi.
+- [x] **N122 (thấp). Đơn vị câu hỏi đếm thay cho đơn vị đọc sai** (`nlu.unit_from_question`, N80 mở rộng): "mấy kg nếp cái hoa vàng" đọc với đơn vị "cái" (chữ trong tên hàng), "bán ra nhiêu phần topping" với "đơn vị": câu đếm theo đúng một đơn vị của shop thì dùng đơn vị đó. Train biz_101, biz_104: 2 câu, đúng đáp án.
+- Đo: train **2884 / 1 / 115 → 2905 / 0 / 95, PA +0,968** (gồm thước đo khớp N89). Public (đọc lại): không đổi câu nào, 951 / 13 / 36. Có test.
+
 ## Thứ tự xử lý đề xuất
 1. **T4 sáng:** sửa H1–H7, sinh lại schema, thêm test cho từng mục.
 2. **T4–T5:** K2 (cả nhóm), K3 (người có kinh nghiệm), K1 review chéo.
