@@ -970,6 +970,11 @@ Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval
 
 - [x] **N115b. Chữ "kho" một mình không phải sổ tồn**: "lưới B40 mạ kẽm khổ 1.5m" gập dấu thành "kho", nên N115 bỏ sót 3 câu tồn kho của một shop không ghi tồn (unanswerable). Nhận sổ tồn theo cụm ("tồn kho / thực / cuối / đầu", "số lô", "mã lô", "kho hàng", "hàng tồn", "thẻ kho"): mọi shop train có câu tồn kho trả lời được đều khớp, mọi shop không ghi đều không. Train biz_118 112 → 115, 0 sai.
 
+### Phiên 12 (09/11, sáng): câu sai trước, rồi câu trống
+- Điểm đầu phiên (đọc lại lượt chạy thật 141637f bằng code e41bafe): **951 đúng / 13 sai / 36 trống, PA 0,938**; train 2908 / 0 / 92. Nhóm câu sai theo shop × loại câu (chỉ số đếm): bảng nợ theo khách dev_003 3/3, số lượng dev_013 3, điện thoại dev_014 3, lẻ 4.
+- [x] **N124 (TB). Dòng máy, hãng là của máy, không phải phụ kiện** (`metrics.sales.rank`, `metrics.sales.share`): §6 Điện thoại "dòng máy … hãng", README "máy có IMEI, phụ kiện không". Xếp hạng dòng máy / hãng bỏ hàng loại "phụ kiện" ("3 dòng máy nào bán được nhiều máy nhất" ra kính cường lực, ốp lưng); tỉ trọng số lượng của một hãng / dòng máy không ghi tổng thì tổng là số máy bán (`phones_sold`, như tỉ lệ bảo hành), không phải mọi hàng ("máy Samsung chiếm bao nhiêu % tổng số máy"). Public: **13 sai → 10**, 954 / 10 / 36, PA 0,944. Train 2908 / 0 (không shop train nào có phụ kiện).
+- [ ] **N123 (đo rồi, bỏ). Tên khách bỏ số điện thoại kèm theo.** 3 câu sai còn lại của bảng nợ dev_003 chỉ lệch ở số điện thoại sau tên; tổng nợ theo khách của ta khớp đúng cột Công nợ của chính file ở mọi đơn ghi nợ (1 752 626; đơn COD file ghi nợ là §4 bỏ). §9 nhận "mọi cách viết tên có trong file", gồm tên kèm số điện thoại: rất có thể 3 câu này đúng trên bảng xếp hạng, chỉ sai với đáp án tại chỗ (không có alias). Bỏ số luôn: +3 dev_003, −2 dev_010 (tên trần không có trong file); chỉ bỏ khi tên trần có trong file: không đổi gì. Không giữ.
+
 ## Thứ tự xử lý đề xuất
 1. **T4 sáng:** sửa H1–H7, sinh lại schema, thêm test cho từng mục.
 2. **T4–T5:** K2 (cả nhóm), K3 (người có kinh nghiệm), K1 review chéo.
