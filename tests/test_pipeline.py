@@ -81,3 +81,30 @@ def test_real_public_split_gives_a_valid_file(tmp_path):
     questions, _ = read_jsonl(DATA / "public_test" / "questions.jsonl")
     errors, _, _ = validate(pred, [q["id"] for q in questions])
     assert not warnings and not errors and len(pred) == len(questions)
+
+
+def test_logs_follow_the_docker_guideline(tmp_path):
+    """Guideline 2026 §3.3: one record per question on one line (its own file and logs/questions.jsonl) with id,
+    answer, elapsed_ms (a non-negative integer) and thinking (null: thinking is off); code / output null when no
+    function answered."""
+    split = fake_split(tmp_path)
+    run(split, tmp_path / "out")
+    logs = tmp_path / "out" / "logs"
+    records = [json.loads(l) for l in (logs / "questions.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert sorted(r["id"] for r in records) == ["q1", "q2", "q3"]
+    for r in records:
+        assert {"id", "answer", "elapsed_ms", "thinking", "code", "output"} <= set(r)
+        assert isinstance(r["elapsed_ms"], int) and r["elapsed_ms"] >= 0 and r["thinking"] is None
+    assert len((logs / "q1.json").read_text(encoding="utf-8").strip().splitlines()) == 1
+    first = next(r for r in records if r["id"] == "q1")
+    assert "business_prep_ms" in first  # the shop's files are read before its first question
+
+
+def test_a_computed_answer_logs_its_function_inputs_and_output():
+    from types import SimpleNamespace
+    from datamate.contracts import ExecResult
+    log = {"result": ExecResult(value=42, answer_type="number", source="D1", function="sales.value_of"),
+           "resolved": {"period": {"start": "2026-01-01"}}}
+    got = pipeline.audit_fields(log, SimpleNamespace(raw=SimpleNamespace(root=Path("/data/data/shop_a"))))
+    assert got["code"] == "datamate/metrics/sales.py::value_of" and got["output"] == 42 and got["thinking"] is None
+    assert got["inputs"]["plan"] == {"period": {"start": "2026-01-01"}}

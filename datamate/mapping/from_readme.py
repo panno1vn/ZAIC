@@ -394,6 +394,38 @@ ORDER_ATTRIBUTES = (("ma nhan vien ban", "employee"), ("hinh thuc thanh toan cua
 DRUG_ATTRIBUTES = (("hoat chat", "active_ingredient", "text"), ("thuoc ke don", "is_prescription", "bool"))
 
 
+FACTOR_MAX = 1000  # base units in one larger unit: a box of 6, a crate of 24, a roll of 100 m; never a price
+
+
+def factor_not_price(mapping: Mapping, raw: RawBusiness) -> Mapping:
+    """N90. A conversion factor read from a price column (public 08/11: "Giá bán theo đơn vị quy đổi" 210 000 beside
+    "Bằng" 6 for a box of 6 croissants; every line sold by the box counted 210 000 pieces): when every factor the
+    mapping reads is above FACTOR_MAX and exactly one other column of that sheet holds whole numbers from 2 to
+    FACTOR_MAX on every row, that column is the factor."""
+    tm = next((t for t in mapping.tables if t.target == "unit_conversions"), None)
+    col = next((c for c in tm.columns if c.target == "factor"), None) if tm is not None else None
+    if col is None or col.transform is not None or not col.source or len(tm.sources) != 1:
+        return mapping
+    frame = next((t.frame for t in raw.tables if t.table_id == tm.sources[0]), None)
+    if frame is None or col.source not in frame.columns:
+        return mapping
+    values = pd.to_numeric(frame[col.source], errors="coerce").dropna()
+    if values.empty or not (values > FACTOR_MAX).all():
+        return mapping
+    used = {c.source for c in tm.columns}
+
+    def factor_like(name) -> bool:
+        v = pd.to_numeric(frame[name], errors="coerce")
+        return name not in used and v.notna().all() and ((v % 1 == 0) & (v >= 2) & (v <= FACTOR_MAX)).all()
+    others = [name for name in frame.columns if factor_like(name)]
+    if len(others) != 1:
+        return mapping
+    cols = [c.model_copy(update={"source": others[0]}) if c is col else c for c in tm.columns]
+    tables = [t.model_copy(update={"columns": cols}) if t is tm else t for t in mapping.tables]
+    return mapping.model_copy(update={"tables": tables, "notes": list(mapping.notes) + [
+        f"hệ số quy đổi: cột {others[0]!r} thay cho {col.source!r} (giá trị > {FACTOR_MAX})"]})
+
+
 def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
     """The attribute columns the README names that a mapping leaves out: a mapping moved from an example has only the
     columns of the example's shop (04/11: a shop moved from a pharmacy without customer groups lost its "nhóm khách",
@@ -408,6 +440,7 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
     Then what the README's conventions name for debts and cost (N35, `with_conventions`), and the order's hour from
     the README's "thời điểm đặt đơn" when the mapping read only its day (N73, `with_order_hour`)."""
     mapping = with_side_tables(with_order_hour(drop_amount_as_method(with_conventions(mapping, raw), raw), raw), raw)
+    mapping = factor_not_price(mapping, raw)
     tables = [t for t in (_Table(ids, phrases_of(raw, ids)) for ids in groups(raw)) if t.phrases]
     if not tables:
         return mapping
@@ -522,6 +555,7 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
     return mapping.model_copy(update={"tables": out, "notes": list(mapping.notes) + ["bổ sung từ README: " + ", ".join(added)]})
 
 
+UNKEYED = "?"  # N94: the product key of receipts borrowed without their products
 SIDE_TABLES = {"purchases": ("product_key", "lines", 0.8), "inventory": ("product_key", "lines", 0.8),
                "deliveries": ("order_id", "orders", 0.95), "payments": ("order_id", "orders", 0.95)}
 
@@ -556,6 +590,14 @@ def with_side_tables(mapping: Mapping, raw: RawBusiness) -> Mapping:
             borrowed.append(tm)
         elif key == "product_key" and (rekeyed := _rekey_products(tm, mapping, readme_mapping)) is not None                 and _keys_match(rekeyed, core, mapping, raw, key, home, REKEY_SHARE):
             borrowed.append(rekeyed)
+        elif tm.target == "purchases" and not have & {"inventory", "lots"}:
+            # N94: receipts whose product codes cannot be told in the lines' names (public 08/11: sales lines in two
+            # files, no code beside the name in either) still give the money, receipts and suppliers of a period;
+            # with no product key every question by product finds no receipt and abstains. Not beside stock or lots,
+            # whose figures read the receipts of each product.
+            cols = [c for c in tm.columns if c.target != "product_key"] + [ColumnMap(target="product_key",
+                                                                                     const=UNKEYED)]
+            borrowed.append(tm.model_copy(update={"columns": cols}))
     # a borrowed table must not break the mapping (public 07/11: a stock list with 1 blank cell of 61 failed the
     # required-cells check and every question of the shop abstained): each one kept only if no check newly fails
     before = _failed_checks(T._settle_constants(mapping, raw), raw)

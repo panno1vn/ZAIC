@@ -43,3 +43,6 @@ htmlcov/
 *.safetensors
 docker/models/*
 !docker/models/.gitkeep
+
+# staged Docker inputs (tools/stage_training_code.py): copies of competition data, never committed
+build/

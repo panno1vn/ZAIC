@@ -39,6 +39,10 @@ for q in shop:
     by_shop[(shop[q], change)] += 1
     by_change[(change, fn)] += 1
 print(f"giống: {same} / {len(shop)}; khác: {len(shop) - same}")
+# an exception in the pipeline answers blank, so a blank kept blank hides it (08/11: 5 errors looked "the same")
+errors = sum("error" in json.loads(f.read_text(encoding="utf-8")) for f in (run / "logs").glob("q_*.json")) \
+    if (run / "logs").exists() else 0
+print(f"LỖI khi chạy (log có 'error'): {errors}" + ("  ← xem lại trước khi nộp" if errors else ""))
 print("trả lời:", sum(kind(x) == "trả lời" for x in new.values()), "(tham chiếu", sum(kind(x) == "trả lời" for x in old.values()), ")")
 print("\ntheo cửa hàng:")
 for k, n in sorted(by_shop.items()):

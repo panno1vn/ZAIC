@@ -145,3 +145,23 @@ def test_a_stock_plan_needs_a_stock_word():
     assert "metric=stock_qty" in grounding.ungrounded_measures(
         "Tháng 3/2025, số nhập trừ số bán của Telfast là bao nhiêu viên?", plan)
     assert grounding.ungrounded_measures("Hết hôm nay, Telfast còn lại mấy viên trong kho?", plan) == []
+
+
+def test_purchase_minus_sales_in_the_unit_asked():
+    """§5 "nhập trừ bán" (N86): receipts of the period (PN4 is May, PN5 cancelled) in base units, minus the base
+    quantity of the orders counted in revenue (o2 cancelled). SP1: 10 + 30 boxes of 6 = 240 pieces − (12 + 1 + 6) = 221."""
+    def pms(name, unit, linked):
+        m = {"metric": "purchase_minus_sales", "filters": product(name)}
+        if unit:
+            m["unit"] = unit
+        return run([m], linked=linked)
+    assert pms("bánh", "cái", BANH) == 221
+    assert pms("nước", "chai", NUOC) == 96  # 100 bought − 4 sold
+    assert pms("bánh", "hộp", BANH) is None  # 221 pieces is no whole number of boxes
+    assert pms("bánh", None, BANH) is None  # the unit must be asked
+
+
+def test_purchase_minus_sales_of_a_product_never_received_is_none():
+    """N94: receipts keyed otherwise (or borrowed without products) must not read as "nothing bought"."""
+    m = {"metric": "purchase_minus_sales", "filters": product("bánh"), "unit": "cái"}
+    assert run([m], linked={"bánh": "SP9"}) is None

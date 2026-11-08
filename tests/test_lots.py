@@ -97,3 +97,28 @@ def test_products_out_of_stock_at_the_end_of_the_day():
     q = {"intent": "list_items", "list_spec": {"entity": "product", "condition": "out_of_stock_end_of_day",
                                                 "count": True}}
     assert ask(q) == 1  # SP1 at 0 since 20/06; SP2 holds 4; SP3 has no stock record (not followed)
+
+
+def test_the_stock_value_by_the_catalogue_cost():
+    """§5 "giá trị hàng tồn kho": stock at the end of the day × the catalogue's cost of one base unit, goods in stock
+    only (train: the two shops whose mapping has the catalogue and the stock, both answers to the đồng)."""
+    db = shop()
+    db.tables["products"] = db.tables["products"].assign(unit_cost=[1000.0, 500.0, 100.0])
+
+    def value(day: date, period: dict):
+        plan = ResolvedPlan(plan=QueryPlan.model_validate({"intent": "value", "measures": [{"metric": "stock_value"}],
+                                                           "answer_type": "number", "period": period}),
+                            as_of=D, period=ResolvedPeriod(start=date(2000, 1, 1), end=day, mode="stock"))
+        r = metrics.execute(plan, db)
+        return None if r is None else format_value(r.answer_type, r.value)
+    assert value(D, {"kind": "today"}) == 2000  # SP1 at 0 left out, SP2 4 × 500; SP3 has no stock record
+    assert value(date(2026, 6, 10), {"kind": "until", "date": "2026-06-10"}) == 5000  # SP1 5 × 1000, SP2 not yet
+    db.tables["products"].loc[1, "unit_cost"] = None
+    assert value(D, {"kind": "today"}) is None  # a product in stock with no cost
+
+
+def test_the_stock_value_rule_is_checked_by_the_rule_gate():
+    """[R] checks only the rulebook rows the registry declares; a cited row it does not know fails rules_unchanged
+    (08/11: the right train answer was refused that way)."""
+    from datamate.pipeline import rule_ids
+    assert "§5.gia_tri_hang_ton_kho" in rule_ids()

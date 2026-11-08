@@ -7,19 +7,24 @@ when the baseline also reads the question, both readers agree: two readings that
 from __future__ import annotations
 
 import json
+import re
 import unicodedata
 from datetime import date
 
 from datamate.contracts import STOCK_METRICS, CanonicalDB, DataCard, QueryPlan, ResolvedPlan
 from datamate.llm import LLMClient
 
-from datamate.verify import LINKED_FIELDS, filter_keys
+from datamate.verify import LINKED_FIELDS, SUBJECTIVE_REASON, filter_keys
 
 from . import baseline, jobs, linking, prompt, repair
-from .grounding import (anchor_by_price, count_as_value, drop_month_as_weekday, drop_restated_metric,
-                        drop_restated_status, drop_ungrounded_years, month_of_short_year, orders_not_money,
-                        rate_as_value, scale_money, unit_filter_as_unit,
-                        split_debt_ages, ungrounded_dates, ungrounded_filters, ungrounded_measures, whole_not_part,
+from .grounding import (anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
+                        debt_age_from_question, in_minus_out, k_not_the_month, rulebook_rank_terms, share_as_value,
+                        weekday_as_stated, which_time_as_rank, whole_as_share_of,
+                        drop_restated_status, drop_ungrounded_years, month_of_short_year, one_name_no_values,
+                        orders_not_money, overdue_customers, rate_as_value, scale_money, split_debt_ages,
+                        subjective_quality,
+                        ungrounded_dates,
+                        ungrounded_filters, ungrounded_measures, unit_filter_as_unit, unpaid_as_debt, whole_not_part,
                         widen_each_table, written_last_year)
 
 
@@ -127,7 +132,9 @@ def llm_plan(question: str, as_of: date, card: DataCard, llm: LLMClient,
     return None if problems else plan
 
 
-GROUND_RETRY = False  # N79: one retry when the grounding gates refuse a plan; OFF until measured on train (prod_train)
+# N79: one retry when the grounding gates refuse a plan. ON since 08/11: train as run (prod_train, 1500 questions)
+# 16 more right, 0 wrong; public s41r − s41 = +0.020, the 20 answers it opened all right
+GROUND_RETRY = True
 RETRY_GROUND = ("Plan vừa viết có phần câu hỏi không nói tới, hoặc đọc sai loại câu: {parts}.\nĐọc lại câu hỏi và viết "
                 "lại plan chỉ theo đúng điều câu hỏi hỏi: đúng chỉ số (tiền, số đơn, số lượng, số khách…), đúng loại câu "
                 "(một số, so sánh, xếp hạng, danh sách…), không thêm bộ lọc hay kỳ mà câu không nêu.")
@@ -136,8 +143,15 @@ RETRY_GROUND = ("Plan vừa viết có phần câu hỏi không nói tới, ho�
 def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> tuple[QueryPlan, list[str]]:
     """The plan after the drops (years the question does not state, restated filters) and what in it has no ground
     in the question: filters, days, measures (grounding.py)."""
-    plan = scale_money(question, count_as_value(month_of_short_year(question, widen_each_table(question, plan))))
+    plan = which_time_as_rank(question, rulebook_rank_terms(question, in_minus_out(question, plan)))
+    # whole_not_part first: a share_of written as the part itself hides the whole written as a second measure (a full
+    # public run 08/11: "bỉm size NB … % tổng số bịch bỉm" read so on one run, without the share_of on the other)
+    plan = k_not_the_month(question, whole_as_share_of(whole_not_part(debt_age_from_question(question, plan))))
+    plan = weekday_as_stated(question, share_as_value(question, count_not_list(question, plan)))
+    plan = widen_each_table(question, one_name_no_values(question, plan))
+    plan = scale_money(question, count_as_value(month_of_short_year(question, plan)))
     plan = orders_not_money(question, unit_filter_as_unit(question, rate_as_value(plan)))
+    plan = overdue_customers(question, unpaid_as_debt(question, plan))
     plan = whole_not_part(split_debt_ages(drop_month_as_weekday(question, anchor_by_price(question, plan, as_of))))
     plan = written_last_year(plan)
     plan = drop_ungrounded_years(question, plan, as_of)
@@ -173,9 +187,17 @@ def parse_question(question: str, as_of: date, card: DataCard, llm: LLMClient | 
     if llm is None:
         return base
     plan = llm_plan(question, as_of, card, llm, exclude_ids=exclude_ids, trace=trace)
+    if plan is None and base is None and subjective_quality(question):
+        # N83: no reading holds and the question asks a quality the data does not record: unanswerable (§7)
+        trace["subjective"] = True
+        return QueryPlan(intent="out_of_scope", out_of_scope_reason=SUBJECTIVE_REASON)
     if plan is None:
         return base  # the LLM failed or its plan had no ground: the baseline's reading, if it has one
-    if base is not None and canonical_plan(plan) != canonical_plan(base):
+    if plan.intent == "out_of_scope" and subjective_quality(question):
+        # N83: the LLM reads it out of scope and the question asks a quality the data does not record: unanswerable
+        # even with a time ("Khách trung thực nhất tháng 10/2025 là ai?"), which N37 otherwise leaves blank
+        plan = plan.model_copy(update={"out_of_scope_reason": SUBJECTIVE_REASON})
+    if base is not None and canonical_plan(_without_generic(plan)) != canonical_plan(base):
         trace["disagree_baseline"] = base.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
         return None
     return plan
@@ -185,7 +207,8 @@ def link_entities(plan: ResolvedPlan, db: CanonicalDB, question: str = "") -> Re
     """Fill plan.linked / plan.link_scores: each name a filter carries, as written -> the data value it names
     (linking.py, G6). A name is left out when no value is clearly meant; [V] then makes the question abstain.
     `link_scores` keeps the best score of every name tried, linked or not, for the logs."""
-    plan = product_as_attribute(unit_or_all_as_product(plan, db), db)
+    plan = attribute_in_its_field(product_as_attribute(unit_or_all_as_product(plan, db), db), db)
+    plan = unit_from_question(drop_generic_filters(plan, db), db, question)
     p = plan.plan
     measures = list(p.measures) + ([p.share_of] if p.share_of else [])
     filters = [f for m in measures for f in m.filters] + list((p.compare.filters or []) if p.compare else [])
@@ -207,7 +230,7 @@ def link_entities(plan: ResolvedPlan, db: CanonicalDB, question: str = "") -> Re
             scores[key] = got.score
             if got.value is not None:
                 linked[key] = got.value
-    omitted = omitted_names(filters, db, question) if question else []
+    omitted = (omitted_names(filters, db, question) + unit_not_recorded(plan, db, question)) if question else []
     return plan.model_copy(update={"linked": linked, "link_scores": scores, "omitted": omitted})
 
 
@@ -244,6 +267,129 @@ def unit_or_all_as_product(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     if not changed:
         return plan
     return plan.model_copy(update={"plan": p.model_copy(update={"measures": measures})})
+
+
+# N88: words the LLM copies from the question into a filter that name no value of the shop: the shop itself ("wán mik",
+# "sốp", "tiệm"), its customers in general ("khách"), the figure ("dthu", "tền" for tiền), a particle ("z"), a month
+# ("T8"). Public run11: 9 such plans, every one stopped with no figure.
+GENERIC_VALUES = frozenset({"quan", "wan", "shop", "sop", "tiem", "cua hang", "cuahang", "mik", "minh", "khach",
+                            "khach hang", "dthu", "doanh thu", "tien", "ten", "z", "vay", "nha"})  # not "dt": "đt" is a phone
+_MONTH_VALUE = re.compile(r"^(?:t|th|thang)\s?\d{1,2}(?:\s\d{2,4})?$")
+GENERIC_FIELDS = ("product", "product_group", "category", "product_line", "brand", "customer", "customer_group",
+                  "payment_method", "channel")
+
+
+def _without_generic(plan: QueryPlan) -> QueryPlan:
+    """The plan as the baseline is compared with it (N88): a filter of a generic word ("Th9/2025 tiệm tổng doanh thu":
+    product = tiem) is no difference, drop_generic_filters removes it once the shop's names are known."""
+    def keep(f) -> bool:
+        if f.field not in GENERIC_FIELDS or f.op != "eq" or not isinstance(f.value, str):
+            return True
+        v = linking.norm(f.value)
+        return v not in GENERIC_VALUES and not _MONTH_VALUE.match(v)
+    measures = [m.model_copy(update={"filters": [f for f in m.filters if keep(f)]}) for m in plan.measures]
+    return plan.model_copy(update={"measures": measures}) if measures != list(plan.measures) else plan
+
+
+def drop_generic_filters(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
+    """N88. A filter whose value is one of GENERIC_VALUES or a month, and links to no value of the shop, is no filter
+    ("Doanh thu tháng 1/2025 của sốp mình": customer = sốp). Not when dropping it would leave two equal measures."""
+    p = plan.plan
+
+    def generic(f) -> bool:
+        if f.field not in GENERIC_FIELDS or f.op != "eq" or not isinstance(f.value, str):
+            return False
+        v = linking.norm(f.value)
+        if v not in GENERIC_VALUES and not _MONTH_VALUE.match(v):
+            return False
+        if f.field in ("payment_method", "channel"):
+            return linking.concept(f.field, f.value) is None
+        return linking.link_value(f.field, f.value, "", linking.candidates(f.field, db), ()).value is None
+
+    measures = [m.model_copy(update={"filters": [f for f in m.filters if not generic(f)]})
+                if any(generic(f) for f in m.filters) else m for m in p.measures]
+    if measures == list(p.measures):
+        return plan
+    keys = [json.dumps(m.model_dump(mode="json"), sort_keys=True) for m in measures]
+    if len(set(keys)) < len(keys):
+        return plan
+    return plan.model_copy(update={"plan": p.model_copy(update={"measures": measures})})
+
+
+_COUNT_WORDS = r"(?:bao nhieu|bao nhiu|bnhiu|bnhieu|bn|may|nhieu|nhiu|tong cong|tong|cong)"
+
+
+def unit_from_question(plan: ResolvedPlan, db: CanonicalDB, question: str) -> ResolvedPlan:
+    """N80. §3 "bán được bao nhiêu <đơn vị>" counts only the items whose base unit is that unit. A quantity with no unit
+    on a question that counts in one unit of the shop ("hôm qua bán được mấy lon": public 08/11, read with no unit,
+    every item of a beer shop counted) gets that unit. Only one unit after a counting word ("bao nhiêu phần trăm" is
+    none); not on a share, whose whole would keep counting every item, nor a ranking, threshold or list (§3 ranks items
+    of different base units together)."""
+    p = plan.plan
+    if (not question or p.share_of is not None or p.rank is not None or p.threshold is not None
+            or p.list_spec is not None or not any(m.metric == "quantity" and not m.unit for m in p.measures)):
+        return plan
+    found = _counted_in(question, linking.units(db))
+    if len(found) != 1:
+        return plan
+    unit = found.pop()
+    measures = [m.model_copy(update={"unit": unit}) if m.metric == "quantity" and not m.unit else m for m in p.measures]
+    return plan.model_copy(update={"plan": p.model_copy(update={"measures": measures})})
+
+
+def _counted_in(question: str, units) -> set[str]:
+    """The units of `units` the question counts in: right after a counting word ("mấy lon", "bao nhiêu ly")."""
+    if not units or not question:
+        return set()
+    alt = "|".join(re.escape(u) for u in units)
+    return {m.group(1) for m in re.finditer(rf"\b{_COUNT_WORDS} ({alt})\b(?! tram)", linking.norm(question))}
+
+
+# units that name a container or a measure, never "any item": "chiếc", "cái", "máy", "món" count every item of a
+# shop that records no unit (a phone shop), these do not
+SPECIFIC_UNITS = ("lon", "chai", "ly", "coc", "thung", "goi", "hop", "bich", "vi", "vien", "tuyp", "kg", "lit", "dia",
+                  "to", "phan", "cay", "ket", "tui", "binh", "hu", "lo")
+
+
+def unit_not_recorded(plan: ResolvedPlan, db: CanonicalDB, question: str) -> list[str]:
+    """N80. A count in a unit the shop does not record ("hôm qua bán được mấy lon" where the mapping has no unit at all:
+    public 08/11, two such questions answered with every item counted): the figure cannot be told, so the plan is
+    refused like a name it leaves out. Only for a quantity still without its unit (unit_from_question gives a unit the
+    shop records)."""
+    p = plan.plan
+    if (p.share_of is not None or p.rank is not None or p.threshold is not None or p.list_spec is not None
+            or not any(m.metric == "quantity" and not m.unit for m in p.measures)):
+        return []
+    return [f"unit={u}" for u in sorted(_counted_in(question, SPECIFIC_UNITS) - set(linking.units(db)))]
+
+
+def attribute_in_its_field(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
+    """N93. A kind, group, line or brand written under another of these fields ("Nhóm gỏi" as category where the shop
+    keeps it as product_group; "nhóm máy mới" as product_group where it is the category: public run11, 4 questions
+    stopped with no figure): the field where the value is, when it links in none but its own field and is written
+    exactly as one value of exactly one other field."""
+    p = plan.plan
+    if not any(f.field in ATTRIBUTE_FIELDS for m in p.measures for f in m.filters):
+        return plan
+
+    def field_of(f) -> str | None:
+        if f.field not in ATTRIBUTE_FIELDS or f.op != "eq" or not isinstance(f.value, str):
+            return None
+        if linking.link_value(f.field, f.value, "", linking.candidates(f.field, db), ()).value is not None:
+            return None
+        hits = [a for a in ATTRIBUTE_FIELDS if a != f.field and linking.norm(f.value) in linking.candidates(a, db)]
+        return hits[0] if len(hits) == 1 else None
+
+    def fix(m):
+        fs = [f.model_copy(update={"field": new}) if (new := field_of(f)) else f for f in m.filters]
+        return m.model_copy(update={"filters": fs}) if fs != list(m.filters) else m
+    measures = [fix(m) for m in p.measures]
+    update = {"measures": measures}
+    if p.share_of is not None:
+        update["share_of"] = fix(p.share_of)
+    if measures == list(p.measures) and update.get("share_of") is p.share_of:
+        return plan
+    return plan.model_copy(update={"plan": p.model_copy(update=update)})
 
 
 def product_as_attribute(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:

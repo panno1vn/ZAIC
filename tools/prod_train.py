@@ -3,7 +3,8 @@ shop's data card, the verified bank minus every example of the same shop, the tw
 Mapping by transfer with the cached column matching (as eval_cached). Every `step`-th question. Counts, the N79 retries
 (first plan refused by the grounding gates) apart, and the wrong ones.
 
-    python tools/prod_train.py <step> <out.jsonl> [--ground-retry]     # needs llama-server on 8091; step 2 ≈ 1 h
+    python tools/prod_train.py <step> <out.jsonl> [--no-ground-retry]  # needs llama-server on 8091; step 2 ≈ 1 h
+                                                                       # (≈ 15 min once outputs/llm_cache_prod_train.jsonl holds it)
 """
 import json
 import sys
@@ -23,7 +24,8 @@ from datamate.predict import DEFAULT_CONFIG, load_config  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 step, out_path = int(sys.argv[1]), Path(sys.argv[2])
-nlu.GROUND_RETRY = "--ground-retry" in sys.argv  # N79 is off by default
+if "--no-ground-retry" in sys.argv:  # N79 is on by default since 08/11; this measures the run without it
+    nlu.GROUND_RETRY = False
 
 
 class _Offline:

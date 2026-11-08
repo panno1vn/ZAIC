@@ -264,6 +264,10 @@ def test_which_month_was_highest_is_no_series():
     """N78, public 07/11: "doanh thu cao nhất rơi vào tháng nào trong 3 tháng" read (on a retry) as the 3 figures."""
     raw = {"intent": "series", "measures": [{"metric": "revenue"}], "period": {"kind": "months", "end": "2026-02", "n": 3}}
     q = "Doanh thu cao nhất rơi vào tháng nào trong 3 tháng từ th12/2025 đến th2/2026?"
-    assert nlu.accept_plan(q, plan(raw), AS_OF) is None
+    read = nlu.accept_plan(q, plan(raw), AS_OF)  # N85 (08/11): no longer refused, the month ranked first instead
+    assert read is not None and read.intent == "rank" and read.rank.entity == "month" and read.rank.k == 1
+    assert read.rank.by == "revenue" and read.answer_type == "date"
+    lowest = "Doanh thu thấp nhất rơi vào tháng nào trong 3 tháng từ th12/2025 đến th2/2026?"
+    assert nlu.accept_plan(lowest, plan(raw), AS_OF) is None  # ascending: no ranking takes it, still refused
     each = "Doanh thu 3 tháng từ th12/2025 đến th2/2026 mỗi tháng bao nhiêu?"
     assert nlu.accept_plan(each, plan(raw), AS_OF) is not None

@@ -19,7 +19,7 @@ from datamate.nlu import linking
 
 from . import frames as F
 from .registry import metric
-from .sales import TIE, _ordered, _tied  # one tie rule for every ranking (§9)
+from .sales import R_VALID, TIE, _lines, _ordered, _tied  # one tie rule for every ranking (§9)
 
 R_TODAY = ("§0.p_hom_nay_cua_moi_cau_la",)
 R_PURCHASE = ("§5.tien_nhap_hang_trong_ky",) + R_TODAY
@@ -29,6 +29,8 @@ R_PRICE = ("§5.gia_ban_x_ngay_d", "§2.ngay_x_hom_nay_hom_qua", "§10.don_vi_co
 R_STOCK = ("§2.den_het_ngay_x_tinh_den_hom_nay", "§5.ton_theo_don_vi_lon", "§10.don_vi_co_ban_don_vi_lon") + R_TODAY
 R_NAMES = ("§8.ten_goi_nhan",)
 R_TIES = ("§9.p_bang_nhau_hai_doi_tuong_bang",)
+R_IN_MINUS_OUT = ("§5.nhap_tru_ban_chenh_nhap_va_ban", "§5.tien_nhap_hang_trong_ky", "§10.don_vi_co_ban_don_vi_lon") \
+    + R_VALID
 
 GENERIC_UNITS = {"don vi"}  # "một <tên hàng>": the LLM writes a unit the question does not state
 
@@ -157,6 +159,35 @@ def unit_price(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
     return money(prices.pop()) if len(prices) == 1 else None
 
 
+def purchase_minus_sales(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
+    """§5 "nhập trừ bán, chênh nhập và bán" of one product over the period, in the unit asked: the receipts dated in it
+    (cancelled ones left out), each line turned into base units by its own unit, minus the base quantity of the
+    period's orders counted in revenue (§1: not cancelled, not returned). Train, the three questions of shops with a
+    hand mapping (probe 08/11): 10, −28, 41, all exact; counting the returned orders as sold gave −38 and 39. None
+    when the question names no unit, a unit has no factor, or the figure is not a whole number of that unit."""
+    product = _one_product(m, plan.linked)
+    if product is None or any(f.field != "product" for f in m.filters) or plan.period is None or not m.unit:
+        return None
+    period = plan.period
+    every = db.table("purchases")
+    if every is None or not (every["product_key"].astype(str) == product).any():
+        return None  # a product never received: the receipts may be keyed otherwise (N94), never "0 bought"
+    rows = _receipts(db, period.start, period.end)
+    if rows is None or "qty" not in rows.columns or "unit" not in rows.columns:
+        return None
+    rows = rows[rows["product_key"].astype(str) == product]
+    factors = [_factor(db, product, str(u)) for u in rows["unit"]]
+    if any(f is None for f in factors) or rows["qty"].isna().any():
+        return None
+    bought = float((rows["qty"].astype(float) * pd.Series(factors, index=rows.index, dtype=float)).sum())
+    ln = _lines(db, period, list(m.filters), plan.linked, items_only=True)
+    unit = _factor(db, product, m.unit)
+    if ln is None or "base_qty" not in ln.columns or ln["base_qty"].isna().any() or not unit:
+        return None
+    value = (bought - float(ln["base_qty"].sum())) / unit
+    return int(value) if float(value).is_integer() else None
+
+
 def stock_base_qty(db: CanonicalDB, product: str, day) -> float | None:
     """§2 "đến hết ngày X": the product's stock (base units) in the last stock record dated on or before the day,
     provided nothing moved after it up to that day (no receipt, no order line). A shop's stock file is either one
@@ -236,7 +267,9 @@ def rank_suppliers(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
 FLOWS = {"purchase_amount": (purchase_amount, R_PURCHASE, ("purchases.receipt_time", "purchases.qty")),
          "purchase_avg_cost": (purchase_avg_cost, R_AVG_COST, ("purchases.receipt_time", "purchases.qty",
                                                                 "purchases.unit_cost")),
-         "unit_price": (unit_price, R_PRICE, ("orders.order_time", "lines.unit_price", "lines.base_qty"))}
+         "unit_price": (unit_price, R_PRICE, ("orders.order_time", "lines.unit_price", "lines.base_qty")),
+         "purchase_minus_sales": (purchase_minus_sales, R_IN_MINUS_OUT,
+                                  ("purchases.receipt_time", "purchases.qty", "purchases.unit", "lines.base_qty"))}
 
 
 def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:

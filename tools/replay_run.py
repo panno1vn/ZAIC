@@ -10,6 +10,12 @@ submit as a diagnostic.
 Exact only when the logs hold every question's plan and every business's mapping (a run with logs on). A run that
 logged the LLM's raw output (from run10) is re-read from it, so today's gates and repairs apply to the reading too.
 The twin gate uses --twin-threshold (default: configs/default.json, as predict does); -1 turns it off.
+
+N79 (on by default since 08/11): a retry the run did not log is asked of --llm-url (the live server), and logged, so a
+later replay of the output needs no server; without --llm-url such a retry fails and the plan stays refused, as with
+N79 off. --no-ground-retry turns it off:
+
+    python tools/replay_run.py outputs/public_run11 --out outputs/replay/x --enrich --ground-retry --llm-url http://127.0.0.1:8091
 """
 from __future__ import annotations
 
@@ -37,7 +43,10 @@ class _NoLLM:
 
 
 class _Logged:
-    """The run's LLM, answering with what it answered then (reading.llm_raw), or failing as it failed."""
+    """The run's LLM, answering with what it answered then (reading.llm_raw), or failing as it failed. A second call
+    the run did not make (an N79 retry) goes to `live` when given."""
+
+    live = None  # set by main: the live server for retries the run did not log
 
     def __init__(self, reading: dict):
         self.reading = reading
@@ -51,6 +60,8 @@ class _Logged:
             return self.reading["llm_raw"]
         if "llm_raw_retry" in self.reading:  # N78: the run's second call, with the error of the first
             return self.reading["llm_raw_retry"]
+        if _Logged.live is not None:  # N79: a retry today's gates ask for, made now
+            return _Logged.live.generate_json(messages, schema)
         raise RuntimeError("replay: lượt gốc không gọi lại (log trước N78)")
 
 
@@ -137,7 +148,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--twin-threshold", type=float, help="mặc định theo configs/default.json; -1 tắt cổng")
     ap.add_argument("--enrich", action="store_true",
                     help="cho mapping trong log qua phần bổ sung của code hôm nay (from_readme.enrich, loại hàng của sheet ghi tắt)")
+    ap.add_argument("--ground-retry", action="store_true", help="N79: gọi lại khi cổng căn cứ chặn plan (mặc định đã bật)")
+    ap.add_argument("--no-ground-retry", action="store_true", help="tắt N79 khi đọc lại")
+    ap.add_argument("--llm-url", help="server cho các lần gọi lại lượt gốc không ghi (N79), vd http://127.0.0.1:8091")
     args = ap.parse_args(argv)
+    if args.ground_retry:
+        nlu.GROUND_RETRY = True
+    if args.no_ground_retry:
+        nlu.GROUND_RETRY = False
+    if args.llm_url:
+        from datamate.llm import LlamaServerLLM
+        _Logged.live = LlamaServerLLM(args.llm_url, timeout_s=120)
     diagnose.ENABLED = True  # a plan with no result logs where the function stopped (N72); run_stats counts them
     threshold = load_config(DEFAULT_CONFIG).twin_threshold if args.twin_threshold is None else args.twin_threshold
     changes = replay(args.run, args.out, args.data, None if threshold is not None and threshold < 0 else threshold,

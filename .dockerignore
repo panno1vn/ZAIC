@@ -1,4 +1,4 @@
-# docker build context: only what the image needs (docker/Dockerfile)
+# docker build context: only what the image needs (docker/Dockerfile, guideline 2026 §9: training data included)
 *
 !requirements.txt
 !datamate/
@@ -6,5 +6,6 @@
 !configs/
 !docker/
 !tools/
+!build/training_code/
 **/__pycache__
 **/*.pyc

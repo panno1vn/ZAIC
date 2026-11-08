@@ -53,7 +53,7 @@ def main(run: str) -> None:
                 if at:
                     where[at[0]] += 1
             continue
-        functions[d["result"]["function"]] += 1
+        functions[(d.get("result") or {}).get("function") or d["decision"]["kind"]] += 1  # unanswerable: no result
         t = d.get("twin") or {}
         score = 101 if t.get("baseline_agrees") else t.get("score", 0)
         twins["baseline đồng ý" if score == 101 else "≥ 90" if score >= 90 else "80–90" if score >= 80 else "< 80"] += 1
@@ -63,6 +63,14 @@ def main(run: str) -> None:
     print("\nbỏ trống theo bước:")
     for s, n in sorted(stages.items()):
         print(f"  {n:4} {s}")
+    if why:
+        print("\nbước 4 theo lý do (N72):")
+        for w, n in why.most_common():
+            print(f"  {n:4} {w}")
+    if where:
+        print("\nbước 4, dòng dừng (chỉ có ở lượt đọc lại):")
+        for w, n in where.most_common(25):
+            print(f"  {n:4} {w}")
     print("\ntrả lời theo hàm:", dict(functions.most_common()))
     print("trả lời theo điểm giống câu anh em:", dict(twins))
 

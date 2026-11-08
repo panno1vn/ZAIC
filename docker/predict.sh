@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
-# Entry point of the image: start llama-server on the first GPU, answer every question of $DATA_DIR into
-# $OUT_DIR/submission.jsonl, stop the server. If the server does not come up, the run goes on with the rule-based
-# reader alone (fewer answers, never no file). The time budget (5.5 h, configs/default.json) counts from here.
-# Prints the model load time and the prediction time to stdout (the 2025 Zalo AI Docker guideline asked for both).
+# Entry point of the image (Docker guideline 2026 §5): `bash /code/predict.sh`, no arguments. Starts llama-server,
+# answers every question of /data into /result/submission.jsonl (written line by line) and /result/logs/ (one record
+# per question: id, answer, elapsed_ms, thinking, code, inputs, output), stops the server. If the server does not come
+# up, the run goes on with the rule-based reader alone (fewer answers, never no file). Fixed settings: model
+# /code/models/model.gguf, one GPU (the first one given), greedy decoding with a fixed seed, one slot, thinking off;
+# time budget 5.5 h counted from here (configs/default.json). Prints the model load and prediction times.
 set -uo pipefail
+cd "$(dirname "$(readlink -f "$0")")"   # /code: the package, assets and configs are read from here
 DATA_DIR="${DATA_DIR:-/data}"
 OUT_DIR="${OUT_DIR:-/result}"
-MODEL="${MODEL:-/models/model.gguf}"
+MODEL="${MODEL:-/code/models/model.gguf}"
 PORT="${PORT:-8091}"
-mkdir -p "$OUT_DIR"
+export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES_OVERRIDE:-0}"  # one card: Qwen3-8B Q4 needs ~6 GB; same run each time
+export LD_LIBRARY_PATH="/code/llama:${LD_LIBRARY_PATH:-}"
+mkdir -p "$OUT_DIR/logs"
 T0=$(date +%s)
+echo "[predict.sh] start $(date -Is) data=$DATA_DIR out=$OUT_DIR model=$MODEL gpu=$CUDA_VISIBLE_DEVICES"
 
-/opt/llama/llama-server -m "$MODEL" --jinja -ngl 99 -c 8192 --parallel 1 --host 127.0.0.1 --port "$PORT" \
-    > "$OUT_DIR/llama_server.log" 2>&1 &
+/code/llama/llama-server -m "$MODEL" --jinja -ngl 99 -c 8192 --parallel 1 --seed 0 --host 127.0.0.1 --port "$PORT" \
+    > "$OUT_DIR/logs/llama_server.log" 2>&1 &
 SERVER=$!
 
 ready=0
@@ -30,7 +36,7 @@ if [ "$ready" = 1 ]; then
   python3 -m datamate.predict --data "$DATA_DIR" --out "$OUT_DIR" --llm-url "http://127.0.0.1:$PORT"
   status=$?
 else
-  echo "llama-server không lên: chạy bằng bộ đọc luật (baseline)" >&2
+  echo "llama-server did not start: rule-based reader only" >&2
   status=1
 fi
 if [ "$status" != 0 ]; then  # the LLM run failed or never started: a file from the baseline is still worth points
@@ -41,4 +47,5 @@ T2=$(date +%s)
 echo "Prediction time: $((T2 - T1)) s"
 echo "Total time: $((T2 - T0)) s"
 kill "$SERVER" 2>/dev/null || true
+echo "[predict.sh] done $(date -Is) status=$status"
 exit "$status"

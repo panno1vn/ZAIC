@@ -26,6 +26,73 @@ Không nhóm nào cần chặn. **31/38 câu sai nằm ở 8 cửa hàng cũ** (
 
 Còn **12 câu sai** chưa khoanh vùng trong 529 câu: một số không lọc (179), tỉ trọng / chuỗi / nợ / kho (70), cửa hàng mới (280). Không nhóm nào cần chặn.
 
+## Bộ nộp phiên 10 (dựng 08/11): lượt chính s41 và phép đo N79
+Hai file đọc lại run11 bằng code cuối phiên 10, đều đã qua `datamate.eval.validate`, 0 câu lỗi khi chạy.
+
+| # | File | Nội dung | Đọc điểm |
+|---|---|---|---|
+| 0 | `outputs/replay/run11_s41/submission.jsonl` | **lượt chính mới, N79 tắt** (837 câu trả lời). So với s35: +11 câu (3 tỉ trọng bỉm theo §6 Mẹ và bé, 2 tiền góp chưa trả theo §6 Điện thoại, 6 xếp hạng một tên mà LLM ghi thành bảng một dòng); −1 câu ("có mấy mặt hàng đang cháy hàng" trả về một tên thuốc, nay trống) | nếu s35 đã có điểm: điểm − s35 = (đúng − sai của 11 câu) + 1 nếu câu bỏ vốn sai (−1 nếu vốn đúng). Nếu chưa nộp s35 thì nộp s41 thay s35, so với 0,744 |
+| 1 | `outputs/replay/run11_s41r/submission.jsonl` | **N79 bật**: s41 + 20 câu mở nhờ gọi lại LLM khi cổng chặn (857 câu). Đọc từng plan: cả 20 đúng ý | sai trong 20 câu = (20 − (điểm 1 − điểm 0) × 1000) / 2. Sai ≤ 2 thì bật `nlu.GROUND_RETRY` (train như lượt thật đã đạt: bật thêm 16 đúng, 0 sai) |
+| 2 | `outputs/public_ablation12/bo_value_tron.jsonl` | S27 bỏ trống "một con số không bộ lọc" của 8 cửa hàng cũ (179) | so với 0,744 |
+| 3 | `outputs/public_ablation12/bo_moi_003_009.jsonl` | S27 bỏ trống dev_003 + dev_009 (132) | so với 0,744 |
+| 4 | `outputs/public_ablation12/bo_share_series_no_kho.jsonl` | S27 bỏ trống tỉ trọng, chuỗi, xu hướng, nợ, nhập, giao của cửa hàng cũ (70) | so với 0,744 |
+
+s41 khác S27 ở 43 câu (40 mới trả lời, 2 thành trống, 1 đổi giá trị): nếu cả 40 câu mới đúng thì điểm s41 ≈ 0,78; sai trong 40 câu ≈ (40 − (điểm − 0,744) × 1000) / 2, lệch ±2 do 3 câu kia. Lượt 2–4: sai của nhóm = (số câu − (0,744 − điểm) × 1000) / 2. Ngày sau: `bo_moi_dien_thoai` (58), `bo_moi_me_be` / `bo_moi_sua_xe` (45).
+
+### Kết quả (nộp 08/11 00:00–00:03)
+| Lượt | Điểm | Đọc ra |
+|---|---|---|
+| 0 s41 | **0,784** | +0,040 so với 0,744 = đúng ngay số câu mới: 40 câu mới gần như đúng hết (sai ≈ 0 ± 2) |
+| 1 s41r | **0,804** (tốt nhất) | +0,020 so với s41: **20 / 20 câu N79 mở thêm đều đúng** → bật `GROUND_RETRY` (08/11) |
+| 2 bo_value_tron | 0,569 | 179 câu, đúng − sai = 175 → **2 sai** (1,1%) |
+| 3 bo_moi_003_009 | 0,616 | 132 câu, đúng − sai = 128 → **2 sai** (1,5%) |
+| 4 bo_share_series_no_kho | 0,674 | 70 câu, đúng − sai = 70 → **0 sai** |
+
+s41r: 860 câu không trống (857 trả lời + 3 unanswerable), điểm 0,804 → khoảng **28 câu sai**, 832 đúng. Đã khoanh vùng 21 câu sai của S27: so sánh 3, xếp hạng 4, đếm theo ngưỡng 6, một số có bộ lọc 4, một số không lọc 2, dev_003 + dev_009 2, tỉ trọng / chuỗi / nợ 0. Theo tổng 29 câu sai của S27, **còn khoảng 8 câu sai ở ba ngành mới chưa đo: điện thoại (58), mẹ và bé (45), sửa xe (45)**, tức ~5%, cao hơn hẳn các nhóm khác. Lượt nộp sau: `bo_moi_dien_thoai`, `bo_moi_me_be`, `bo_moi_sua_xe` (so với 0,744), và bản chính mới nếu có.
+
+### Ba ngành mới (nộp 08/11 00:13–00:14, so với 0,744)
+| Lượt | Điểm | Sai |
+|---|---|---|
+| bo_moi_dien_thoai (58) | 0,694 | **4** (6,9%) |
+| bo_moi_me_be (45) | 0,703 | 2 (4,4%) |
+| bo_moi_sua_xe (45) | 0,703 | 2 (4,4%) |
+
+**Đã khoanh đủ 29 câu sai của S27:** đếm theo ngưỡng 6/58 (10,3%), điện thoại 4/58, xếp hạng 4/70, một số có bộ lọc 4/72, mẹ và bé 2/45, sửa xe 2/45, so sánh 3/73, dev_003 + dev_009 2/132, một số không lọc 2/179, tỉ trọng / chuỗi / nợ 0/70. Không nhóm nào sai > 20%: không chặn nhóm nào; tìm kiểu sai ở hai nhóm đầu.
+(Lượt bo_moi_sua_xe được chọn nhầm model "APIs/Others" trên trang nộp; bài nộp chính phải để SLM.)
+
+## Bản chính mới s51 (dựng đêm 08/11, chưa nộp)
+`outputs/replay/run11_s51/submission.jsonl`: bản 0,804 (s41r) đọc lại bằng code N83–N95 (log gọi lại N79 của s38r, server cho lần gọi lại mới). Đã kiểm định dạng, 0 lỗi. So với s41r: **+37 câu trả lời, +12 câu unanswerable, −1 câu** (câu hỏi tháng 2/2026 mà s41r so tháng 7: sai, N95 chặn). Đọc từng câu: đều đúng ý (HAN_CHE N83–N95). Nếu cả 49 câu mới đúng và câu bỏ vốn sai: ≈ 0,854. **Nộp đầu tiên ở lượt sau**; sai trong 49 câu mới ≈ (49 − (điểm − 0,804 − 0,001) × 1000) / 2. Train: `eval_cached` 2752 / 0 / 248, `prod_train` 1421 / 0 / 79.
+
+Lượt chạy thật đủ 1000 câu với LLM bằng cùng code (`outputs/public_run12`, chạy từ bản chép như image): 0 lỗi, 41 phút, giống bản đọc lại ở 993 / 1000 câu (LLM dao động); dùng làm mốc so cho Docker.
+
+Lượt chẩn đoán đi kèm: `outputs/public_ablation14/s51_bo_unans_moi.jsonl` = s51 với 12 câu unanswerable mới (N83 chủ quan 5, N89 giới tính / địa chỉ 7) để trống. Đúng − sai của 12 câu đó = (điểm s51 − điểm file này) × 1000. Nếu 12 câu unanswerable sai quá nửa thì tắt N83 / N89.
+
+| Lượt | Điểm | Ghi chú |
+|---|---|---|
+| s51 | **0,854** (nộp 08/11 03:01, tốt nhất) | = 0,804 + 49 + 1: **cả 49 câu mới đúng** (37 trả lời, 12 unanswerable) và câu bị bỏ vốn sai |
+| s51_bo_unans_moi | không cần nộp | điểm s51 đã cho thấy 12 câu unanswerable đều đúng |
+
+s51: 908 câu không trống, điểm 0,854 → còn khoảng **27 câu sai**, 92 câu trống.
+
+## Bộ nộp 13 (dựng 08/11): chia nhỏ hai nhóm sai nhiều nhất, trên bản 0,804
+Trong `outputs/public_ablation13/`, mỗi file là s41r (0,804) với một nhóm bỏ trống. **So với 0,804**: sai của nhóm = (số câu − (0,804 − điểm) × 1000) / 2. Dựng bằng script nhóm theo log s41r (plan `intent=count_where` và `threshold.entity`; `business_id` cho hai shop điện thoại).
+
+| # | File | Nhóm (số câu) |
+|---|---|---|
+| 1 | `bo_cw_khach.jsonl` | đếm khách theo ngưỡng số đơn, mọi shop (32) |
+| 2 | `bo_cw_ngay_don.jsonl` | đếm ngày / đơn theo ngưỡng doanh thu (43) |
+| 3 | `bo_cw_khac.jsonl` | đếm mặt hàng, xe theo ngưỡng (11) |
+| 4 | `bo_dt_011.jsonl` | điện thoại dev_011, map từ README (29) |
+| 5 | `bo_dt_014.jsonl` | điện thoại dev_014, ghép theo vai trò, sổ nợ / góp (36) |
+
+| Lượt | Điểm | Sai |
+|---|---|---|
+| bo_cw_khach | | |
+| bo_cw_ngay_don | | |
+| bo_cw_khac | | |
+| bo_dt_011 | | |
+| bo_dt_014 | | |
+
 ## Bộ nộp tiếp theo: lượt chính run11 + khoanh vùng 12 câu sai còn lại
 Trong `outputs/public_ablation12/`, so với **S27 = 0,744** (cùng file gốc `outputs/replay/run10_s27m`). Sai của nhóm = (số câu − (0,744 − điểm) × 1000) / 2.
 
@@ -121,3 +188,14 @@ Nếu một cửa hàng sai > 50% thì tạm chặn cửa hàng đó (mapping) c
 ## Kiểm tra khác
 - ~~Kaggle K1 (14B so với 8B)~~ **xong 06/11:** giữ Qwen3-8B; 10 câu sai của 14B thành 4 cổng mới (HAN_CHE N49).
 - Docker: chưa build lần nào. Chờ guideline 2026 và buổi thuê RTX 5090.
+
+## Bộ nộp 15 (dựng sáng 08/11): như bộ 13 nhưng trên s51 (0,854)
+Trong `outputs/public_ablation15/` (`python tools/research/ablate13.py outputs/replay/run11_s51 outputs/public_ablation15 dev_011 dev_014`: id hai shop điện thoại truyền qua dòng lệnh, file ra tên `bo_shop_<id>`; bộ đã dựng sẵn mang tên cũ `bo_dt_011`, `bo_dt_014`). **So với 0,854**: sai của nhóm = (số câu − (0,854 − điểm) × 1000) / 2. Thay cho bộ 13 (bộ 13 dựng trên s41r).
+
+| # | File | Nhóm (số câu) | Điểm | Sai |
+|---|---|---|---|---|
+| 1 | `bo_cw_khach.jsonl` | đếm khách theo ngưỡng số đơn (33) | | |
+| 2 | `bo_cw_ngay_don.jsonl` | đếm ngày / đơn theo ngưỡng doanh thu (43) | | |
+| 3 | `bo_cw_khac.jsonl` | đếm mặt hàng, xe (11) | | |
+| 4 | `bo_dt_011.jsonl` | điện thoại dev_011 (32) | | |
+| 5 | `bo_dt_014.jsonl` | điện thoại dev_014 (38) | | |

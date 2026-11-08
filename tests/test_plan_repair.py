@@ -77,7 +77,7 @@ def test_a_plan_the_gates_refuse_is_asked_again_with_the_parts_they_refused():
     """N79: a shift filter the question never states (run11 07/11, "tuần này quán bán được mấy đơn" read with
     shift = afternoon); the second call, shown "shift=afternoon", drops it. A second plan refused too stays refused."""
     import datamate.nlu as nlu_module
-    old, nlu_module.GROUND_RETRY = nlu_module.GROUND_RETRY, True  # off by default until measured on train
+    old, nlu_module.GROUND_RETRY = nlu_module.GROUND_RETRY, True  # on by default since 08/11; set here all the same
     shifted = {"intent": "value", "period": {"kind": "this_week"},
                "measures": [{"metric": "order_count", "filters": [{"field": "shift", "value": "afternoon"}]}]}
     plain = {"intent": "value", "period": {"kind": "this_week"}, "measures": [{"metric": "order_count"}]}

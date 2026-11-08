@@ -3,7 +3,7 @@ from pathlib import Path
 
 from datamate.contracts import ColumnMap, Mapping, RawBusiness, TableMap
 from datamate.mapping import build_canonical
-from datamate.mapping.from_readme import with_side_tables
+from datamate.mapping.from_readme import UNKEYED, with_side_tables
 
 from test_mapping_readme import section, table
 
@@ -43,4 +43,8 @@ def test_receipts_keyed_by_code_are_translated_into_the_lines_names():
 
 def test_receipts_of_products_the_lines_never_name_stay_out():
     m = with_side_tables(moved(), shop(receipt_codes=("SP7", "SP8")))  # codes the sales file does not know
-    assert "purchases" not in {t.target for t in m.tables}
+    # N94 (08/11): borrowed without its products (no receipt can land on a wrong product), for the period's totals
+    tm = next((t for t in m.tables if t.target == "purchases"), None)
+    assert tm is not None
+    key = next(c for c in tm.columns if c.target == "product_key")
+    assert key.const == UNKEYED and key.source is None

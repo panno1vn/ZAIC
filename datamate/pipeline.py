@@ -19,7 +19,9 @@ from datamate.contracts import (BusinessProfile, CanonicalDB, DataCard, Mapping,
                                 ResolvedPlan, SubmissionLine)
 from datamate.llm import LLMClient
 from datamate.nlu import twins
-from datamate.output import SubmissionWriter, TimeGuard, write_log
+from datamate.nlu.grounding import customer_trait_not_recorded
+from datamate.verify import NOT_RECORDED_REASON
+from datamate.output import SubmissionWriter, TimeGuard, append_log, write_log
 
 
 MapFn = Callable[[RawBusiness, BusinessProfile, str, "LLMClient | None"], Mapping]
@@ -148,6 +150,10 @@ def answer_question(q: dict, ctx: BusinessContext, calendar: Path, rule_status: 
         log["reader"] = "llm+baseline" if reader is not None else "baseline"
         reading: dict = {}  # how the reading went: the LLM's raw output, why a plan was not used (counted by run_stats)
         plan = nlu.parse_question(q["question"], as_of, ctx.card, reader, exclude_examples, trace=reading)
+        if ctx.raw is not None and customer_trait_not_recorded(q["question"], ctx.raw.readme or ""):
+            # N89: the customers' gender or street, which this shop does not record: unanswerable (§7)
+            reading["not_recorded"] = True
+            plan = QueryPlan(intent="out_of_scope", out_of_scope_reason=NOT_RECORDED_REASON)
         log["plan"] = plan
         log["reading"] = reading
         resolved: ResolvedPlan | None = temporal.resolve(plan, as_of, calendar, ctx.db) if plan is not None else None
@@ -181,7 +187,26 @@ def answer_question(q: dict, ctx: BusinessContext, calendar: Path, rule_status: 
         line = SubmissionLine.abstain(q["id"])
         log["error"] = traceback.format_exc()
     log["answer"] = line.to_dict()
+    log.update(audit_fields(log, ctx))
     return line, log
+
+
+def audit_fields(log: dict, ctx: "BusinessContext") -> dict:
+    """Docker guideline 2026 §3.3, per question: `thinking` is null (the LLM is called with Qwen3's thinking turned
+    off, LlamaServerLLM: no reasoning is generated; its structured output, the plan, is logged under `reading`);
+    a figure computed by a packaged function records `code` (source file::function), its actual `inputs` (the shop's
+    folder and the resolved plan: period, measures, filters, the names linked to the data) and its `output`."""
+    out: dict = {"thinking": None}
+    result = log.get("result")
+    if result is not None:
+        module, _, fn = result.function.partition(".")
+        out["code"] = f"datamate/metrics/{module}.py::{fn}"
+        out["inputs"] = {"data_dir": str(ctx.raw.root) if ctx.raw is not None else None,
+                         "plan": log.get("resolved")}
+        out["output"] = result.value
+    else:
+        out.update({"code": None, "output": None})
+    return out
 
 
 def run(data_dir: Path, out_dir: Path, config: RunConfig | None = None, llm: LLMClient | None = None) -> RunSummary:
@@ -202,6 +227,8 @@ def run(data_dir: Path, out_dir: Path, config: RunConfig | None = None, llm: LLM
         if config.write_logs:
             try:
                 write_log(log_dir, name, record)
+                if not name.startswith("_business_"):
+                    append_log(log_dir, record)  # guideline §3.3: one line per question in logs/questions.jsonl
             except Exception:  # a log that cannot be written must never cost an answer
                 pass
 
@@ -215,17 +242,22 @@ def run(data_dir: Path, out_dir: Path, config: RunConfig | None = None, llm: LLM
                     ctx = prepare_business(business_dir(split_dir, business_id), rulebook, llm, config.map_fn)
                 except Exception:
                     ctx = BusinessContext(None, None, Mapping(), CanonicalDB(), DataCard(), error=traceback.format_exc())
+                prep_ms = round((time.perf_counter() - t0) * 1000)
                 log(f"_business_{business_id}", {
                     "business_id": business_id, "mapping": ctx.mapping, "warnings": ctx.db.warnings,
-                    "error": ctx.error, "elapsed_ms": round((time.perf_counter() - t0) * 1000)})
-                for q in qs:
+                    "error": ctx.error, "elapsed_ms": prep_ms})
+                for i, q in enumerate(qs):
                     if guard.expired():
                         break
                     t1 = time.perf_counter()
                     excluded = config.exclude_examples(q) if config.exclude_examples else frozenset()
                     line, record = answer_question(q, ctx, split_dir / "calendar.csv", rule_status, rulebook, llm,
                                                    config.twin_threshold, excluded)
-                    record["elapsed_ms"] = round((time.perf_counter() - t1) * 1000)
+                    # guideline §3.3 "including data reads": the shop's files are read and mapped once, before its
+                    # first question, so that question's time includes them (business_prep_ms says how much)
+                    record["elapsed_ms"] = round((time.perf_counter() - t1) * 1000) + (prep_ms if i == 0 else 0)
+                    if i == 0:
+                        record["business_prep_ms"] = prep_ms
                     try:
                         written = writer.write(line)
                     except Exception:  # an answer that cannot be written costs that answer, never the rest of the run
@@ -244,6 +276,7 @@ def run(data_dir: Path, out_dir: Path, config: RunConfig | None = None, llm: LLM
                     summary.types["abstain"] += 1
                     summary.timed_out += 1
                     log(q["id"], {"id": q["id"], "answer": {"id": q["id"], "type": "abstain"},
-                                  "decision": "abstain: hết thời gian hoặc không chạy tới", "elapsed_ms": 0})
+                                  "decision": "abstain: hết thời gian hoặc không chạy tới", "elapsed_ms": 0,
+                                  "thinking": None, "code": None, "output": None})
     summary.elapsed_s = guard.elapsed()
     return summary

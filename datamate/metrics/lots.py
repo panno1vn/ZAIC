@@ -28,6 +28,7 @@ from .stock import R_NAMES, R_TODAY, _one_product, stock_base_qty
 R_EXPIRING = ("§6.nha_thuoc.hang_het_han_trong_n_ngay_toi",) + R_TODAY
 R_NEAREST = ("§6.nha_thuoc.lo_gan_het_han_nhat_cua_mot_thuoc",) + R_TODAY
 R_OUT = ("§5.mat_hang_het_hang_cuoi_ngay", "§2.den_het_ngay_x_tinh_den_hom_nay") + R_TODAY
+R_STOCK_VALUE = ("§5.gia_tri_hang_ton_kho", "§2.den_het_ngay_x_tinh_den_hom_nay") + R_TODAY
 REQ_LOTS = ("lots.lot_id", "lots.product_key", "lots.expiry_date", "lots.base_qty_in", "lot_sales.lot_id",
             "lot_sales.base_qty", "orders.order_time")
 
@@ -143,12 +144,43 @@ def _result(plan: ResolvedPlan, value, rules: tuple[str, ...], requires: tuple[s
                       rule_ids=sorted(set(rules + R_NAMES)), requires=sorted(set(requires)))
 
 
+def _no_window(plan: ResolvedPlan) -> bool:
+    """A period that only names the day the stock is read at (today, "đến hết ngày X"): no expiry window."""
+    p = plan.plan.period
+    return p is None or p.kind in ("today", "until")
+
+
+def stock_value_by_catalogue(db: CanonicalDB, day: date) -> float | None:
+    """§5 "giá trị hàng tồn kho": each product's stock at the end of the day (stock_base_qty, base units) times the
+    cost of one base unit the catalogue writes; goods still in stock only. Train: both answers of the shops whose
+    mapping has the catalogue and the stock, to the đồng (one mapped by transfer, one by hand). None when a product in
+    stock has no cost, or a stock cannot be read or is negative."""
+    inv, products = db.table("inventory"), db.table("products")
+    if inv is None or products is None or "unit_cost" not in products.columns:
+        return None
+    seen = inv[pd.to_datetime(inv["as_of"], errors="coerce").dt.date <= day]
+    keys = sorted(seen["product_key"].dropna().astype(str).unique())
+    left = {k: stock_base_qty(db, k, day) for k in keys}
+    if not keys or any(v is None or v < 0 for v in left.values()):
+        return None
+    catalogue = products.dropna(subset=["product_key"]).assign(key=lambda d: d["product_key"].astype(str))
+    cost = catalogue.drop_duplicates("key").set_index("key")["unit_cost"]
+    held = {k: v for k, v in left.items() if v > 0}
+    if any(k not in cost.index or pd.isna(cost[k]) for k in held):
+        return None
+    return money(float(sum(v * float(cost[k]) for k, v in held.items())))
+
+
 # ---------------------------------------------------------------- one figure
 def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     ms = plan.plan.measures
     if len(ms) != 1:
         return None
     m, day = ms[0], _today(plan)
+    if m.metric == "stock_value" and not m.filters and _no_window(plan):
+        value = stock_value_by_catalogue(db, day)
+        return _result(plan, value, R_STOCK_VALUE, ("inventory.base_qty", "inventory.as_of", "products.unit_cost"),
+                       "stock_value_by_catalogue")
     if m.metric == "nearest_expiry":
         # §6 "lô gần hết hạn nhất của một thuốc: trong các lô còn tồn chưa quá hạn tại hôm nay, lô có hạn sớm nhất"
         product = _one_product(m, plan.linked)
@@ -235,10 +267,12 @@ def _names(db: CanonicalDB) -> dict[str, str]:
 metric("value", "nearest_expiry", requires=REQ_LOTS, rules=tuple(sorted(set(R_NEAREST + R_NAMES))),
        filters=("product",))(value_of)
 for _name in ("expiring_value", "stock_value"):
-    # stock_value: the LLM's word for "tiền vốn của các lô hết hạn từ … đến …"; without an expiry window (§5 "giá trị
-    # hàng tồn kho" by the catalogue's cost) there is no figure here
-    metric("value", _name, requires=REQ_LOTS + ("lots.unit_cost",), rules=tuple(sorted(set(R_EXPIRING + R_NAMES))),
-           filters=("expiry_within_days",))(value_of)
+    # stock_value: the LLM's word for "tiền vốn của các lô hết hạn từ … đến …"; with no filter and no window, §5 "giá
+    # trị hàng tồn kho" by the catalogue's cost (stock_value_by_catalogue, any shop with stock records)
+    extra = R_STOCK_VALUE if _name == "stock_value" else ()  # [R] checks the rows a function may cite (08/11: the
+    # catalogue value cited §5 "giá trị hàng tồn kho" while no registered metric did, so the rule gate refused it)
+    metric("value", _name, requires=REQ_LOTS + ("lots.unit_cost",),
+           rules=tuple(sorted(set(R_EXPIRING + R_NAMES + extra))), filters=("expiry_within_days",))(value_of)
 metric("list_items", "expiring_within", entity="product", requires=REQ_LOTS,
        rules=tuple(sorted(set(R_EXPIRING + R_NAMES))))(expiring)
 metric("list_items", "out_of_stock_end_of_day", entity="product", requires=("inventory.base_qty", "inventory.as_of"),

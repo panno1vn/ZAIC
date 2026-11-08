@@ -4,24 +4,38 @@ Hệ trả lời câu hỏi tiếng Việt về dữ liệu kinh doanh của c�
 
 ## Chạy
 
+Lệnh chấm của BTC (Docker guideline 2026 §10), không tham số, không mạng, `/data` chỉ đọc:
+
 ```bash
-docker run --rm --gpus all --network none \
-  -v /đường/dẫn/test:/data:ro -v /đường/dẫn/kết_quả:/result zaic-datamate:v1
+docker run --rm --gpus '"device=0,1"' --network none --shm-size=16g --entrypoint bash   -v /path/to/test:/data:ro -v /path/to/output:/result zaic2026_datamate_<team>:final /code/predict.sh
 ```
 
-- **`/data`**: thư mục của một split, gồm `questions.jsonl`, `rulebook.md`, `calendar.csv`, `data/<business_id>/`. Nếu đưa vào thư mục cha chứa đúng một split thì hệ cũng tự tìm thấy.
-- **`/result/submission.jsonl`**: mỗi câu hỏi một dòng, đúng định dạng của đề (`number`, `percent`, `string`, `date`, `boolean`, `list`, `table`, `unanswerable`, `abstain`).
-- **`/result/logs/`**: mỗi câu hỏi một file `<id>.json`, gồm:
-  - câu hỏi;
-  - plan đọc được từ câu hỏi;
-  - kỳ đã quy ra ngày;
-  - hàm và số liệu dùng để tính;
-  - các cổng kiểm tra;
-  - quyết định và đáp án cuối;
-  - thời gian chạy (`elapsed_ms`).
+- **`/data`**: một split: `questions.jsonl`, `rulebook.md`, `calendar.csv`, `data/<business_id>/`. Đưa thư mục cha chứa đúng một split cũng được.
+- **`/result/submission.jsonl`**: mỗi câu một dòng, ghi ngay khi có đáp án (dừng giữa chừng thì các câu đã ghi vẫn được chấm), đúng định dạng của đề.
+- **`/result/logs/`** (guideline §3.3): mỗi câu một bản ghi trên một dòng, vừa ở file `<id>.json` vừa ở `questions.jsonl`, với:
+  - `id`, `answer` (dòng đáp án cuối), `elapsed_ms` (từ lúc bắt đầu câu tới đáp án; câu đầu tiên của mỗi cửa hàng gồm cả thời gian đọc và map dữ liệu cửa hàng, ghi riêng ở `business_prep_ms`);
+  - `thinking`: `null`, vì Qwen3 được gọi với chế độ suy nghĩ tắt (`enable_thinking: false`), không sinh suy luận; đầu ra có cấu trúc của mỗi lần gọi LLM (plan JSON) nằm ở `reading.llm_raw` (và `reading.llm_raw_retry` nếu gọi lại);
+  - câu tính bằng hàm có sẵn: `code` (`datamate/metrics/<module>.py::<hàm>`), `inputs` (thư mục cửa hàng và plan đã giải: kỳ, chỉ số, bộ lọc, tên đã nối vào dữ liệu), `output` (giá trị hàm trả). Không sinh code tự do;
+  - thêm: câu hỏi, plan, các cổng kiểm tra, quyết định.
 
-  Mỗi cửa hàng có thêm một file `_business_<id>.json`, ghi mapping dùng cho cửa hàng đó và kết quả các bước kiểm tra. Ngoài ra có `llama_server.log`.
-- `predict.sh` mở `llama-server` trên GPU đầu tiên, trả lời mọi câu hỏi, rồi tắt server. Nếu server không lên, hệ chạy riêng bộ đọc câu bằng luật nên vẫn ra file nộp, chỉ ít câu trả lời hơn. Ngân sách thời gian là 5,5 giờ (`configs/default.json`), tính từ lúc tiến trình bắt đầu, kể cả thời gian nạp model. Hết giờ thì các câu còn lại được ghi `abstain`.
+  Mỗi cửa hàng có thêm `_business_<id>.json` (mapping dùng cho cửa hàng và kết quả kiểm tra); `llama_server.log` là log của server.
+- `predict.sh` (thiết lập cố định, BTC không cần sửa): model `/code/models/model.gguf`, một GPU (card đầu tiên được cấp), giải mã tham lam, seed 0, một slot, tắt suy nghĩ. Nếu server không lên thì chạy riêng bộ đọc câu bằng luật nên vẫn ra file nộp. Ngân sách 5,5 giờ (`configs/default.json`) tính từ lúc bắt đầu, kể cả nạp model; hết giờ thì các câu còn lại ghi `abstain`. In ra `Model load time`, `Prediction time`, `Total time`.
+- Thời gian đo được: public 1000 câu ≈ 41 phút trên laptop (≈ 2,5 giây/câu, nạp model < 1 phút); 500 câu private ước ≈ 21 phút.
+
+## Bố cục trong image
+
+| Đường dẫn | Nội dung |
+|---|---|
+| `/code/predict.sh` | điểm vào |
+| `/code/README.md` | file này |
+| `/code/requirements.txt` | thư viện Python (đã cài) |
+| `/code/datamate/` | mã suy luận (đọc file, mapping, đọc câu, hàm tính, kiểm tra, định dạng) |
+| `/code/assets/` | tài sản dựng từ train mà mã suy luận đọc (kho plan ví dụ, mapping mẫu, từ đồng nghĩa, luật tham chiếu) |
+| `/code/configs/` | thiết lập chạy |
+| `/code/models/model.gguf` | trọng số Qwen3-8B Q4_K_M |
+| `/code/llama/` | `llama-server` (llama.cpp b12064, build cho sm_120) |
+| `/code/tools/` | công cụ phát triển (đo, dựng tài sản) |
+| `/code/training_code/` | dữ liệu train, đầu ra LLM đã dùng, mã dựng tài sản, log, `data_manifest.json` (xem README trong đó) |
 
 ## Phương pháp
 
@@ -65,15 +79,23 @@ Code không có logic theo id cửa hàng hay id câu hỏi. Điều này có te
 
 ## Model và giấy phép
 
-| Thành phần | Giấy phép |
+| Model | Nguồn | Phát hành | Giấy phép | Tham số |
+|---|---|---|---|---|
+| Qwen3-8B, bản lượng tử GGUF Q4_K_M (`Qwen3-8B-Q4_K_M.gguf`) → `/code/models/model.gguf` | https://huggingface.co/Qwen/Qwen3-8B-GGUF, revision: `<ghi commit khi tải>`, SHA-256 file: `<ghi khi tải>` | 29/04/2025 (Qwen3) | Apache-2.0 | 8,2 tỉ (một model duy nhất, không MoE, không model phụ) |
+
+Không tinh chỉnh; dùng nguyên bản phát hành. Tổng tham số mọi model suy luận: 8,2 tỉ ≤ 15 tỉ.
+
+| Thành phần khác | Giấy phép |
 |---|---|
-| Qwen3-8B (GGUF Q4_K_M), `/models/model.gguf` | Apache-2.0 |
-| llama.cpp `llama-server` (tag b12064, build cho sm_120) | MIT |
+| llama.cpp `llama-server` (tag b12064) | MIT |
 | numpy, pandas | BSD-3-Clause |
-| openpyxl | MIT |
-| python-calamine | MIT |
-| pydantic | MIT |
-| rapidfuzz | MIT |
+| openpyxl, python-calamine, pydantic, rapidfuzz | MIT |
 | rank-bm25 | Apache-2.0 |
+
+## Dữ liệu
+
+- Chỉ dùng dữ liệu train BTC phát hành (30 cửa hàng, 3000 câu có đáp án) và model công khai ở trên. Không dùng dữ liệu public / private test để dựng gì (chỉ đọc lời văn rulebook public làm bản luật tham chiếu, không đáp án nào).
+- Không có tập validation tách riêng: các hàm và luật được kiểm trên chính train (`training_code/README.md`): mã cuối đúng 2752, sai 0, bỏ trống 248 trên 3000 câu.
+- Chi tiết, lệnh dựng lại và checksum: `/code/training_code/README.md`, `/code/training_code/data_manifest.json`.
 
 Không gọi dịch vụ ngoài nào. Container chạy được với `--network none`.

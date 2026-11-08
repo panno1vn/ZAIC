@@ -40,6 +40,10 @@ def coverage(period: ResolvedPeriod | None, span: tuple[date, date] | None) -> s
 
 # §7 rows the "period wholly outside the shop's data: unanswerable" decision relies on (N28)
 R_OUTSIDE = ("§7.p_cau_khong_tra_loi_duoc_khi", "§7.p_khong_co_du_lieu_khac_voi")
+# N83: the reason nlu writes on an out-of-scope plan it made itself for a quality the data does not record
+SUBJECTIVE_REASON = "câu hỏi phẩm chất người / nhà cung cấp: dữ liệu không ghi (§7)"
+NOT_RECORDED_REASON = "cửa hàng không ghi giới tính / địa chỉ khách (§7)"  # N89, set by the pipeline from the README
+OWN_REASONS = frozenset({SUBJECTIVE_REASON, NOT_RECORDED_REASON})
 
 
 # tables without their own dates take the span of the table that dates them
@@ -100,7 +104,9 @@ def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: Ca
     s.intent_known = True
     s.out_of_scope = p.intent == "out_of_scope"
     if s.out_of_scope and question and all(rules.get(r, False) for r in R_OUTSIDE):
-        s.subjective = not _TIME.search(_fold(question))
+        # N83: nlu's own reading of a quality question is unanswerable with or without a time ("khách thân thiện
+        # nhất tháng 12/2025"); the LLM's out-of-scope reading only without one (N37)
+        s.subjective = p.out_of_scope_reason in OWN_REASONS or not _TIME.search(_fold(question))
     measures = list(p.measures) + ([p.share_of] if p.share_of else [])
     filters = [f for m in measures for f in m.filters] + list((p.compare.filters or []) if p.compare else [])
     linkable = [k for f in filters if f.field in LINKED_FIELDS for k in filter_keys(f)]
