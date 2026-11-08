@@ -59,7 +59,17 @@ def test_a_column_the_mapping_reads_is_kept_and_a_name_key_is_no_code_to_look_up
     m = enrich(base, shop())
     orders = cols(m, "orders")
     assert orders["payment_method"].source == "TT"  # what the mapping read stays
-    assert "customer_group" not in orders  # orders keyed by name: the customer list's code cannot be matched
+    # N105: §3 "Shop có mã khách: mỗi mã khách là một khách": the name key gives way to the code the orders carry,
+    # the name stays as the customer's name, and the customer list's group is then read by that code
+    assert orders["customer_key"].source == "Mã KH" and orders["customer_name"].source == "Tên KH"
+    assert orders["customer_group"].args["key"] == "Mã KH"
+
+
+def test_a_name_key_stays_where_the_orders_carry_no_code():
+    raw = shop()
+    raw.readme = raw.readme.replace("- **Mã KH**: mã khách (trống nếu khách lẻ)\n", "")
+    m = enrich(moved(customer_key="Tên KH"), raw)
+    assert cols(m, "orders")["customer_key"].source == "Tên KH"
 
 
 LINES = {"Mã HĐ": "mã đơn", "Mã hàng": "mã hàng", "SL": "số lượng", "Tiền": "thành tiền sau giảm"}
@@ -205,3 +215,45 @@ def test_the_readme_base_quantity_column_is_the_base_quantity_not_the_line_quant
         cm("order_id", "Số CT"), cm("qty", "Quy ra ĐV lẻ"), cm("unit", "ĐV tính")])])
     lines = cols(enrich(m, raw), "lines")
     assert lines["qty"].source == "S.L" and lines["base_qty"].source == "Quy ra ĐV lẻ"
+
+
+# N107 (08/11): the catalogue and the stock list keyed by the product name where the lines are read by the name
+
+SALES = {"Mã bill": "mã đơn", "Mặt hàng": "tên hàng", "Mã vạch": "mã hàng", "SL": "số lượng", "Tiền": "thành tiền"}
+CATALOGUE = {"Hàng bán": "tên hàng", "Mã SKU": "mã hàng", "ĐVT": "đơn vị cơ bản", "Giá vốn": "giá vốn",
+             "Tồn cuối": "tồn kho (đơn vị cơ bản)", "Nhóm": "nhóm hàng"}
+
+
+def restaurant() -> RawBusiness:
+    readme = section("hd.csv", SALES) + section("dm.csv", CATALOGUE)
+    return RawBusiness(root=Path("."), readme=readme, tables=[
+        table("hd.csv", [("B1", "Bia Tiger lon", "SP1", 2, 44_000)], list(SALES)),
+        table("dm.csv", [("Bia Tiger lon", "SP1", "lon", "16,004", 150, "bia"),
+                         ("Phí phục vụ", "SP2", "lần", "0", None, "khác")], list(CATALOGUE))])
+
+
+def test_the_catalogue_is_keyed_by_the_name_the_lines_use():
+    from datamate.mapping.from_readme import _catalogue_by_name
+    cat = _catalogue_by_name(restaurant(), {"hd.csv"})
+    src = {c.target: (c.source, c.parse) for c in cat.columns}
+    assert cat.target == "products" and cat.sources == ["dm.csv"]
+    assert src["product_key"][0] == "Hàng bán" and src["base_unit"][0] == "ĐVT" and src["unit_cost"] == ("Giá vốn", "money")
+    assert _catalogue_by_name(restaurant(), {"hd.csv", "dm.csv"}) is None  # a table the mapping reads already
+
+
+def test_a_side_table_keyed_by_code_is_keyed_by_its_name_column():
+    from datamate.mapping.from_readme import _keyed_by_name
+    cm = lambda t, s: ColumnMap(target=t, source=s)  # noqa: E731
+    stock = TableMap(target="inventory", sources=["dm.csv"], columns=[cm("product_key", "Mã SKU"), cm("base_qty", "Tồn cuối")])
+    named = _keyed_by_name(stock, restaurant())
+    assert {c.target: c.source for c in named.columns}["product_key"] == "Hàng bán"
+
+
+def test_a_service_fee_without_stock_is_no_stock_row():
+    from datamate.mapping.build import build_canonical
+    cm = lambda t, s, p="text": ColumnMap(target=t, source=s, parse=p)  # noqa: E731
+    m = Mapping(tables=[TableMap(target="inventory", sources=["dm.csv"], columns=[
+        cm("product_key", "Hàng bán"), cm("base_qty", "Tồn cuối", "qty"),
+        ColumnMap(target="as_of", parse="date", const="2026-06-30")])])
+    inv = build_canonical(restaurant(), m).tables["inventory"]
+    assert inv["product_key"].tolist() == ["Bia Tiger lon"]

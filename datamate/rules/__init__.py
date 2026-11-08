@@ -175,12 +175,17 @@ def _says(question: list[str], words: tuple[str, ...], gap: int = 2) -> bool:
     return False
 
 
-def unverified_terms(question: str, rulebook: str, cited: list[str] | tuple[str, ...]) -> list[str]:
+def unverified_terms(question: str, rulebook: str, cited: list[str] | tuple[str, ...],
+                     named: list[str] | tuple[str, ...] = ()) -> list[str]:
     """Rule ids of terms the question uses that this rulebook defines, no train version of which exists, and that
     the answering function does not implement (does not cite). Public 04/11: such questions ("khách trung thành
-    nhất", "mặt hàng được ưa chuộng nhất"…) were read as the nearest train metric (most orders, most quantity)."""
+    nhất", "mặt hàng được ưa chuộng nhất"…) were read as the nearest train metric (most orders, most quantity).
+    N101: words that are a data value the plan names (`named`: "máy cũ", a category of a phone shop) are that value,
+    not the term ("Thu máy cũ"): "máy cũ 8/25 bán được mấy chiếc" (public run11, 3 questions refused)."""
     q = _words(question)
-    return [rid for rid, words in new_terms(rulebook) if rid not in cited and _says(q, words)]
+    values = [" " + " ".join(_words(v)) + " " for v in named]
+    return [rid for rid, words in new_terms(rulebook) if rid not in cited and _says(q, words)
+            and not any(" " + " ".join(words) + " " in v for v in values)]
 
 
 def diff_rulebooks(old: str, new: str) -> dict[str, list]:

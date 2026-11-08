@@ -41,7 +41,12 @@ Metric = Literal[
     "ticket_count", "avg_ticket_value", "vehicle_count", "warranty_count", "warranty_rate", "trade_in_amount",
     "commission",  # hoa hồng nhân viên, thợ theo phần trăm của danh sách nhân viên (README)
     "other",
+    # chỉ do luật viết lại (grounding), không có trong schema gửi LLM (INTERNAL_METRICS)
+    "avg_amount_due", "trade_in_order_count", "due_order_count",
 ]
+# metrics only the grounding rewrites write: nlu.prompt.generation_schema leaves them out, so the reader's grammar
+# (and its cached answers) stay as they are
+INTERNAL_METRICS = frozenset({"avg_amount_due", "trade_in_order_count", "due_order_count"})
 PERCENT_METRICS = frozenset({"cancel_rate", "warranty_rate"})
 DATE_METRICS = frozenset({"nearest_expiry"})
 # measured as the state at the end of a day (§2 "Đến hết ngày X"): [C2] resolves their period in mode stock, from the

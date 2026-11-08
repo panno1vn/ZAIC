@@ -174,7 +174,8 @@ def answer_question(q: dict, ctx: BusinessContext, calendar: Path, rule_status: 
             log["no_result"] = no_result
         signals = verify.collect_signals(resolved, result, ctx.db, ctx.mapping, rule_status, q["question"])
         if result is not None:  # a term only this rulebook defines, which the function does not implement
-            unknown = rules.unverified_terms(q["question"], rulebook, result.rule_ids)
+            unknown = rules.unverified_terms(q["question"], rulebook, result.rule_ids,
+                                             tuple(resolved.linked.values()) if resolved is not None else ())
             signals.terms_known = not unknown
             log["unverified_terms"] = unknown
         if plan is not None and reader is not None:

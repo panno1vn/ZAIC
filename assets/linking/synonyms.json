@@ -14,7 +14,7 @@
     "cash": ["tiền mặt", "tm", "tiền tươi"],
     "transfer": ["chuyển khoản", "ck"],
     "ewallet": ["ví điện tử"],
-    "cod": ["thu hộ"],
+    "cod": ["thu hộ", "xi ô đi", "si ô đi"],
     "debt": ["ghi nợ"],
     "installment": ["trả góp"]
   }

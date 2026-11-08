@@ -60,6 +60,9 @@ TABLES: dict[str, TableSpec] = {
         Col("vehicle_model", "str", doc="dòng xe (sửa xe)"),
         Col("services", "str", doc="các việc đã làm, ngăn bằng ' | ' (sửa xe, ô Làm gì)"),
         Col("note", "str"),
+        Col("debt_left", "float", doc="còn nợ của đơn tính đến hết ngày cuối dữ liệu, khi shop chỉ ghi tình trạng đó "
+            "(README; N100)"),
+        Col("due_date", "date", doc="ngày phải trả của đơn bán chịu có hạn (README: hạn thanh toán; N113)"),
         _SOURCE,
     )),
     "lines": TableSpec("Một dòng mỗi dòng hàng của đơn", (
@@ -170,6 +173,10 @@ class CanonicalDB:
     warnings: list[str] = field(default_factory=list)
     # N38: the topics the README's conventions name ("nhap hang", "cong no"…), folded; None: no conventions section
     conventions: tuple[str, ...] | None = None
+    # N100: the day the orders' debt_left holds (the README's last day of data); debts are known on that day only
+    debt_snapshot_day: date | None = None
+    # N112: the shop's README, for what it records (verify.not_recorded: §7 "shop không ghi loại thông tin")
+    readme: str = ""
 
     def table(self, name: str) -> pd.DataFrame | None:
         df = self.tables.get(name)

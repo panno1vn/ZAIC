@@ -18,6 +18,7 @@ The ten checks of build.py then decide, as for every mapping. Nothing here looks
 from __future__ import annotations
 
 import re
+import unicodedata
 
 import pandas as pd
 
@@ -394,6 +395,43 @@ ORDER_ATTRIBUTES = (("ma nhan vien ban", "employee"), ("hinh thuc thanh toan cua
 DRUG_ATTRIBUTES = (("hoat chat", "active_ingredient", "text"), ("thuoc ke don", "is_prescription", "bool"))
 
 
+# N100: debts a shop records only as the state at the end of its data, said so in the README's conventions:
+#   "**Còn nợ**: **Còn nợ** là số khách còn nợ của đơn, tính đến hết ngày cuối dữ liệu."   (an amount per order)
+#   "**Còn nợ**: ghi chú nợ ở **Note** là tình trạng của đơn tính đến hết ngày cuối dữ liệu." (words per order)
+_LEFT_AMOUNT = re.compile(r"\*\*([^*]+)\*\*\s+là số khách còn nợ của đơn,?\s+tính đến hết ngày cuối dữ liệu")
+_LEFT_NOTE = re.compile(r"ghi chú nợ ở \*\*([^*]+)\*\* là tình trạng của đơn tính đến hết ngày cuối dữ liệu")
+_COLUMN_LINE = re.compile(r"^\s*-\s*\*\*([^*]+)\*\*:\s*(.+)$")
+
+
+def with_debt_snapshot(mapping: Mapping, raw: RawBusiness) -> Mapping:
+    """N100. The orders' debt at the end of the data, where the README says the shop records only that: the amount
+    column as orders.debt_left; or the note column as orders.note (read into debt_left when the data is built,
+    build.debt_snapshot), with the order's amount due (the column the README calls "khách cần trả cho cả đơn") as
+    orders.total_due. Only columns of the orders' own files, and never over a column the mapping already has."""
+    readme = unicodedata.normalize("NFC", raw.readme or "")
+    amount, note = _LEFT_AMOUNT.search(readme), _LEFT_NOTE.search(readme)
+    orders = next((tm for tm in mapping.tables if tm.target == "orders"), None)
+    if orders is None or not (amount or note) or "payments" in {tm.target for tm in mapping.tables}:
+        return mapping
+    cols = {str(c) for f in _frames_of(raw, orders) for c in f.columns}
+    have = {c.target for c in orders.columns}
+    added = []
+    if amount and amount.group(1).strip() in cols and "debt_left" not in have:
+        added.append(_cm("debt_left", amount.group(1).strip(), "money"))
+    if note and note.group(1).strip() in cols and "note" not in have:
+        added.append(_cm("note", note.group(1).strip()))
+        if "total_due" not in have:
+            due = [m.group(1).strip() for line in readme.splitlines() if (m := _COLUMN_LINE.match(line))
+                   and T._fold(m.group(2)).startswith("khach can tra cho ca don") and m.group(1).strip() in cols]
+            if len(set(due)) == 1:
+                added.append(_cm("total_due", due[0], "money"))
+    if not added:
+        return mapping
+    tables = [tm.model_copy(update={"columns": list(tm.columns) + added}) if tm is orders else tm for tm in mapping.tables]
+    return mapping.model_copy(update={"tables": tables, "notes": list(mapping.notes) + [
+        "nợ tình trạng cuối dữ liệu (README): " + ", ".join(f"orders.{c.target}" for c in added)]})
+
+
 FACTOR_MAX = 1000  # base units in one larger unit: a box of 6, a crate of 24, a roll of 100 m; never a price
 
 
@@ -439,8 +477,9 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
     A filter on an attribute the shop does not record still abstains (the frames find no column).
     Then what the README's conventions name for debts and cost (N35, `with_conventions`), and the order's hour from
     the README's "thời điểm đặt đơn" when the mapping read only its day (N73, `with_order_hour`)."""
+    from .named_sides import with_named_sides  # N111: side tables the conventions name, columns read from values
     mapping = with_side_tables(with_order_hour(drop_amount_as_method(with_conventions(mapping, raw), raw), raw), raw)
-    mapping = factor_not_price(mapping, raw)
+    mapping = with_debt_snapshot(factor_not_price(with_named_sides(mapping, raw), raw), raw)
     tables = [t for t in (_Table(ids, phrases_of(raw, ids)) for ids in groups(raw)) if t.phrases]
     if not tables:
         return mapping
@@ -461,6 +500,22 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
                 if target not in have and (c := t.col(phrase)) is not None:
                     add.append(_cm(target, c))
             key = plain_source(tm, "customer_key")
+            code = t.col("ma khach")
+            if key is not None and code is not None and key != code and key == t.col("ten khach"):
+                # N105. §3 "Shop có mã khách: mỗi mã khách là một khách": a mapping keyed on the name where the orders
+                # carry the code too (a public restaurant: 210 codes written under 1223 spellings of names, with and
+                # without the phone number, so each customer counted 4 times): the code is the key, the name its name
+                tm = tm.model_copy(update={"columns": [c for c in tm.columns if c.target not in (
+                    "customer_key", "customer_name")] + [_cm("customer_key", code), _cm("customer_name", key)]})
+                have, key = {c.target for c in tm.columns}, code
+                added.append("orders.customer_key")
+            oid = plain_source(tm, "order_id")
+            dues = _one(others, lambda x: x.has("ma don", "han thanh toan") and not x.has("so luong"))
+            if "due_date" not in have and oid is not None and oid == t.col("ma don") \
+                    and (looked := _lookup("due_date", oid, dues, "ma don", "han thanh toan")) is not None:
+                # N113: the due day of a credit sale, from the README's due-date book ("Ngày phải trả: hạn thanh
+                # toán", by "Mã đơn hàng: mã đơn"; a public building-materials shop, 6 questions)
+                add.append(looked.model_copy(update={"parse": "date"}))
             if "customer_group" not in have | {a.target for a in add} and key is not None and key == t.col("ma khach"):
                 clients = _one(others, lambda x: x.has("ma khach", "nhom khach") and not x.has("ma don"))
                 if (looked := _lookup("customer_group", key, clients, "ma khach", "nhom khach")) is not None:
@@ -580,15 +635,22 @@ def with_side_tables(mapping: Mapping, raw: RawBusiness) -> Mapping:
     used = {s for tm in mapping.tables for s in tm.sources}
     wanted = [tm for tm in readme_mapping.tables
               if tm.target in SIDE_TABLES and tm.target not in have and not set(tm.sources) & used]
-    if not wanted:
+    catalogue = None if "products" in have else _catalogue_by_name(raw, used)
+    if not wanted and catalogue is None:
         return mapping
     core = [tm for tm in mapping.tables if tm.target in ("orders", "lines")]
     borrowed = []
+    if catalogue is not None and _keys_match(catalogue, core, mapping, raw, "product_key", "lines", REKEY_SHARE):
+        borrowed.append(catalogue)
     for tm in wanted:
         key, home, share = SIDE_TABLES[tm.target]
         if _keys_match(tm, core, mapping, raw, key, home, share):
             borrowed.append(tm)
-        elif key == "product_key" and (rekeyed := _rekey_products(tm, mapping, readme_mapping)) is not None                 and _keys_match(rekeyed, core, mapping, raw, key, home, REKEY_SHARE):
+        elif key == "product_key" and (named := _keyed_by_name(tm, raw)) is not None \
+                and _keys_match(named, core, mapping, raw, key, home, REKEY_SHARE):
+            borrowed.append(named)
+        elif key == "product_key" and (rekeyed := _rekey_products(tm, mapping, readme_mapping)) is not None \
+                and _keys_match(rekeyed, core, mapping, raw, key, home, REKEY_SHARE):
             borrowed.append(rekeyed)
         elif tm.target == "purchases" and not have & {"inventory", "lots"}:
             # N94: receipts whose product codes cannot be told in the lines' names (public 08/11: sales lines in two
@@ -608,6 +670,49 @@ def with_side_tables(mapping: Mapping, raw: RawBusiness) -> Mapping:
     out = mapping.model_copy(update={"tables": list(mapping.tables) + kept, "notes": list(mapping.notes) + [
         "bảng phụ từ README: " + ", ".join(tm.target for tm in kept)]})
     return T._settle_constants(out, raw)
+
+
+_NAME_PHRASES = ("ten hang", "ten")
+
+
+def _keyed_by_name(tm: TableMap, raw: RawBusiness) -> TableMap | None:
+    """N107. A side table the README keys by the product code that writes the product's name too, where the mapping
+    keys the lines by the name (two public shops: stock list "Mã SKU: mã hàng" beside "Hàng bán: tên hàng",
+    receipts "Mã vạch" beside "Tên mặt hàng", sales lines read by "Mặt hàng: tên hàng"): keyed by its own name column,
+    which the run merges with the lines' spellings of that name (build.unify_keys). The caller keeps it only when
+    nearly every name is a product the lines sell (REKEY_SHARE)."""
+    t = _one([_Table(ids, phrases_of(raw, ids)) for ids in groups(raw)], lambda x: set(x.ids) == set(tm.sources))
+    key = next((c for c in tm.columns if c.target == "product_key"), None)
+    name = t.first(_NAME_PHRASES) if t is not None else None
+    if name is None or key is None or key.source == name:
+        return None
+    cols = [c.model_copy(update={"source": name, "transform": None, "args": {}}) if c.target == "product_key" else c
+            for c in tm.columns]
+    return tm.model_copy(update={"columns": cols})
+
+
+def _catalogue_by_name(raw: RawBusiness, used: set[str]) -> TableMap | None:
+    """N107. The README's catalogue as the products, keyed by the product's name, for a mapping without one (two
+    public restaurants: "danh mục hàng kèm tồn kho" with "ĐVT: đơn vị cơ bản", "Giá vốn: giá vốn", "Tồn cuối"; "hôm
+    qua bán được mấy lon" and "hàng còn dư trong kho tính theo giá vốn" abstained). Only a list of products (a name, no
+    order code) with their cost or stock; the caller keeps it only when nearly every name is a product the lines
+    sell."""
+    tables = [t for t in (_Table(ids, phrases_of(raw, ids)) for ids in groups(raw)) if not set(t.ids) & used]
+    # a list of every product with its cost or stock, not the conversion list ("Tên sản phẩm: tên hàng (file chỉ có
+    # mặt hàng có đơn vị lớn)", "Đơn vị cơ bản" beside the factor: train pharmacies, 34 questions lost when it was
+    # read as the catalogue)
+    cat = _one(tables, lambda t: t.first(_NAME_PHRASES) is not None and not t.has("ma don")
+               and (t.has("gia von") or t.has("ton kho")) and not t.has("ngay nhap")
+               and not any(p.startswith(("he so", "ty le quy doi", "ti le quy doi", "don vi lon", "don vi quy doi"))
+                           for p in t.by_phrase))
+    if cat is None:
+        return None
+    name = cat.first(_NAME_PHRASES)
+    cols = [_cm("product_key", name), _cm("product_name", name)]
+    cols += [_cm(target, c, parse) for phrase, target, parse in (
+        ("nhom hang", "product_group", "text"), ("don vi co ban", "base_unit", "text"), ("gia von", "unit_cost", "money"))
+        if (c := cat.col(phrase)) is not None]
+    return TableMap(target="products", sources=cat.ids, columns=cols)
 
 
 def _failed_checks(mapping: Mapping, raw: RawBusiness) -> set[str] | None:
@@ -814,9 +919,11 @@ def with_conventions(mapping: Mapping, raw: RawBusiness) -> Mapping:
     have = {c.target for c in orders.columns}
     line_level = {c.source for c in (lines.columns if lines is not None else []) if c.target == "line_amount"}
     due = next((c for c in orders.columns if c.target == "total_due"), None)
-    if due is not None and due.source in line_level and named.get("total_due") in o_cols - line_level:
-        # the order's amount due read from the lines' amount column (a public phone ledger moved from an example, 06/11)
-        # while the README names the order's own column: the README's
+    if due is not None and due.source != named.get("total_due") and named.get("total_due") in o_cols - line_level:
+        # the order's amount due read from another column while the README names the order's own: the README's (a
+        # public phone ledger moved from an example, 06/11: the lines' amount column; N111, train 10/11: a POS moved
+        # from an example by meaning read the goods total "TongTienHang" beside the README's "don_hang.TongThanhToan",
+        # after discount and shipping, and every order paid in full looked owing: 14 debt questions blank)
         orders = orders.model_copy(update={"columns": [c for c in orders.columns if c.target != "total_due"]})
         mapping = mapping.model_copy(update={"tables": [orders if tm.target == "orders" else tm for tm in mapping.tables]})
         have.discard("total_due")

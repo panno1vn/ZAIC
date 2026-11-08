@@ -214,13 +214,15 @@ def expiring(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     """§6 "hàng hết hạn trong N ngày tới": the products with a lot still holding goods whose expiry falls in the
     window, listed by their earliest such expiry, then by code (§9 "liệt kê hàng theo hạn dùng"); or how many."""
     ls, day = plan.plan.list_spec, _today(plan)
-    if ls.entity != "product" or any(m.filters for m in plan.plan.measures):
+    if ls.entity not in ("product", "lot") or any(m.filters for m in plan.plan.measures):
         return None
     window = expiry_window(plan, day, ls.n)
     lots = lots_left(db, day) if window is not None else None
     if lots is None:
         return None
     live = lots[(lots["left"] > 0) & (lots["expiry"] >= window[0]) & (lots["expiry"] <= window[1])]
+    if ls.entity == "lot":  # N99 "mấy lô còn tồn sẽ hết hạn …": the lots themselves, how many
+        return _result(plan, int(live["lot_id"].nunique()), R_EXPIRING, REQ_LOTS, "expiring") if ls.count else None
     first = live.assign(key=live["product_key"].astype(str)).groupby("key")["expiry"].min()
     keys = sorted(first.index, key=lambda k: (first[k], k))
     if ls.count:
@@ -273,7 +275,8 @@ for _name in ("expiring_value", "stock_value"):
     # catalogue value cited §5 "giá trị hàng tồn kho" while no registered metric did, so the rule gate refused it)
     metric("value", _name, requires=REQ_LOTS + ("lots.unit_cost",),
            rules=tuple(sorted(set(R_EXPIRING + R_NAMES + extra))), filters=("expiry_within_days",))(value_of)
-metric("list_items", "expiring_within", entity="product", requires=REQ_LOTS,
-       rules=tuple(sorted(set(R_EXPIRING + R_NAMES))))(expiring)
+for _entity in ("product", "lot"):
+    metric("list_items", "expiring_within", entity=_entity, requires=REQ_LOTS,
+           rules=tuple(sorted(set(R_EXPIRING + R_NAMES))))(expiring)
 metric("list_items", "out_of_stock_end_of_day", entity="product", requires=("inventory.base_qty", "inventory.as_of"),
        rules=tuple(sorted(set(R_OUT + R_NAMES))))(out_of_stock)

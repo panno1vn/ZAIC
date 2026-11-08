@@ -259,3 +259,71 @@ def test_customers_with_an_overdue_instalment():
     assert got.measures[0].metric == "overdue_installment_count" and got.measures[0].filters
     money = "Tại ngày 02/09/2026 khách quá hạn góp bao nhiêu tiền?"
     assert grounding.overdue_customers(money, plan(raw)).measures[0].metric == "debt_amount"
+
+
+def test_months_ranked_over_the_months_listed():
+    """N97: "Th2, th3, th4/2026 tháng nào … nhất" ranked over February alone answered February whatever the data."""
+    raw = {"intent": "rank", "period": {"kind": "month", "year": 2026, "month": 2},
+           "rank": {"entity": "month", "by": "revenue", "k": 1}}
+    got = nlu.accept_plan("Th2, th3, th4/2026 tháng nào tiệm bán được nhiều tiền nhất z?", plan(raw), AS_OF)
+    assert got is not None and got.period.months == ["2026-02", "2026-03", "2026-04"]
+    assert grounding.listed_months("tháng 2, 3 và 4/2026 tháng nào cao nhất") == ["2026-02", "2026-03", "2026-04"]
+    assert nlu.accept_plan("Tháng 2/2026 tháng nào bán nhiều tiền nhất?", plan(raw), AS_OF) is None  # one month
+
+
+def test_a_bound_every_object_passes_is_the_figure():
+    """N98: "Xiaomi Redmi Note 14 tháng này bán được bnhiu chiếc" as products with quantity ≥ 0."""
+    raw = {"intent": "count_where", "period": {"kind": "this_month"},
+           "measures": [{"metric": "quantity", "filters": [{"field": "product_line", "value": "Xiaomi Redmi Note 14"}]}],
+           "threshold": {"entity": "product", "metric": "quantity", "op": "gte", "value": 0}}
+    got = grounding.threshold_as_value("Xiaomi Redmi Note 14 th này bán được bnhiu chiếc?", plan(raw))
+    assert got.intent == "value" and got.measures[0].metric == "quantity" and got.measures[0].filters
+    assert grounding.threshold_as_value("Tháng này có mấy mặt hàng bán được?", plan(raw)).intent == "count_where"
+    members = {"intent": "count_where", "period": MONTH,
+               "threshold": {"entity": "customer", "metric": "new_customer_count", "op": "gte", "value": 1}}
+    got = grounding.threshold_as_value("Số khách thành viên đăng ký mới th 2/26?", plan(members))
+    assert got.intent == "value" and got.measures[0].metric == "new_customer_count"
+
+
+def test_orders_with_an_item_of_the_group_named():
+    raw = {"intent": "count_where", "period": MONTH,
+           "threshold": {"entity": "order", "metric": "order_presence", "op": "gte", "value": 1}}
+    got = grounding.orders_with_group("Trong tháng 2 năm 2026, bao nhiêu đơn có ít nhất một mặt hàng nhóm dùng ngoài?",
+                                      plan(raw))
+    assert got.intent == "value" and got.measures[0].metric == "order_count"
+    assert got.measures[0].filters[0].field == "product_group" and got.measures[0].filters[0].value == "dùng ngoài"
+
+
+def test_a_series_of_months_written_as_category_filters():
+    raw = {"intent": "series", "period": {"kind": "months", "months": ["2026-07", "2026-08", "2026-09"]}, "measures": [
+        {"metric": "revenue", "filters": [{"field": "category", "value": f"th{m}"}]} for m in (7, 8, 9)]}
+    got = grounding.series_months_as_filters("Dthu th7, th8, th9/2026 lần lượt mỗi tháng bao nhiêu z?", plan(raw))
+    assert len(got.measures) == 1 and not got.measures[0].filters
+    assert got.period.months == ["2026-07", "2026-08", "2026-09"]
+
+
+def test_stray_age_and_window_filters():
+    debtors = {"intent": "value", "period": {"kind": "until", "date": "2025-11-16"}, "measures": [
+        {"metric": "debtor_count", "filters": [{"field": "debt_age_days", "op": "not_in", "value": "missing"}]}]}
+    got = grounding.stray_numeric_filters("Đếm các khách còn thiếu tiền đến hết 16/11/2025 được bao nhiêu người?",
+                                          plan(debtors))
+    assert got.measures[0].filters == []
+    lots = {"intent": "value", "period": {"kind": "range", "start": "2026-08-08", "end": "2026-12-06"}, "measures": [
+        {"metric": "stock_value", "filters": [{"field": "expiry_within_days", "op": "eq", "value": 365}]}]}
+    q = "Mấy lô còn tồn có hạn dùng từ 08/08/2026 tới hết 06/12/2026 đang đọng bnhiu tiền vốn?"
+    assert grounding.stray_numeric_filters(q, plan(lots)).measures[0].filters == []
+    kept = "Hàng hết hạn trong 365 ngày tới từ 08/08/2026 tới hết 06/12/2026 còn bao nhiêu tiền vốn?"
+    assert grounding.stray_numeric_filters(kept, plan(lots)).measures[0].filters  # the question writes 365
+
+
+def test_lots_expiring_counted():
+    """N99, §6 Nhà thuốc: lots still holding goods with an expiry in the window."""
+    import test_lots
+    stock = {"intent": "value", "period": {"kind": "until", "date": "2026-07-30"}, "measures": [{"metric": "stock_qty"}]}
+    got = grounding.lots_expiring_count("Theo tồn kho hôm nay, có mấy lô hàng còn tồn sẽ hết hạn từ nay đến hết ngày "
+                                        "30/07/2026?", plan(stock), test_lots.D)
+    assert got.intent == "list_items" and got.list_spec.entity == "lot" and got.list_spec.count
+    assert test_lots.ask(got.model_dump(mode="json", exclude_none=True)) == 2  # L1 (10/07), L3 (05/07); L2 later
+    days = grounding.lots_expiring_count("hiện còn bn lô chưa bán hết mà hạn dùng rơi vào 120 ngày tới",
+                                         plan(stock), test_lots.D)
+    assert days.list_spec.n == 120 and test_lots.ask(days.model_dump(mode="json", exclude_none=True)) == 3

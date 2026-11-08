@@ -27,6 +27,12 @@ R_TIES = ("§9.p_bang_nhau_hai_doi_tuong_bang",)
 FLOW = frozenset({"debt_added", "debt_paid"})
 DEBT_CODES = frozenset({"debt", "installment"})  # §6 điện thoại: "đơn trả góp là đơn ghi nợ (§4)"
 REQUIRES = ("payments.paid_time", "payments.amount", "orders.payment_method", "orders.total_due")
+SNAPSHOT_REQUIRES = ("orders.debt_left", "orders.payment_method")  # N100: the end-of-data debt, no payments
+
+
+def requires_of(db: CanonicalDB) -> list[str]:
+    """What a debt figure read in this shop: the payments, or the end-of-data debt of the orders (N100)."""
+    return list(SNAPSHOT_REQUIRES if db.table("payments") is None and db.debt_snapshot_day is not None else REQUIRES)
 
 
 def debt_orders(db: CanonicalDB, m: Measure, linked: dict[str, str]) -> pd.DataFrame | None:
@@ -85,6 +91,20 @@ def debt_added(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
     return money(float(owed.sum()))
 
 
+def _snapshot_owing(db: CanonicalDB, o: pd.DataFrame, day) -> pd.DataFrame | None:
+    """N100. A shop that records only each order's debt at the end of its data (README "… tính đến hết ngày cuối dữ
+    liệu"): the orders still owing on that very day, with that debt as their balance; any other day is unknown."""
+    if db.debt_snapshot_day is None or day != db.debt_snapshot_day or "payment_method" not in o.columns:
+        return None
+    if F.unknown_status(o) or o["debt_left"].isna().any():
+        return None
+    o = o[o["status"].ne("cancelled")]
+    codes = {v: linking.concept("payment_method", v) for v in o["payment_method"].dropna().astype(str).unique()}
+    method = o["payment_method"].astype(str).map(codes)
+    owing = o.assign(balance=o["debt_left"].astype(float), method=method)[o["debt_left"].astype(float) > 1e-6]
+    return owing if owing["method"].isin(DEBT_CODES).all() else None
+
+
 def open_orders(db: CanonicalDB, day) -> pd.DataFrame | None:
     """§4 "nợ một đơn tại ngày X": orders placed by the end of the day, not cancelled (returned ones stay), with their
     balance = order total (§4: after the order discount, with the shipping fee) − payments made by then; the ones
@@ -92,6 +112,8 @@ def open_orders(db: CanonicalDB, day) -> pd.DataFrame | None:
     all on orders written as debt, so an unpaid order of another method means the data or the mapping does not read
     as the rule expects: None rather than a guess (probe 04/11: 13/13 questions, both readings equal)."""
     o, p = F.orders(db), db.table("payments")
+    if p is None and o is not None and "debt_left" in o.columns:
+        return _snapshot_owing(db, o, day)
     if o is None or p is None or not {"total_due", "payment_method"} <= set(o.columns):
         return None
     if p["amount"].isna().any() or p["paid_time"].isna().any():
@@ -182,7 +204,7 @@ def rank_debtors(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
         value = labels[0] if r.k == 1 else labels
     tied = _tied(totals, r.k, order_matters=not r.with_values and r.k != 1)  # a table's row order is not scored
     return ExecResult(value=value, answer_type=expected_answer_type(plan.plan), source="D1",
-                      function="debt.rank_debtors", rule_ids=sorted(set(R_OWED + R_TIES)), requires=list(REQUIRES),
+                      function="debt.rank_debtors", rule_ids=sorted(set(R_OWED + R_TIES)), requires=requires_of(db),
                       notes=[TIE] if tied else [])
 
 
@@ -241,7 +263,7 @@ def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     if db.table("installments") is not None:  # the shop's debts include its installments (§6 điện thoại)
         rules += R_INSTALLMENT
     return ExecResult(value=values[0] if len(values) == 1 else values, answer_type=answer_type, source="D1",
-                      function="debt.value_of", rule_ids=sorted(set(rules)), requires=list(REQUIRES))
+                      function="debt.value_of", rule_ids=sorted(set(rules)), requires=requires_of(db))
 
 
 R_AGE = ("§4.tuoi_no",)
@@ -253,3 +275,39 @@ for _name in MEASURES:
            filters=("customer",) if _name in FLOW else ("customer", "debt_age_days", "payment_method"))(value_of)
 metric("rank", "debt_amount", entity="customer", requires=REQUIRES,
        rules=tuple(sorted(set(R_OWED + R_TIES))))(rank_debtors)
+
+
+# N113. A credit sale's due day, as the README's due-date book writes it ("Ngày phải trả là ngày khách phải trả hết
+# đơn; chỉ đơn bán nợ có hạn"): how many credit orders placed by the end of the period (today) are due in a month, or
+# after today. The month, or "today", is the measure's "other" filter (note "ngày phải trả"), written by
+# grounding.due_date_count_plan only (internal metric, never in the LLM's schema).
+DUE_NOTE = "ngày phải trả"
+R_DUE = ("§1.so_don", "§4.don_duoc_tinh_vao_no")
+
+
+def due_order_count(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
+    ms = plan.plan.measures
+    o = db.table("orders")  # the orders alone: no revenue is needed
+    if len(ms) != 1 or ms[0].metric != "due_order_count" or plan.period is None or o is None \
+            or "due_date" not in o.columns:
+        return None
+    when = [f for f in ms[0].filters if f.field == "other" and f.note == DUE_NOTE]
+    if len(when) != 1 or len(ms[0].filters) != 1:
+        return None
+    day = plan.period.end
+    o = o[(o["order_time"].dt.date <= day) & o["status"].ne("cancelled") & o["due_date"].notna()]
+    due = pd.to_datetime(o["due_date"]).dt.date
+    f = when[0]
+    if f.op == "gt" and f.value == "today":
+        hit = due > day
+    elif f.op == "eq" and isinstance(f.value, str) and len(f.value) == 7 and f.value[4] == "-":
+        hit = due.map(lambda d: f"{d.year:04d}-{d.month:02d}") == f.value
+    else:
+        return None
+    return ExecResult(value=int(o.loc[hit, "order_id"].nunique()), answer_type="number", source="D1",
+                      function="debt.due_order_count", rule_ids=sorted(R_DUE),
+                      requires=["orders.order_time", "orders.due_date"])
+
+
+metric("value", "due_order_count", requires=("orders.order_time", "orders.due_date"), rules=R_DUE,
+       filters=("other",))(due_order_count)

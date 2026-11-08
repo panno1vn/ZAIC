@@ -451,3 +451,47 @@ K1 cho thấy kích thước model hiện chưa phải điểm nghẽn (14B hoà
 - **Chưng cất (hợp lệ theo luật dữ liệu tổng hợp):** model lớn (Qwen3-32B / 235B, Apache 2.0) sinh plan cho câu train và cửa hàng tự dựng lúc phát triển, fine-tune (LoRA) Qwen3-8B hoặc 14B trên đó. Lúc dự đoán chỉ chạy model ≤ 15B; image không chứa model thầy; nộp kèm code huấn luyện; không gán gì cho câu public/private. Rủi ro: model sau fine-tune sai theo kiểu mới mà cổng chưa thấy (bài học K1), nên phải đọc lại 3000 câu train và đo lại trước khi dùng.
 - **Cắt tỉa model > 15B xuống < 15B:** vùng xám ("weights public before 01/10/2026", "MoE counted fully"); chỉ làm khi BTC trả lời bằng văn bản là được. Model bị cắt thường cần huấn luyện lại nhiều mới giữ được chất lượng, vượt sức máy hiện có.
 - Cách dùng model lớn an toàn hơn, làm được ngay: đọc lại train để tìm lỗ hổng cổng (như K1), sinh câu mẫu cho ngành mới (H7 S2).
+
+## 12. Kế hoạch 08–23/11: từ 0,854 tới nộp private (viết 08/11)
+
+*Bối cảnh: public tốt nhất 0,854 (s51); còn ~27 câu sai và 92 câu trống trên 1000. Train như lượt thật 1421 / 0 sai. Đã có Docker guideline 2026 (`zac2026_DataMate_docker_guideline_final.pdf`); image, `predict.sh`, log, `training_code` đã sửa theo guideline nhưng **chưa build lần nào**. Mốc cứng (thể lệ + guideline): **đóng băng 16/11 23:59** (image + code + tài liệu, tối đa 2 lần nộp Docker, lần cuối được tính), private ra **20/11 09:00**, nộp kết quả private **23/11 23:59**. Điểm chung cuộc là điểm BTC chạy lại image trên private (lệch với điểm mình nộp phải ≤ 0,03).*
+
+### Ưu tiên
+1. **Image chạy đúng trên RTX 5090, không mạng, nộp được** (một lần nộp hỏng là mất hết). Không bỏ.
+2. **0 câu sai trên train** với mọi thay đổi; lượt chạy thật giống bản đọc lại ≥ 99%. Không bỏ.
+3. Thêm điểm public: khoanh 27 câu sai còn lại, mở thêm câu trống có căn cứ.
+4. Tài liệu nộp kèm (README, phương pháp, training_code).
+
+### Lịch
+| Ngày | Trưởng nhóm | Claude (laptop, server LLM) | VM 5090 | Xong khi |
+|---|---|---|---|---|
+| **CN 08/11** | Commit + push; đặt **tên đội** cho tag image; chọn nơi thuê VM (Vast.ai VM / EzyCloudX), nạp tiền | Luật "ngày đắt khách nhất" (§3: nhiều đơn nhất); chạy **2 lượt public đầy đủ liên tiếp** trên laptop, so từng câu (đo độ lặp lại, guideline §6) | | 2 lượt laptop khác ≤ 1% câu; train 0 sai |
+| **T2 09/11** | Nộp bộ 15 (5 lượt, `outputs/public_ablation15/`, so với 0,854), ghi điểm vào CAN_XAC_MINH | Đọc plan của nhóm con sai nhiều nhất, sửa theo quy tắc chung; Task 5: `python -m datamate.rules diff` train ↔ public, liệt kê tham số viết cứng (giờ ca, "từ 3 đơn"…) | | Biết nhóm con nào chứa phần lớn 27 câu sai |
+| **T3 10/11** | Nộp bản chính mới + chẩn đoán đi kèm; chuẩn bị **rclone** cho Google Drive (cấu hình trên laptop, chép file `rclone.conf` lên VM: VM không mở được trình duyệt); đưa `data/` + `outputs/docker_pack.zip` lên Drive | Sửa tiếp theo điểm 09/11; (tuỳ chọn, chỉ khi đủ thời gian đo) "trung bình mỗi đơn khách phải trả" (đổi schema → chạy lại public có LLM + `prod_train`) | | Điểm public ≥ 0,854 |
+| **T4 11/11** | Nộp | **Tài liệu phương pháp** `docs/PHUONG_PHAP.md` (thể lệ đòi lúc đóng băng): bài toán, kiến trúc, LLM chỉ đọc câu, hàm theo rulebook, cổng chính xác, kết quả train/public, giới hạn; soát `README_IMAGE.md`, `training_code_README.md` | **Thử VM sớm** (1–2 giờ): kiểm driver ≥ 570, `docker run --gpus all nvidia/cuda:12.8.1-base nvidia-smi`, build thử phần llama.cpp | Biết chắc build llama.cpp sm_120 chạy được trên VM thuê |
+| **T5 12/11** | Nộp | **Chốt code cho Docker lần 1 lúc 22:00**: test, `eval_cached`, `prod_train`, 1 lượt public đầy đủ bằng bản chép code (mốc so cho VM); cập nhật `docs/CAN_XAC_MINH.md` | | Tag commit `docker-v1`; số đo ghi vào bàn giao |
+| **T6 13/11** | Có mặt khi chạy VM | Hỗ trợ trực tiếp | **Buổi chính (6–8 giờ)**, làm theo `docker/README.md`: tải model, điền revision + SHA-256 vào README, `stage_training_code.py`, build, chạy **đúng lệnh chấm 2 lần**, so với mốc laptop, xem `logs/questions.jsonl`, đo thời gian; `docker save` + pigz, đo kích thước `.tar`, `md5sum`, rclone lên Drive | 2 lượt trong container giống nhau ≥ 99%, khớp laptop ~99%, 0 lỗi; file + `.md5` trên Drive |
+| **T7 14/11** | **Nộp Docker lần 1** (form: link, `.md5`, kích thước `.tar` byte); tải lại từ link trên máy khác, `md5sum -c` = OK | Soát checklist luật (không id, giấy phép, không mạng, `/data` chỉ đọc) | Giữ VM hoặc tắt (snapshot nếu nhà thuê hỗ trợ) | Đã nộp, kiểm tải lại đúng |
+| CN 15/11 | Quyết định có nộp lần 2 không: chỉ khi tốt hơn rõ trên public (≥ +0,005) **và** train 0 sai | Chỉ sửa an toàn, có test | | |
+| **T2 16/11** | Nếu nộp lần 2: VM build lại, chạy 2 lần, nộp trước **23:59** | | (nếu nộp lần 2) | **Đóng băng**: từ đây không đổi image, code, model |
+| 17–19/11 | Đặt VM cho 20/11; chuẩn bị chỗ tải dữ liệu private | Soạn quy trình chạy private (lệnh, kiểm định dạng, sao lưu log) | | Sẵn sàng |
+| **T6 20/11** | Tải private (09:00), chạy **đúng image đã nộp** bằng đúng lệnh chấm | Hỗ trợ kiểm `submission.jsonl` (`validate`), đếm loại đáp án, đối chiếu thời gian | Chạy private (~30 phút với 500 câu) | `submission.jsonl` hợp lệ |
+| 21–23/11 | **Nộp kết quả private** (hạn 23/11 23:59); lưu log để giải trình nếu BTC hỏi | | Dự phòng chạy lại | Đã nộp |
+
+### Khi bị chậm thì bỏ gì (theo thứ tự)
+1. "Trung bình mỗi đơn khách phải trả" (đổi schema).
+2. Nợ trong ô Note của dev_008; nhóm hàng ở shop không ghi nhóm.
+3. Nộp Docker lần 2.
+
+**Không bỏ:** buổi VM 13/11 với 2 lượt chạy đúng lệnh chấm; nộp Docker lần 1 ngày 14/11; 0 sai trên train.
+
+### Rủi ro và cách phòng
+| Rủi ro | Phòng |
+|---|---|
+| llama.cpp `b12064` không build được cho sm_120 trên VM | Thử sớm 11/11; dự phòng: base image `vllm/vllm-openai:v0.10.1.1` (guideline khuyên) rồi build llama.cpp trong đó, giữ nguyên cách gọi model |
+| 2 GPU của máy chấm làm kết quả lệch | `predict.sh` cố định 1 GPU (`CUDA_VISIBLE_DEVICES=0`), giải mã tham lam, 1 slot, seed 0 |
+| Kết quả mình nộp lệch điểm BTC chạy lại > 0,03 | Kết quả private lấy từ chính image đã nộp, chạy trên 5090, đúng lệnh chấm; 2 lượt trên VM 13/11 cho biết mức dao động |
+| Tải lên Drive hỏng / link sai quyền | rclone từ VM; tải lại trên máy khác và `md5sum -c` trước khi gửi link |
+| Rulebook private đổi luật | `[R]` chặn câu dùng luật đã đổi (bỏ trống, không sai) |
+| Shop private dạng lạ | mapping không qua kiểm tra thì bỏ trống cả shop (không sai) |
+| Hết giờ | ~2,5 giây/câu trên laptop; 5090 nhanh hơn; ngân sách 5,5 giờ, câu đã trả lời được ghi ngay |

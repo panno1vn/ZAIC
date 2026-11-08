@@ -113,6 +113,43 @@ def _fix_cancel_share(raw: dict) -> bool:
     return True
 
 
+def _fix_warranty_share(raw: dict) -> bool:
+    """N102. §6 Điện thoại "lượt bảo hành so với số máy bán chiếm bnhiu %" written as [warranty_count, quantity] typed
+    percent (public run11, both readings): the warranty rate, the only percent those measures make (§6 "Tỉ lệ bảo
+    hành = số lượt bảo hành trong quý / số máy bán trong quý")."""
+    ms = raw.get("measures")
+    if raw.get("answer_type") != "percent" or not isinstance(ms, list) or len(ms) != 2:
+        return False
+    if [m.get("metric") if isinstance(m, dict) else None for m in ms] not in (
+            ["warranty_count", "quantity"], ["quantity", "warranty_count"]):
+        return False
+    if any(not (isinstance(f, dict) and f.get("field") == "order_status") for m in ms for f in m.get("filters") or []):
+        return False
+    raw["measures"] = [{"metric": "warranty_rate", "filters": []}]
+    return True
+
+
+def _fix_threshold_count(raw: dict, question: str) -> bool:
+    """N104. "Khách có mua th5/2025, mấy % mua từ 4 đơn trở lên?" written with the customers counted as a measure
+    (customer_count, filter order_status completed) beside a threshold on their orders (public run11, both readings;
+    the contract wants the threshold's own metric or none): the customers passing the bound, as a share of every
+    customer when the question asks a percent (as the train plans of this template). Customers and their orders or
+    money only."""
+    t, ms = raw.get("threshold"), raw.get("measures")
+    if raw.get("intent") != "count_where" or not isinstance(t, dict) or not isinstance(ms, list) or len(ms) != 1:
+        return False
+    m = ms[0]
+    if not isinstance(m, dict) or t.get("entity") != "customer" or m.get("metric") != "customer_count" \
+            or t.get("metric") not in ("order_count", "revenue") \
+            or any(not (isinstance(f, dict) and f.get("field") == "order_status") for f in m.get("filters") or []):
+        return False
+    raw.pop("measures")
+    raw.pop("answer_type", None)
+    if "%" in question or re.search(_PERCENT, fold(question)):
+        t["as_share"] = True
+    return True
+
+
 def repair(raw: dict, question: str, error: str) -> dict | None:
     """The repaired output, or None when `error` is none of the known shapes or the repair does not apply."""
     if not isinstance(raw, dict):
@@ -128,9 +165,11 @@ def repair(raw: dict, question: str, error: str) -> dict | None:
         fixed |= _fill_number(out.get("period") or {}, question)
     if "cần period kind months" in error:
         fixed |= _fix_series_months(out, question)
+    if "khác measures[0].metric" in error and error.lstrip().find("threshold.metric") >= 0:
+        fixed |= _fix_threshold_count(out, question)
     m = re.search(r"answer_type=(\w+) mâu thuẫn với plan \(suy ra (\w+)\)", error)
     if m and m[1] == "percent" and m[2] == "list":
-        fixed |= _fix_cancel_share(out)
+        fixed |= _fix_cancel_share(out) or _fix_warranty_share(out)
     elif m and m[1] == "percent" and m[2] == "number" and not re.search(_PERCENT, fold(question)):
         out.pop("answer_type", None)
         fixed = True

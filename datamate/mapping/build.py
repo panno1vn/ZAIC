@@ -237,6 +237,13 @@ def _build_table(tm: TableMap, mapping: Mapping, warnings: list[str], raw_frames
         if "order_time" in out.columns:  # a return line carries the return date: the order date is its earliest row
             out["order_time"] = out.groupby("order_id", sort=False)["order_time"].transform("min")
         out = out.drop_duplicates(subset="order_id", keep="first")  # §8: order fields are those of its first row
+    if tm.target == "inventory" and {"product_key", "base_qty"} <= set(out.columns):
+        # N107. §3 "Phí phục vụ" is no item: a stock list that lists it with no stock (a public restaurant) has no stock of
+        # it to read, not a stock left blank
+        fee = out["product_key"].map(lambda v: isinstance(v, str) and bool(FEE_LINE.match(_fold(v))))
+        if (fee & out["base_qty"].isna()).any():
+            out = out[~(fee & out["base_qty"].isna())]
+            warnings.append("inventory: bỏ dòng phí phục vụ không có tồn")
     return out.reset_index(drop=True)
 
 
@@ -255,11 +262,13 @@ def readme_conventions(readme: str) -> tuple[str, ...] | None:
 
 
 def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
-    db = CanonicalDB(industry=mapping.industry, warnings=list(raw.warnings), conventions=readme_conventions(raw.readme))
+    db = CanonicalDB(industry=mapping.industry, warnings=list(raw.warnings), conventions=readme_conventions(raw.readme),
+                     readme=raw.readme or "")
     raw_frames = prepare_raw(raw, mapping)
     for tm in mapping.tables:
         db.tables[tm.target] = _build_table(tm, mapping, db.warnings, raw_frames)
     sane_base_units(db)
+    split_toppings(db)
     unify_keys(db)
     order_level_lines(db)
     full_employee_names(db)
@@ -271,6 +280,8 @@ def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
     from .side_books import side_books  # late import: the side books read with this module's helpers
     side_books(db, raw, mapping)
     blank_walk_ins(db)
+    from .debt_snapshot import debt_snapshot  # N100
+    debt_snapshot(db, raw)
     for table, col in DATE_COLUMNS.items():
         df = db.table(table)
         if df is not None and col in df.columns and df[col].notna().any():
@@ -278,6 +289,70 @@ def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
             if len(values):
                 db.date_ranges[table] = (values.min().date(), values.max().date())
     return db
+
+
+# N108. §6 Cà phê (public rulebook): "Topping ghi chung ô với món: món và topping là hai mặt hàng bán: số lượng, tiền
+# của topping tính vào mặt hàng topping (cùng mặt hàng với topping ghi dòng riêng), không tính vào món". README of the
+# public shop that does it: "nối bằng ' + ', tên topping không kèm chữ 'Topping'; số đứng trước tên topping là số phần
+# (không ghi số là 1 phần), tiền topping ghi trong ngoặc và đã cộng vào Tổng tiền của dòng đó. Số lượng, giá và đơn vị
+# của dòng là của món" ("Matcha latte (M) + 2 Thạch cà phê (14.000đ)", qty 2, 112 000 = 2 × 49 000 + 14 000)
+_TOPPING_PART = re.compile(r"\s+\+\s+(?:(\d+)\s+)?([^+()]+?)\s*\(\s*(\d[\d.,]*)\s*(?:đ|d|đồng)?\s*\)\s*$", re.I)
+
+
+def split_toppings(db: CanonicalDB) -> None:
+    """A line "<món> + [n] <topping> (<tiền>)" becomes the dish's line (its quantity, price and unit, the line's money
+    less the topping's) and one line per topping: n portions (1 when no number), its money, the product of the
+    toppings written on lines of their own ("Topping <tên>"). Only where the shop sells such toppings on their own
+    lines or its README speaks of toppings; a line whose toppings cost what the line does or more stays as it is."""
+    lines = db.tables.get("lines")
+    if lines is None or not len(lines) or not {"product_key", "product_name", "qty", "line_amount"} <= set(lines.columns):
+        return
+    names = lines["product_name"].map(lambda v: v if isinstance(v, str) else "")
+    hit = names.map(lambda v: " + " in v and bool(_TOPPING_PART.search(v)))
+    if not hit.any():
+        return
+    own = {}  # folded topping name -> the key of the topping's own lines
+    for k in lines["product_key"].dropna().astype(str).unique():
+        if _fold(k).startswith("topping "):
+            own[_fold(k)[len("topping "):]] = k
+    if not own and "topping" not in (db.conventions or ()):
+        return
+    unit_of = {}
+    if "unit" in lines.columns:
+        tops = lines[lines["product_key"].isin(set(own.values()))].dropna(subset=["unit"])
+        unit_of = tops.groupby("product_key")["unit"].agg(lambda s: s.mode().iloc[0]).to_dict()
+    mapped_base = "base_qty" in lines.columns and lines["base_qty"].notna().any()
+    added, split = [], 0
+    for i in lines.index[hit]:
+        rest, parts = names[i], []
+        while (m := _TOPPING_PART.search(rest)) is not None:
+            parts.append(m)
+            rest = rest[:m.start()]
+        money = [parse_money(m.group(3) + "đ") for m in parts]
+        amount = lines.at[i, "line_amount"]
+        if not rest.strip() or any(v is None or v <= 0 for v in money) or pd.isna(amount) or sum(money) >= amount:
+            continue
+        for m, v in zip(parts, money):
+            n = int(m.group(1)) if m.group(1) else 1
+            key = own.get(_fold(m.group(2)), "Topping " + m.group(2).strip())
+            row = lines.loc[i].copy()
+            row["product_key"] = row["product_name"] = key
+            row["qty"], row["line_amount"] = float(n), float(v)
+            if "unit_price" in row.index:
+                row["unit_price"] = float(v) / n
+            if "unit" in row.index:
+                row["unit"] = unit_of.get(key)
+            if "base_qty" in row.index:
+                row["base_qty"] = float(n) if mapped_base else None
+            if "is_item" in row.index:
+                row["is_item"] = True
+            added.append(row)
+        lines.at[i, "product_key"] = lines.at[i, "product_name"] = rest.strip()
+        lines.at[i, "line_amount"] = amount - sum(money)
+        split += 1
+    if split:
+        db.tables["lines"] = pd.concat([lines, pd.DataFrame(added)], ignore_index=True)
+        db.warnings.append(f"lines: tách {split} dòng món + topping ghi chung ô thành {len(added)} dòng topping (§6)")
 
 
 # N41, a public mother-and-baby ledger (06/11): rows after an order's lines that are amounts of the order, not lines.
@@ -410,16 +485,20 @@ def unify_keys(db: CanonicalDB) -> None:
     for column in ("product_key", "customer_key"):
         frames = [df for df in db.tables.values() if column in df.columns and len(df)]
         counts = Counter(v for df in frames for v in df[column].dropna() if isinstance(v, str))
+        # N106. A customer's name is written with its phone number in several ways ("Trịnh Hằng Nam 0977824094",
+        # "Trịnh Hằng Nam - 0977 824 094", "Trịnh Hằng Nam (0977824094)": a public phone ledger, 690 customers under 1545
+        # spellings): §9 "không phân biệt hoa thường, khoảng trắng, dấu câu", so customers compare without them
+        bare = (lambda s: re.sub(r"[\W_]+", "", s)) if column == "customer_key" else (lambda s: s)
         by_fold: dict[str, list[str]] = {}
         for v in counts:
-            by_fold.setdefault(_fold(v), []).append(v)
+            by_fold.setdefault(bare(_fold(v)), []).append(v)
         rename = {}
         for folded, spellings in by_fold.items():
             if len(spellings) < 2:
                 continue
             by_name: dict[str, list[str]] = {}
             for v in spellings:
-                by_name.setdefault(" ".join(v.lower().split()), []).append(v)
+                by_name.setdefault(bare(" ".join(unicodedata.normalize("NFC", v).lower().split())), []).append(v)
             marked = [n for n in by_name if n != folded]  # names that carry diacritics
             groups = [spellings] if len(marked) <= 1 else list(by_name.values())
             for g in groups:

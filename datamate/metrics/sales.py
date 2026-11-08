@@ -317,6 +317,36 @@ def order_amount(db, period, filters, linked, m=None, strict_unit=True):
     return money(float(amounts.fillna(0).abs().sum()))
 
 
+def avg_amount_due(db, period, filters, linked, m=None, strict_unit=True):
+    """§6 Điện thoại "Thu máy cũ": what the customers have to pay (after the discount and the trade-in) over the
+    period's orders neither cancelled nor returned, per order; a money average is money, in whole đồng (§3, §9).
+    None when an order of the period has no amount (the average would not be the shop's)."""
+    raw = db.table("orders")
+    if _line_filtered(filters) or raw is None or "total_due" not in raw.columns:
+        return None
+    o = _orders(db, period, filters, linked)
+    if o is None or o.empty:
+        return None
+    due = o["order_id"].map(raw.drop_duplicates("order_id").set_index("order_id")["total_due"])
+    if due.isna().any():
+        return None
+    return money(float(due.abs().sum()) / o["order_id"].nunique())
+
+
+def trade_in_order_count(db, period, filters, linked, m=None, strict_unit=True):
+    """§6 Điện thoại "Thu máy cũ": the period's orders neither cancelled nor returned (§1) with an old phone taken
+    in (a trade-in amount above 0). None when the shop records no trade-in."""
+    raw = db.table("orders")
+    if _line_filtered(filters) or raw is None or "trade_in_amount" not in raw.columns \
+            or raw["trade_in_amount"].notna().sum() == 0:
+        return None
+    o = _orders(db, period, filters, linked)
+    if o is None:
+        return None
+    amounts = o["order_id"].map(raw.drop_duplicates("order_id").set_index("order_id")["trade_in_amount"])
+    return int(o.loc[amounts.fillna(0).abs().gt(0).to_numpy(), "order_id"].nunique())
+
+
 def new_customer_count(db, period, filters, linked, m=None, strict_unit=True):
     """§6 Mẹ và bé: "khách thành viên mới trong tháng: số khách có Ngày đăng ký trong tháng đó, kể cả khách chưa mua
     lần nào" — the member list, not the orders."""
@@ -369,6 +399,10 @@ R_METRIC.update({
     "points_discount": R_ORDER_AMOUNT, "shipping_fee_total": R_ORDER_AMOUNT,
     "trade_in_amount": R_VALID + ("§6.cua_hang_dien_thoai.thu_may_cu", "§6.p_luat_rieng_cua_tung_nganh_dung"),
     "amount_due_total": R_VALID + ("§6.cua_hang_dien_thoai.thu_may_cu", "§6.p_luat_rieng_cua_tung_nganh_dung"),
+    "trade_in_order_count": R_VALID + ("§1.so_don", "§6.cua_hang_dien_thoai.thu_may_cu",
+                                       "§6.p_luat_rieng_cua_tung_nganh_dung"),
+    "avg_amount_due": R_VALID + ("§1.so_don", "§3.gia_tri_trung_binh_mot_don", "§6.cua_hang_dien_thoai.thu_may_cu",
+                                 "§6.p_luat_rieng_cua_tung_nganh_dung"),
     "new_customer_count": R_TODAY + ("§6.me_va_be.khach_thanh_vien_moi_trong_thang", "§6.p_luat_rieng_cua_tung_nganh_dung"),
     "commission": R_REVENUE,  # the percent and its base are the README's, not a rulebook row
 })
@@ -381,6 +415,8 @@ REQ_METRIC.update({
     "points_discount": REQ_ORDERS + ("orders.points_discount",),
     "shipping_fee_total": REQ_ORDERS + ("orders.shipping_fee",), "trade_in_amount": REQ_ORDERS + ("orders.trade_in_amount",),
     "amount_due_total": REQ_ORDERS + ("orders.total_due",),
+    "avg_amount_due": REQ_ORDERS + ("orders.total_due",),
+    "trade_in_order_count": REQ_ORDERS + ("orders.trade_in_amount",),
     "new_customer_count": ("customers.registered_date",),
 })
 
@@ -390,7 +426,8 @@ MEASURES: dict[str, Callable] = {
     "gross_profit": gross_profit, "net_profit": net_profit,
     "ticket_count": ticket_count, "avg_ticket_value": avg_ticket_value, "vehicle_count": vehicle_count,
     "warranty_count": warranty_count, "warranty_rate": warranty_rate, "commission": commission,
-    "new_customer_count": new_customer_count,
+    "new_customer_count": new_customer_count, "avg_amount_due": avg_amount_due,
+    "trade_in_order_count": trade_in_order_count,
     **{name: order_amount for name in ORDER_AMOUNTS},
 }
 
@@ -699,7 +736,8 @@ TABLE_COLUMN = {"revenue": "doanh_thu", "order_count": "so_don", "ticket_count":
 RANK_TERMS = {("avg_order_value", "customer"): ("§3.khach_sop_nhat",),
               ("cancel_count", "customer"): ("§3.khach_hay_doi_y_nhat",),
               ("order_presence", "product"): ("§3.mat_hang_duoc_ua_chuong_nhat",),
-              ("order_count", "hour"): ("§3.gio_cao_diem",)}
+              ("order_count", "hour"): ("§3.gio_cao_diem",),
+              ("order_count", "day"): ("§3.ngay_dat_khach_nhat",)}  # N109: "ngày có nhiều đơn nhất trong kỳ"
 
 
 # ---------------------------------------------------------------- count over a threshold, unsold products
@@ -788,7 +826,7 @@ def _register(intent: str, names, fn, entity: str = "", rules: tuple[str, ...] =
 
 _register("value", MEASURES, value_of)
 _register("compare", MEASURES, compare, rules=R_COMPARE)
-_register("share", ("revenue", "order_count", "quantity", "customer_count"), share)
+_register("share", ("revenue", "order_count", "quantity", "customer_count", "trade_in_order_count"), share)
 _register("trend", ("revenue", "order_count", "avg_order_value", "quantity", "cancel_count"), trend)
 _register("series", ("revenue", "order_count", "avg_order_value", "quantity", "cancel_count"), series)
 _register("rank", ("quantity", "revenue", "gross_profit"), rank, entity="product", rules=R_RANK)

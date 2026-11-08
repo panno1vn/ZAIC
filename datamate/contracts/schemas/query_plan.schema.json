@@ -273,7 +273,10 @@
             "warranty_rate",
             "trade_in_amount",
             "commission",
-            "other"
+            "other",
+            "avg_amount_due",
+            "trade_in_order_count",
+            "due_order_count"
           ],
           "title": "Metric",
           "type": "string"
@@ -567,7 +570,10 @@
             "warranty_rate",
             "trade_in_amount",
             "commission",
-            "other"
+            "other",
+            "avg_amount_due",
+            "trade_in_order_count",
+            "due_order_count"
           ],
           "title": "By",
           "type": "string"
@@ -679,7 +685,10 @@
             "warranty_rate",
             "trade_in_amount",
             "commission",
-            "other"
+            "other",
+            "avg_amount_due",
+            "trade_in_order_count",
+            "due_order_count"
           ],
           "title": "Metric",
           "type": "string"

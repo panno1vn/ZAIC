@@ -13,7 +13,7 @@ from pathlib import Path
 
 from rank_bm25 import BM25Okapi
 
-from datamate.contracts import CODED_VALUES, DataCard, QueryPlan
+from datamate.contracts import CODED_VALUES, INTERNAL_METRICS, DataCard, QueryPlan
 
 from .baseline import fold
 
@@ -42,6 +42,10 @@ def generation_schema() -> dict:
     base = QueryPlan.model_json_schema()
     defs = base.pop("$defs")
     measure = defs["Measure"]
+    for model in defs.values():  # rewrites alone write the internal metrics (a measure's, a rank's, a threshold's)
+        for prop in model.get("properties", {}).values():
+            if INTERNAL_METRICS & set(prop.get("enum", ())):
+                prop["enum"] = [m for m in prop["enum"] if m not in INTERNAL_METRICS]
     order = ["metric", "filters"] + [k for k in measure["properties"] if k not in ("metric", "filters")]
     measure["properties"] = {k: measure["properties"][k] for k in order}
     measure["required"] = ["metric", "filters"]

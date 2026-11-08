@@ -95,9 +95,67 @@ def _fold(text: str) -> str:
     return "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
 
 
+# N112. §7 "Thông tin file không ghi thì không suy ra từ cột khác … shop không ghi loại thông tin câu hỏi cần thì không
+# trả lời được": a question by product group, by a sale's profit or by the reason an order was returned or cancelled,
+# in a shop whose README names no such column and whose mapping found none. Train: "lãi gộp tháng 3/2025" in a pharmacy
+# whose README names no cost, "đơn bị huỷ vì giao trễ", "trả hàng vì lỗi và vì mua nhầm" in shops naming no reason:
+# all three unanswerable. Public (s65): 7 questions by "nhóm trà / nhóm sơn / nhóm điện" in two shops with no group
+# column, 3 by a return or cancel reason, 1 "mặt hàng nào lời nhiều nhất" without cost.
+_REASON_ASKED = re.compile(r"\b(?:huy|tra)\b(?:\s+\S+){0,4}?\s+vi\s+(?!dien\b)\S")  # "bị huỷ vì giao trễ", "trả lại vì"
+_NOT_REASON = re.compile(r"\bbang vi\b|\bvi (?:dien tu|momo|zalo|shopee|tien)\b")  # "trả bằng ví điện tử"
+# a column the README names for the group: "- **Nhóm**: nhóm hàng", "loại hàng", "danh mục" (folded lines)
+_GROUP_NOTE = re.compile(r"^\s*-\s*\*\*[^*]+\*\*\s*:\s*(?:nhom\b(?! khach)|loai hang|danh muc|phan loai)")
+PROFIT_METRICS = frozenset({"gross_profit"})
+
+
+def _filter_fields(node) -> set[str]:
+    if isinstance(node, dict):
+        out = {node["field"]} if isinstance(node.get("field"), str) else set()
+        return out.union(*(_filter_fields(v) for v in node.values()))
+    if isinstance(node, list):
+        return set().union(*(_filter_fields(v) for v in node))
+    return set()
+
+
+def _has(db: CanonicalDB, tables: tuple[str, ...], column: str) -> bool:
+    return any((df := db.table(t)) is not None and column in df.columns and df[column].notna().any() for t in tables)
+
+
+def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
+    """N112: what the question needs that the shop does not record (§7), or None. Only from the README and the
+    mapped data together: a column the README names, or the mapping found, is recorded."""
+    readme = [_fold(line) for line in db.readme.splitlines()]
+    if not readme:
+        return None
+    text = " ".join(readme)
+    q = " ".join(_fold(question).split())
+    if _REASON_ASKED.search(q) and not _NOT_REASON.search(q) and not re.search(r"\bly do\b|\bnguyen nhan\b", text) \
+            and not _has(db, ("returns",), "reason"):
+        return "lý do trả / huỷ đơn"
+    if plan is None:
+        return None
+    fields = _filter_fields(plan.model_dump(mode="json", exclude_none=True))
+    if plan.rank is not None:
+        fields.add(plan.rank.entity)
+    if "product_group" in fields and not _has(db, ("products", "lines"), "product_group") \
+            and not any(_GROUP_NOTE.search(line) for line in readme):
+        return "nhóm hàng"
+    asked = {m.metric for m in list(plan.measures) + ([plan.share_of] if plan.share_of else [])}
+    if plan.rank is not None:
+        asked.add(plan.rank.by)
+    if asked & PROFIT_METRICS and "gia von" not in text and not _has(db, ("lines", "products"), "unit_cost"):
+        return "giá vốn"
+    return None
+
+
 def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: CanonicalDB, mapping: Mapping,
                     rules: dict[str, bool], question: str = "") -> Signals:
     s = Signals(mapping_ok=mapping.ok)
+    if mapping.ok and question and all(rules.get(r, False) for r in R_OUTSIDE) \
+            and (missing := not_recorded(plan.plan if plan is not None else None, question, db)) is not None:
+        s.intent_known = s.out_of_scope = s.subjective = True  # decide: unanswerable (§7)
+        s.notes.append(f"cửa hàng không ghi {missing} (§7)")
+        return s
     if plan is None:
         return s
     p = plan.plan

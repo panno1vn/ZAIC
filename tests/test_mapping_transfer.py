@@ -113,6 +113,40 @@ def test_spellings_of_one_name_share_a_key_and_a_service_fee_is_no_item():
     assert db.tables["lines"]["is_item"].tolist() == [True] * 6 + [False, True]  # §3 "Phí phục vụ"
 
 
+def test_a_customer_with_the_phone_written_several_ways_is_one_customer():
+    """N106 (public dev_011): §9 "không phân biệt hoa thường, khoảng trắng, dấu câu"; another number is another
+    customer, and two names apart by diacritics stay two."""
+    from datamate.contracts import CanonicalDB
+    from datamate.mapping.build import unify_keys
+    o = pd.DataFrame({"order_id": list("1234567"), "customer_key": [
+        "Trịnh Hằng Nam 0977824094", "Trịnh Hằng Nam - 0977 824 094", "Trịnh Hằng Nam (0977824094)",
+        "Trịnh Hằng Nam 0977824094", "Trịnh Hằng Nam 0977824095", "Lê Thị Bò", "Lê Thị Bơ"]})
+    db = CanonicalDB(tables={"orders": o})
+    unify_keys(db)
+    assert db.tables["orders"]["customer_key"].tolist() == ["Trịnh Hằng Nam 0977824094"] * 4 + [
+        "Trịnh Hằng Nam 0977824095", "Lê Thị Bò", "Lê Thị Bơ"]
+
+
+def test_a_topping_written_in_the_dish_cell_is_its_own_line():
+    """N108, §6 Cà phê: "món và topping là hai mặt hàng bán; số lượng, tiền của topping tính vào mặt hàng topping"."""
+    from datamate.contracts import CanonicalDB
+    from datamate.mapping.build import split_toppings, unify_keys
+    lines = pd.DataFrame({"order_id": ["1", "2", "3"],
+                          "product_key": ["Matcha latte (M) + 2 Thach ca phe (14.000đ)", "Topping Thạch cà phê",
+                                          "Trà chanh (M) + Trân châu đen (7.000đ)"],
+                          "qty": [2.0, 1.0, 2.0], "unit": ["ly", "phần", "ly"], "unit_price": [49_000.0, 7_000.0, 26_000.0],
+                          "line_amount": [112_000.0, 7_000.0, 59_000.0], "is_item": True})
+    lines["product_name"] = lines["product_key"]
+    db = CanonicalDB(tables={"lines": lines})
+    split_toppings(db)
+    unify_keys(db)
+    got = db.tables["lines"].groupby("product_key").agg(qty=("qty", "sum"), money=("line_amount", "sum"))
+    assert got.loc["Matcha latte (M)"].tolist() == [2.0, 98_000.0]  # the dish keeps its quantity, less the topping
+    assert got.loc["Topping Thạch cà phê"].tolist() == [3.0, 21_000.0]  # 2 portions written + 1 on its own line
+    assert got.loc["Trà chanh (M)"].tolist() == [2.0, 52_000.0]
+    assert got.loc["Topping Trân châu đen"].tolist() == [1.0, 7_000.0]
+
+
 def test_a_ledger_with_order_ids_is_told_from_one_without():
     """04/11: a shop with order ids read row by row like an example without ids passed every check, 68 wrong."""
     ids = pd.Series(["HD1", "HD1", "HD2", "HD3", "HD3", "HD3", "HD4", "HD5", "HD5", "HD6"])

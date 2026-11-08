@@ -56,6 +56,10 @@ class _Logged:
         self.calls += 1
         if "llm_raw" not in self.reading:
             raise RuntimeError(f"replay: lượt gốc gọi LLM lỗi ({self.reading.get('llm_error')})")
+        if "llm_cut" in self.reading:  # N110: the first output was cut, the retry gave llm_raw
+            if self.calls == 1:
+                raise json.JSONDecodeError("cut", self.reading["llm_cut"], len(self.reading["llm_cut"]))
+            return self.reading["llm_raw"]
         if self.calls == 1:
             return self.reading["llm_raw"]
         if "llm_raw_retry" in self.reading:  # N78: the run's second call, with the error of the first

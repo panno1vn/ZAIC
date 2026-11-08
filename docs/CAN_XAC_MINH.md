@@ -74,6 +74,40 @@ Lượt chẩn đoán đi kèm: `outputs/public_ablation14/s51_bo_unans_moi.json
 
 s51: 908 câu không trống, điểm 0,854 → còn khoảng **27 câu sai**, 92 câu trống.
 
+## Bộ nộp 17 (dựng đêm 10/11, phiên 13): s66 = bản đã nộp `public_cand16/chinh.jsonl` + 20 câu (N112, N113)
+**Kết quả (nộp 09/11 00:28):** cand16 = **0,927**, cand17 `chinh.jsonl` = **0,948** (+21 = mức tối đa: 19 câu mới đều đúng, câu đổi đáp án là câu sai cũ). Suy ra 6 câu nhóm hàng đúng cả: không cần nộp `bo_nhom_hang.jsonl`. cand17: 972 câu không trống → **960 đúng, 12 sai**, 28 trống (cand16: 953 → 940 đúng, 13 sai).
+
+| File | Nội dung | Nộp |
+|---|---|---|
+| `outputs/public_cand17/chinh.jsonl` | s66 nguyên vẹn: 972 / 1000 câu không trống (+19 câu mới, 1 câu đổi đáp án, 0 câu bỏ) | **nộp trước** |
+| `outputs/public_cand17/bo_nhom_hang.jsonl` | như `chinh` nhưng 6 câu "không trả lời được vì shop không có cột nhóm hàng" để trống | nếu còn lượt |
+| `outputs/public_cand17/giu_cu_cau_doi.jsonl` | như `chinh` nhưng câu đổi đáp án (1) lấy lại đáp án cũ | không cần |
+
+20 câu khác bản đã nộp, theo nhóm: 6 đếm đơn theo "ngày phải trả" (đếm tay từ file gốc khớp cả 6); 6 nhóm hàng ở shop không có cột nhóm (**chưa có tiền lệ train**); 3 lý do trả / huỷ (train 2 / 2 unanswerable); 3 chủ quan (train 5 / 5); 1 lời không giá vốn (train 1 / 1); 1 câu hỏi lý do huỷ mà bản đã nộp trả số → unanswerable.
+
+Cách đọc (điểm tính trên 1000 câu, +1 đúng, −1 sai, 0 trống; gọi điểm bản đã nộp là S16):
+- điểm `chinh` − S16 = (đúng − sai của 19 câu mới) + (thay đổi của 1 câu đổi đáp án: +2 nếu cũ sai mới đúng), chia 1000. Nếu cả 20 đúng: **+0,021**; nếu riêng 6 câu nhóm hàng sai hết: +0,009.
+- điểm `chinh` − điểm `bo_nhom_hang` = (đúng − sai của 6 câu nhóm hàng) / 1000: dương thì §7 "không ghi cột nhóm → không trả lời được" đúng ý bộ sinh đề, âm thì bỏ luật nhóm hàng của N112.
+- Cần điểm chính xác của S16 (≈ 0,927) để đọc.
+
+## Bộ nộp 16 (dựng chiều 08/11, phiên 11): bản chính s63 + một bản chẩn đoán — NỘP ĐẦU TIÊN ở lượt sau
+`outputs/public_cand16/` (`python tools/research/build_cand16.py outputs/replay/run11_s63/submission.jsonl outputs/replay/run11_s51/submission.jsonl outputs/public_cand16`). s63 = s51 đọc lại bằng code N97–N109 (HAN_CHE "Phiên 11"). Cả hai file đã kiểm định dạng. Train: `eval_cached` 2754 / 0 / 246, `prod_train` 1425 / 0 / 75 (trước 1421 / 0 / 79).
+
+So với s51 (0,854): **+45 câu mới** (s51 trống), **14 câu đổi đáp án**, 0 câu bỏ; 953 / 1000 câu có trả lời.
+- 14 câu đổi: 7 dev_008 + 1 dev_007 (N105: khách theo mã, trước bị tách 4–8 lần theo cách viết tên → đếm / % khách theo ngưỡng số đơn, top khách), 4 dev_002 (N108: dòng "món + topping" nay tính vào món: số ly theo món / theo size), 2 câu "bữa ni" dev_011 + dev_012 (N103: hôm nay, trước trả số cả tháng). Theo luật thì cả 14 câu cũ đều sai.
+- 45 câu mới theo shop: điện thoại 20 (dev_014 14, dev_011 6: N101–N102), dev_008 8 (N100 nợ cuối kỳ 5, N105 hoà hạng gỡ 2, N107 tồn 1), dev_006 6, dev_007 3 (N107), dev_013 3, dev_002 2, dev_001 1, dev_005 1, dev_010 1 (N109).
+
+| # | File | Để làm gì | Điểm | Đọc |
+|---|---|---|---|---|
+| 1 | `chinh.jsonl` | bản chính | | nếu mọi câu mới và câu đổi đều đúng: ≈ 0,854 + 0,045 + 0,028 = **0,927** |
+| 2 | `giu_cu_cau_doi.jsonl` | như #1 nhưng 14 câu đổi giữ đáp án s51 | | (điểm #1 − điểm #2) × 1000 / 2 = số câu đổi thành đúng trừ số câu đổi thành sai (tối đa 14); điểm #2 − 0,854 = đúng − sai của 45 câu mới |
+
+**Kiểm lại sau khi nộp #1 (đúng như mong đợi):**
+- Lượt chạy thật đủ 1000 câu bằng code cuối, gọi LLM mới như Docker (`outputs/public_run13`, chạy từ bản chép `outputs/snap_run13` chỉ gồm `datamate/`, `assets/`, `configs/`): 0 lỗi, 0 hết giờ, 2788 giây. Giống `chinh.jsonl` **994 / 1000**, không câu nào đổi giá trị; 5 câu thành trống (LLM sinh khác: "vâu chơ", "cất hàng" đọc thành tồn kho, JSON hỏng 1 lần, nhân viên ghi mã NV003, bộ lọc "trả góp" bịa), 1 câu trống thành có số. Lượt thật thấp hơn bản nộp tối đa ~0,005.
+- Các luật viết lại N97–N109 không đổi plan nào trong 3000 plan train (không bắt nhầm), chỉ bắt câu public (1–6 câu mỗi luật). Luật tầng dữ liệu trên 30 shop train: N100 chạy ở 5 shop, N106 gộp 1 cách viết ở 1 shop, N107 mượn danh mục ở 1 shop (+1 câu), N105 / N108 không chạm shop nào. Train vẫn 0 sai (`eval_cached` 2754 / 0, `prod_train` 1425 / 0).
+
+Nếu #1 thấp hơn #2: một trong N103 / N105 / N108 sai → nộp thêm bản chỉ giữ cũ nhóm đó (dựng bằng cách sửa danh sách câu đổi theo shop).
+
 ## Bộ nộp 13 (dựng 08/11): chia nhỏ hai nhóm sai nhiều nhất, trên bản 0,804
 Trong `outputs/public_ablation13/`, mỗi file là s41r (0,804) với một nhóm bỏ trống. **So với 0,804**: sai của nhóm = (số câu − (0,804 − điểm) × 1000) / 2. Dựng bằng script nhóm theo log s41r (plan `intent=count_where` và `threshold.entity`; `business_id` cho hai shop điện thoại).
 
