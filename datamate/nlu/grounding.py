@@ -1354,6 +1354,32 @@ _ORDER_AMOUNT_WORDS = (("shipping_fee_total", r"\b(?:phi|tien) (?:ship|giao hang
                        ("voucher_discount", r"\bvoucher\b|\bvau cho\b|\bma giam gia\b", r"voucher|vau cho|giam gia"))
 
 
+# N120. "bán được mấy đĩa cơm chiên dương châu" read as revenue: "bán được" is a word of revenue too, so the measures
+# gate let it pass (train, a re-read of 08/11: answered 20 615 000 for 299 plates). A question that counts in a unit
+# and names no money is a quantity in that unit (§3 "bán được bao nhiêu <đơn vị>").
+_COUNT_UNIT = re.compile(r"\b(?:may|bao nhieu|bao nhiu|bnhiu|bnhieu|bn)\s+(ly|coc|dia|lon|chai|goi|hop|cai|bich|thung|"
+                         r"kg|cay|vien|phan|to|suat|cuon|tam|met|lit|vi|tuyp|lo|mieng|chiec|bo|bao|ket|loc|xuat)\b")
+_MONEY_NAMED = re.compile(r"\b(?:doanh thu|doanhthu|dthu|dt|revenue|tien|dong|vnd|thu ve|thu duoc|bac|trieu|tr|k|nghin|"
+                          r"ngan|cu)\b")
+_UNIT_SPELLING = {"ly": "ly", "coc": "cốc", "dia": "đĩa", "lon": "lon", "chai": "chai", "goi": "gói", "hop": "hộp",
+                  "cai": "cái", "bich": "bịch", "thung": "thùng", "kg": "kg", "cay": "cây", "vien": "viên",
+                  "phan": "phần", "to": "tô", "suat": "suất", "cuon": "cuộn", "tam": "tấm", "met": "mét", "lit": "lít",
+                  "vi": "vỉ", "tuyp": "tuýp", "lo": "lọ", "mieng": "miếng", "chiec": "chiếc", "bo": "bộ", "bao": "bao",
+                  "ket": "két", "loc": "lốc", "xuat": "xuất"}
+
+
+def quantity_not_money(question: str, plan: QueryPlan) -> QueryPlan:
+    if plan.intent != "value" or len(plan.measures) != 1 or plan.measures[0].metric != "revenue":
+        return plan
+    t = " ".join(tokens(question))
+    m = _COUNT_UNIT.search(t)
+    if m is None or _MONEY_NAMED.search(t):
+        return plan
+    measure = plan.measures[0].model_dump(mode="json", exclude_none=True)
+    measure.update({"metric": "quantity", "unit": _UNIT_SPELLING[m.group(1)]})
+    return _rebuilt(plan, measures=[measure])
+
+
 def order_amount_named(question: str, plan: QueryPlan) -> QueryPlan:
     """N103 / N110. The order amount the question names (fee, points, voucher) read as revenue under a filter: the
     amount, the filter that restates it dropped. N110: also when no filter restates the words but every filter has no
