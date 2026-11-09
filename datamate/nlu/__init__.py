@@ -296,6 +296,18 @@ def unit_or_all_as_product(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     that names every one ("tất cả các món", "mọi mặt hàng", customer = all) is no filter. Only on a quantity, and
     only a value that links to no product."""
     p = plan.plan
+    # N147: "tổng cộng mấy ly size M, cộng tất cả các món" read as two measures [size M, product = every item] of the
+    # same metric and unit (train 10/11, 2 questions; the one-measure reading of the same words answers right): the
+    # words sum every item of size M, one figure — the measure filtered by "every" alone goes.
+    if len(p.measures) == 2 and p.intent == "value":
+        def every_only(m) -> bool:
+            return len(m.filters) == 1 and m.filters[0].field == "product" and m.filters[0].op == "eq" \
+                and isinstance(m.filters[0].value, str) and linking.norm(m.filters[0].value) in _EVERY
+        a, b = p.measures
+        if every_only(b) and not every_only(a) and a.filters and a.metric == b.metric \
+                and linking.norm(a.unit or "") == linking.norm(b.unit or ""):
+            p = p.model_copy(update={"measures": [a], "answer_type": "number"})
+            plan = plan.model_copy(update={"plan": p})
     cands = units = None
     measures, changed = [], False
     for m in p.measures:
