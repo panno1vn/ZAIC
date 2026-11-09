@@ -67,6 +67,60 @@ def same_rule(a: str, b: str, threshold: float = 0.95) -> bool:
     return meaning_tokens(a) == meaning_tokens(b) and similarity(a, b) >= threshold
 
 
+# N159: words that, added inside a list of the rule, would narrow or flip it ("…, không tính đơn sỉ")
+_NARROWING = frozenset({"không", "chỉ", "trừ", "ngoài", "bỏ", "riêng", "ko"})
+
+
+def _tokens(text: str) -> list[str]:
+    return re.findall(r"[^\W_]+|[^\w\s]", normalize(text))
+
+
+def extends(old: str, new: str) -> bool:
+    """N159: the new text is the accepted one with sentences or list items added, every word of it still there in
+    order. Public 09/11 added a sentence to three train rows ("Đơn thuộc kỳ nào": "… Đơn trả hàng sau kỳ … vẫn bị
+    loại khỏi doanh thu kỳ đặt"; "Giao nhiều đợt"; "Đến hết ngày X": ", chưa giao" in the list): clarifications the
+    functions were already right under (public 991 right / 4 wrong with them), but 0.57 similar, so without a public
+    version 925 of the 965 public answers that come from a function would have been blanked. The private rulebook is
+    read by the frozen image, where no version can be added. A word changed or removed, a number changed, or a
+    narrowing word added inside a sentence is still a changed rule."""
+    a, b = _tokens(old), _tokens(new)
+    if not a:
+        return False
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if tag == "equal":
+            continue
+        if tag != "insert":
+            return False
+        run, before = b[j1:j2], (a[i1 - 1] if i1 > 0 else None)
+        sentence = run[0] in (".", ";") or (run[-1] in (".", ";") and before in (None, ".", ";"))
+        item = run[0] == "," and not _NARROWING & set(run)
+        if not (sentence or item):
+            return False
+    return True
+
+
+def _key(rid: str) -> str:
+    """The id without its section number: "§1.so_don" -> "so_don", "§6.ca_phe.size_m" -> "ca_phe.size_m"."""
+    return rid.split(".", 1)[1] if rid.startswith("§") and "." in rid else rid
+
+
+def canonical_rows(rows: dict[str, RuleRow], known) -> dict[str, RuleRow]:
+    """N159: rows under the ids the functions know, when the rulebook numbers its sections otherwise. An id the
+    reference does not have takes the known id with the same name (sub-section and term), when exactly one such id
+    is missing from this rulebook. Public sections renumbered by one: 74 -> 1 of the 77 rules the functions cite were
+    found before this."""
+    known = set(known)
+    by_key: dict[str, list[str]] = {}
+    for rid in known:
+        by_key.setdefault(_key(rid), []).append(rid)
+    out: dict[str, RuleRow] = {}
+    for rid, row in rows.items():
+        cands = [] if rid in known else [k for k in by_key.get(_key(rid), []) if k not in rows and k not in out]
+        new = cands[0] if len(cands) == 1 else rid
+        out[new] = RuleRow(new, row.section, row.name, row.text)
+    return out
+
+
 def _cells(line: str) -> list[str]:
     return [c.strip() for c in line.strip().strip("|").split("|")]
 
@@ -119,14 +173,15 @@ def load_reference(path: Path = REFERENCE) -> dict[str, list[str]]:
 def check_rules(rulebook: str, rule_ids: tuple[str, ...], reference: dict[str, str | list[str]] | None = None,
                 threshold: float = THRESHOLD) -> dict[str, bool]:
     """rule id -> True when the rule exists in this rulebook and matches one accepted version closely enough."""
-    current = parse_rulebook(rulebook)
     ref = load_reference() if reference is None else reference
+    current = canonical_rows(parse_rulebook(rulebook), set(ref) | set(rule_ids))
     out = {}
     for rid in rule_ids:
         row, versions = current.get(rid), ref.get(rid)
         if isinstance(versions, str):
             versions = [versions]
-        out[rid] = row is not None and bool(versions) and any(same_rule(row.text, v, threshold) for v in versions)
+        out[rid] = row is not None and bool(versions) and any(
+            same_rule(row.text, v, threshold) or extends(v, row.text) for v in versions)
     return out
 
 
@@ -150,7 +205,7 @@ def new_terms(rulebook: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
     the words after its head noun ("trung thanh nhat"), of the last name when a row names several ("Nhân viên, thợ
     chăm chỉ nhất"); one word left is too common to tell ("Bảo hành")."""
     known, out = train_rule_ids(), []
-    for rid, row in parse_rulebook(rulebook).items():
+    for rid, row in canonical_rows(parse_rulebook(rulebook), load_reference()).items():
         if rid in known or row.name.startswith("p_"):
             continue
         words = _words(row.name.split(",")[-1])[1:]
