@@ -50,7 +50,7 @@ VARIANTS = ("identity", "reorder", "extra_col", "unaccent", "date_dmy", "fmt_swa
 README_VARIANTS = ("readme_line1", "readme_none")
 # file oddities: money with separators, Excel serial dates, title rows, duplicate column, empty sheets, sqlite tables renamed
 ODD_VARIANTS = ("money_dot", "money_comma", "date_serial", "title_rows", "dup_col", "empty_sheet", "sqlite_rename",
-                "one_sheet_odd")
+                "one_sheet_odd", "mix_money_words", "mix_date_ampm", "mix_date_weekday")
 _ISO = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$")
 
 
@@ -167,6 +167,27 @@ def transform(grid: list[list[str]], variant: str, renamed: dict[str, str]) -> l
             x = (d - _dt.datetime(1899, 12, 30)).total_seconds() / 86400
             return str(int(x)) if x == int(x) else f"{x:.6f}"
         return [r if i <= h else [ser(v) for v in r] for i, r in enumerate(grid)]
+    if variant in ("mix_money_words", "mix_date_ampm", "mix_date_weekday"):
+        # every 7th data row: one more way of writing the same figure, mixed into a column as hand ledgers do
+        out = [list(r) for r in grid]
+        wd = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ nhật"]
+        import datetime as _dt
+        for i in range(h + 1 + 3, len(out), 7):
+            for j, v in enumerate(out[i]):
+                s = v.strip()
+                if variant == "mix_money_words" and re.fullmatch(r"[1-9]\d*(\.0+)?", s):
+                    n = int(float(s))
+                    if n >= 1_000_000 and n % 100_000 == 0:
+                        out[i][j] = f"{n / 1e6:g} triệu".replace(".", ",")
+                    elif n >= 10_000 and n % 1000 == 0 and n < 1_000_000:
+                        out[i][j] = f"{n // 1000} nghìn"
+                elif variant != "mix_money_words" and (m := _ISO.match(s)):
+                    d = _dt.datetime(int(m[1]), int(m[2]), int(m[3]), int(m[4] or 0), int(m[5] or 0))
+                    if variant == "mix_date_weekday":
+                        out[i][j] = f"{wd[d.weekday()]}, {d:%d/%m/%Y}" + (f" {d:%H:%M}" if m[4] else "")
+                    elif m[4]:
+                        out[i][j] = f"{d:%d/%m/%Y} {d.hour % 12 or 12}:{d:%M} {'PM' if d.hour >= 12 else 'AM'}"
+        return out
     if variant == "title_rows":  # a report title and a blank row above the header
         w = len(grid[0])
         return [["BÁO CÁO XUẤT TỪ PHẦN MỀM"] + [""] * (w - 1), [""] * w] + grid
