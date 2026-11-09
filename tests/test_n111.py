@@ -202,3 +202,40 @@ def test_the_lots_are_read_from_their_values_and_settled_by_the_stock():
 def test_no_lots_when_they_do_not_sum_to_the_stock():
     m = N.with_named_sides(Mapping(tables=core(), notes=["chuyển từ mapping mẫu X"]), lot_shop(received=(100, 50, 40)))
     assert not any(t.target == "lots" for t in m.tables)
+
+
+def pos_people(header: str = "Người bán") -> RawBusiness:
+    """N144: an export whose orders carry the seller's code under a header that says so, a staff table of those codes,
+    and a customer list with its group."""
+    raw = shop()
+    orders = [("D1", "01/06/2026 10:00", "Xong", "Tiền mặt", 105000, "NV1", "K1"),
+              ("D2", "02/06/2026 11:00", "Xong", "Tiền mặt", 5000, "NV2", "K2")]
+    tables = [t for t in raw.tables if t.table_id != "hd.csv"] + [
+        table("hd.csv", orders, ORDERS + [header, "Mã KH"]),
+        table("nv.csv", [("NV1", "Bùi Dũng Lan", "sales"), ("NV2", "La Thu Quân", "owner")], ["MaNhanVien", "TenGoi", "ChucVu"]),
+        table("kh.csv", [("K1", "An", "đang hoạt động", "thân thiết"), ("K2", "Bình", "đang hoạt động", "lẻ")],
+              ["Mã KH", "Tên khách", "Trạng thái", "Nhóm khách hàng"])]
+    return RawBusiness(root=Path("."), readme=CONVENTIONS, tables=tables)
+
+
+def with_customers(tables: list[TableMap]) -> list[TableMap]:
+    tables = [t.model_copy(update={"columns": list(t.columns) + [cm("customer_key", "Mã KH")]}) if t.target == "orders"
+              else t for t in tables]
+    return tables + [TableMap(target="customers", sources=["kh.csv"], columns=[
+        cm("customer_key", "Mã KH"), cm("customer_name", "Tên khách")])]
+
+
+def test_the_seller_and_customer_group_are_read_from_header_and_values():
+    m = N.with_named_sides(Mapping(tables=with_customers(core()), notes=["chuyển từ mapping mẫu X"]), pos_people())
+    assert cols(m, "orders")["employee"].source == "Người bán"
+    staff = cols(m, "employees")
+    assert (staff["employee_key"].source, staff["employee_name"].source) == ("MaNhanVien", "TenGoi")
+    assert cols(m, "customers")["customer_group"].source == "Nhóm khách hàng"  # not "Trạng thái"
+    looked = cols(m, "orders")["customer_group"]  # the order filters read it on the order
+    assert looked.transform == "lookup" and looked.source == "Mã KH"
+    assert looked.args == {"table": "kh.csv", "key": "Mã KH", "value": "Nhóm khách hàng", "keep_missing": False}
+
+
+def test_no_seller_from_a_header_that_does_not_say_so():
+    m = N.with_named_sides(Mapping(tables=with_customers(core()), notes=["chuyển từ mapping mẫu X"]), pos_people("Ghi chú"))
+    assert "employee" not in cols(m, "orders") and not any(t.target == "employees" for t in m.tables)

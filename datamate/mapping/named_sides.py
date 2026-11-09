@@ -559,6 +559,81 @@ def lot_tables(shop: _Shop, conv: dict) -> list[TableMap]:
     return [TableMap(target="lots", sources=ids, columns=lc), TableMap(target="lot_sales", sources=sids, columns=sc)]
 
 
+# N144. The seller and the customer group of a shop whose README lists its files without describing each column (train:
+# a POS export with "Người bán" on every order and "Nhóm khách hàng" in the customer list, a POS database with
+# "MaNhanVien" on every order beside a staff table): a mapping moved from an example whose shop kept neither leaves them
+# out, and every question by seller or customer group stops (train 10/11: 8 questions in two shops). Its header must
+# say what it is AND its values must be what such a column holds: few values on (nearly) every row; a staff table's
+# codes must be the codes the orders carry.
+_SELLER = re.compile(r"nguoiban|nhanvien|manv|nvban|thungan")
+_CUSTOMER_GROUP = re.compile(r"nhomkhach|nhomkh")
+_PERSON_NAME = re.compile(r"^(?:ho)?ten|tengoi")
+STAFF_MAX = 50  # distinct sellers of one shop
+
+
+def _compact(column) -> str:
+    return re.sub(r"[^a-z0-9]", "", T._fold(str(column)))
+
+
+def _few_values(frames: list[pd.DataFrame], column: str, most: int) -> bool:
+    values = [str(v).strip() for v in _values(frames, column) if v is not None and not pd.isna(v)]
+    filled = [v for v in values if v]
+    return bool(filled) and len(filled) >= 0.9 * len(_values(frames, column)) and 1 <= len(set(filled)) <= most \
+        and sum(parse_number(v) is not None for v in filled) == 0
+
+
+def _header_column(tm: TableMap, frames: list[pd.DataFrame], pattern: re.Pattern, most: int) -> str | None:
+    used = {c.source for c in tm.columns} | {s for c in tm.columns for s in c.sources}
+    hits = [c for c in _columns(frames) if c not in used and pattern.search(_compact(c)) and _few_values(frames, c, most)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def order_people(shop: _Shop) -> tuple[dict[str, list[ColumnMap]], list[TableMap]]:
+    """({target table: columns to add}, [staff table]) for the seller and the customer group the mapping lacks."""
+    orders, customers = shop.table("orders"), shop.table("customers")
+    add: dict[str, list[ColumnMap]] = {}
+    tables: list[TableMap] = []
+    have_o = {c.target for c in orders.columns} if orders is not None else set()
+    if orders is not None and "employee" not in have_o:
+        frames = shop.frames(orders.sources)
+        seller = _header_column(orders, frames, _SELLER, STAFF_MAX)
+        if seller is not None:
+            add.setdefault("orders", []).append(ColumnMap(target="employee", source=seller))
+            codes = _folded(frames, seller)
+            if shop.table("employees") is None:
+                staff = []
+                for ids in _layouts(shop, set()):
+                    sf = shop.frames(ids)
+                    keys = [c for c in _columns(sf) if _unique(sf, c) and _share_in(codes, _folded(sf, c)) >= KEY_SHARE]
+                    names = [c for c in _columns(sf) if c not in keys and _PERSON_NAME.search(_compact(c))
+                             and _unique(sf, c) and _share_in(_folded(sf, c), codes) == 0]
+                    if len(keys) == 1 and len(names) == 1:
+                        staff.append(TableMap(target="employees", sources=ids, columns=[
+                            ColumnMap(target="employee_key", source=keys[0]),
+                            ColumnMap(target="employee_name", source=names[0])]))
+                if len(staff) == 1:
+                    tables.append(staff[0])
+    groups_known = "customer_group" in have_o or (customers is not None and "customer_group" in {
+        c.target for c in customers.columns})
+    if not groups_known:
+        for tm in (orders, customers):  # the order's own group first, then the customer list's
+            if tm is None:
+                continue
+            group = _header_column(tm, shop.frames(tm.sources), _CUSTOMER_GROUP, CATEGORY_MAX)
+            if group is None:
+                continue
+            add.setdefault(tm.target, []).append(ColumnMap(target="customer_group", source=group))
+            # the order filters read the group on the order: looked up there by the customer code the orders carry,
+            # as the hand mappings do (from_readme.enrich does the same from the README's "nhóm khách")
+            okey, ckey = _plain(orders, "customer_key"), _plain(tm, "customer_key")
+            if tm is customers and okey and ckey and len(tm.sources) == 1:
+                add.setdefault("orders", []).append(ColumnMap(
+                    target="customer_group", source=okey, transform="lookup",
+                    args={"table": tm.sources[0], "key": ckey, "value": group, "keep_missing": False}))
+            break
+    return add, tables
+
+
 def with_named_sides(mapping: Mapping, raw: RawBusiness) -> Mapping:
     """The side tables (stock, expenses, receipts, unit conversions), drug attributes and customer names the README's
     conventions name, where the mapping has none; each kept only when no check newly fails (from_readme._failed_checks).
@@ -601,6 +676,13 @@ def with_named_sides(mapping: Mapping, raw: RawBusiness) -> Mapping:
         except Exception:
             pass
     extra = {"products": drugs(shop, conv) if "products" in have else [], "customers": customer_names(shop)}
+    try:  # N144
+        people, staff = order_people(shop)
+    except Exception:
+        people, staff = {}, []
+    for target, cols in people.items():
+        extra[target] = list(extra.get(target, [])) + cols
+    found += staff
     if not found and not any(extra.values()):
         return mapping
     before = _failed_checks(T._settle_constants(mapping, raw), raw)

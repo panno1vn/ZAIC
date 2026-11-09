@@ -94,3 +94,13 @@ def test_measures_told_apart_by_the_warranty_flag_alone_become_one():
            "compare": {"kind": "same_period_last_year"}}
     p = _accept("Doanh thu tháng 4/2026 so với cùng kỳ năm ngoái thay đổi bao nhiêu phần trăm?", raw)
     assert p is not None and len(p.measures) == 1 and not p.measures[0].filters
+
+
+def test_values_that_name_nothing_are_no_filter_but_a_threshold_stays():
+    from datamate.nlu import _generic_value
+    for v, field in (("nawm", "product"), ("4/2026", "product"), ("chi", "product"), ("do", "category"),
+                     ("dDown", "payment_method"), ("xe ddax", "vehicle_model")):
+        assert _generic_value(v, field), v
+    assert not _generic_value(">=187", "product") and not _generic_value("≥ 187", "product")
+    assert not _generic_value("Đỗ", "customer") and not _generic_value("Nam", "customer")  # names of people
+    assert not _generic_value("Bánh croissant", "product")

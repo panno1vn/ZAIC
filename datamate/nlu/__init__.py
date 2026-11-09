@@ -331,9 +331,26 @@ GENERIC_VALUES = frozenset({"quan", "wan", "shop", "sop", "tiem", "cua hang", "c
                             "cua", "duoc", "roi", "nhe", "nha", "a", "ha",
                             # N131: the month word alone ("Dthu th 6/26 … so th 6/25" with product = th)
                             "t", "th", "thg", "thang"})  # not "dt": "đt" is a phone
+# N145 (train 10/11, each a filter no value of the shop has): "lời gộp tháng 9 nawm 2025" (product = năm), "sản phẩm
+# bán nhiều nhất là chi" (là gì), "giá vốn đó" (category = đó), "hqua có tổng cộng nhiêu ddown" (payment = đơn), "xe
+# ddax giao mấy đợt" (xe đã). Not on people: "Đỗ", "Nam" are names too.
+THING_WORDS = frozenset({"nam", "chi", "gi", "do", "don", "da", "xe"})
+PEOPLE_FIELDS = frozenset({"customer", "customer_group", "employee"})
 _MONTH_VALUE = re.compile(r"^(?:t|th|thang)\s?\d{1,2}(?:\s\d{2,4})?$")
+_DATE_VALUE = re.compile(r"^\d{1,2}(?: \d{1,2})?(?: \d{2,4})?$")  # N145: "4/2026" written as a product
 GENERIC_FIELDS = ("product", "product_group", "category", "product_line", "brand", "customer", "customer_group",
-                  "payment_method", "channel")
+                  "payment_method", "channel", "vehicle_model")
+
+
+def _generic_value(value: str, field: str = "") -> bool:
+    """A value that names nothing: generic words only (each word, N145: "xe ddax" is "xe đã"), a month, a bare date.
+    Not a threshold written as the value ("≥ 187", "> 5"): dropping it would count something else."""
+    if re.search(r"[<>≤≥=]", value):
+        return False
+    v = linking.norm(value)
+    words = GENERIC_VALUES if field in PEOPLE_FIELDS else GENERIC_VALUES | THING_WORDS
+    return (v in words or bool(v.split()) and all(w in words for w in v.split())
+            or bool(_MONTH_VALUE.match(v)) or bool(_DATE_VALUE.match(v)))
 
 
 def _without_generic(plan: QueryPlan) -> QueryPlan:
@@ -342,8 +359,7 @@ def _without_generic(plan: QueryPlan) -> QueryPlan:
     def keep(f) -> bool:
         if f.field not in GENERIC_FIELDS or f.op != "eq" or not isinstance(f.value, str):
             return True
-        v = linking.norm(f.value)
-        return v not in GENERIC_VALUES and not _MONTH_VALUE.match(v)
+        return not _generic_value(f.value, f.field)
     measures = [m.model_copy(update={"filters": [f for f in m.filters if keep(f)]}) for m in plan.measures]
     return plan.model_copy(update={"measures": measures}) if measures != list(plan.measures) else plan
 
@@ -356,8 +372,7 @@ def drop_generic_filters(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     def generic(f) -> bool:
         if f.field not in GENERIC_FIELDS or f.op != "eq" or not isinstance(f.value, str):
             return False
-        v = linking.norm(f.value)
-        if v not in GENERIC_VALUES and not _MONTH_VALUE.match(v):
+        if not _generic_value(f.value, f.field):
             return False
         if f.field in ("payment_method", "channel"):
             return linking.concept(f.field, f.value) is None
