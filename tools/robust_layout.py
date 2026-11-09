@@ -184,9 +184,7 @@ def write_variant(src: Path, dst: Path, variant: str) -> None:
     for old, new in files.items():
         readme = readme.replace(old, new)
     if variant == "readme_line1":
-        readme = readme.split("
-", 1)[0] + "
-"
+        readme = readme.split("\n", 1)[0] + "\n"
     if variant != "readme_none":
         (dst / "README.md").write_text(readme, encoding="utf-8")
 
