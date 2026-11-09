@@ -6,6 +6,7 @@ questions abstain. Near the time budget the run stops computing and writes absta
 from __future__ import annotations
 
 import json
+import re
 import time
 import traceback
 from collections import Counter
@@ -82,9 +83,26 @@ def load_questions(split_dir: Path) -> list[dict]:
             if isinstance(q, dict) and isinstance(q.get("id"), str):
                 q.setdefault("business_id", "")
                 q.setdefault("question", "")
-                q.setdefault("as_of_date", "")
+                q["as_of_date"] = iso_day(q.get("as_of_date"))
                 questions.append(q)
     return questions
+
+
+def iso_day(value) -> str:
+    """N160: as_of_date as YYYY-MM-DD. The task writes it so; a time after it ("2026-08-27T00:00:00", "2026-08-27
+    00:00") or a Vietnamese day-first date ("27/08/2026") would otherwise make every question of the split fail to
+    parse and abstain. Anything else is left as it is (the question abstains, as before)."""
+    s = str(value or "").strip()
+    if m := re.match(r"^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:$|[T\s])", s):
+        y, mo, d = m.groups()
+    elif m := re.match(r"^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?:$|[T\s])", s):
+        d, mo, y = m.groups()
+    else:
+        return s
+    try:
+        return date(int(y), int(mo), int(d)).isoformat()
+    except ValueError:
+        return s
 
 
 def group_by_business(questions: list[dict]) -> dict[str, list[dict]]:

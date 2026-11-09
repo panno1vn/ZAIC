@@ -27,6 +27,21 @@ _SUMMARY = re.compile(r"^(?:cong|tong|total|grand total|sum|subtotal)\b")
 _DATED_SUMMARY = re.compile(r"^(?:cong|tong|total)(?: cong)?(?: ngay| thang)? ?\d{1,2}(?:[/.-]\d{1,4})*$")
 
 
+_SUMMARY_VN = re.compile(r"^(?:cộng|tổng)\b")
+
+
+def _summary_cell(c: str) -> bool:
+    """A total row's label. N163: folded, "Công tắc 1 chiều Panasonic…" (a product) is "cong tac…" and was taken for
+    "Cộng" whenever its row had few cells filled: a train catalogue lost its last product, and every question on that
+    product's group, once one more blank column made the row count as half empty (layout test 09/11). Written with
+    accents, only "Cộng" / "Tổng" are totals (not "Công", "Tống"); written without, a label of at most three words."""
+    low = " ".join(unicodedata.normalize("NFC", c.lower()).split())
+    f = fold(c)
+    if low != f:  # accents (or đ) written: the word itself decides
+        return bool(_SUMMARY_VN.match(low)) or bool(re.match(r"^(?:total|grand total|sum|subtotal)\b", f))
+    return bool(_SUMMARY.match(f)) and len(f.split()) <= 3
+
+
 def cell_text(v) -> str:
     """One cell as text, the way the parsers expect it: '' for empty, integral floats without '.0', ISO dates."""
     if v is None or (isinstance(v, float) and math.isnan(v)):
@@ -118,7 +133,7 @@ def to_table(grid: list[list]) -> Table:
     for r in body:
         # "Cộng" + a total; a customer "Tống…" is a full row. The label may sit after the total: columns come in any
         # order ("3,411,000 | Tổng ngày 01/03", daily totals inside a hand-kept ledger sheet)
-        if (_filled(r) < min_filled and any(c and _SUMMARY.match(fold(c)) for c in r)) or any(
+        if (_filled(r) < min_filled and any(c and _summary_cell(c) for c in r)) or any(
                 c and _DATED_SUMMARY.match(fold(c)) for c in r):  # "tổng 01/05" in the order id column, sums beside
             dropped.append(" ".join(c for c in r if c)[:60])
         elif _filled(r) and sum(bool(c) and c == n for c, n in zip(r, header)) * 2 > _filled(r):
