@@ -84,3 +84,34 @@ def test_a_count_of_days_over_an_amount_in_money_is_a_revenue_bound():
     plan = _accept("Tháng 8/2025 có mấy bữa tiệm bán được từ 10 củ trở lên?", raw)
     assert plan is not None and plan.threshold.metric == "revenue" and plan.threshold.value == 10_000_000
     assert "th" in nlu.GENERIC_VALUES  # "Dthu th 6/26 … so th 6/25" read with product = th
+
+
+def test_an_average_per_weekday_is_avg_per_weekday():
+    """N134: §3 "trung bình mỗi ngày thứ X của kỳ: chia cho số ngày thứ X trong kỳ"."""
+    raw = {"intent": "value", "period": {"kind": "month", "year": 2026, "month": 3},
+           "measures": [{"metric": "ticket_count", "filters": [{"field": "weekday", "value": "wed"}]}]}
+    plan = _accept("Th3/2026 trung bình mỗi thứ Tư tiệm sửa mấy lượt xe?", raw)
+    assert plan is not None and plan.measures[0].aggregate == "avg_per_weekday"
+    assert _accept("Th3/2026 các ngày thứ Tư tiệm sửa tổng cộng mấy lượt xe?", raw).measures[0].aggregate == "total"
+
+
+def test_installment_periods_due_of_a_customer_are_counted():
+    """N135: "khách X góp tới hạn mấy kỳ rồi, tính luôn kỳ hạn hôm nay" is the periods due by today, not money."""
+    raw = {"intent": "value", "period": {"kind": "until", "date": "2026-06-30"},
+           "measures": [{"metric": "amount_due_total", "filters": [{"field": "customer", "value": "Tạ Dũng Long"},
+                                                                    {"field": "payment_method", "value": "Trả góp"}]}]}
+    plan = _accept("Hết hnay, khách Tạ Dũng Long góp tới hạn mấy kỳ rồi, tính luôn kỳ hạn hôm nay nha?", raw)
+    assert plan is not None and plan.measures[0].metric == "installments_due" and plan.period.kind == "today"
+    assert [f.field for f in plan.measures[0].filters] == ["customer"]
+
+
+def test_phones_sold_in_a_month_that_came_back_for_warranty():
+    """N136: phones of the orders placed that month the warranty book received, not that month's visits."""
+    raw = {"intent": "value", "period": {"kind": "month", "year": 2025, "month": 8},
+           "measures": [{"metric": "warranty_count", "filters": [{"field": "product_line", "value": "phones"}]}]}
+    plan = _accept("Máy bán ra tháng 8/2025, tới hnay có bao nhiêu máy đã mang lại bảo hành rồi?", raw)
+    assert plan is not None and plan.measures[0].metric == "phones_warrantied" and plan.period.month == 8
+    # visits of a month, no phones sold: unchanged
+    visits = {"intent": "value", "period": {"kind": "month", "year": 2025, "month": 8},
+              "measures": [{"metric": "warranty_count", "filters": []}]}
+    assert _accept("Tháng 8/2025 có bao nhiêu lượt bảo hành?", visits).measures[0].metric == "warranty_count"
