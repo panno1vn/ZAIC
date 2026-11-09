@@ -149,7 +149,8 @@ def transform(grid: list[list[str]], variant: str, renamed: dict[str, str]) -> l
             vals = [r[j] for r in out[h + 1:] if r[j].strip()]
             if not vals or not all(re.fullmatch(r"-?[1-9]\d*(\.0+)?", v.strip()) or v.strip() == "0" for v in vals):
                 continue
-            if max(abs(int(float(v))) for v in vals) < 10000 or re.search(r"(?i)mã|ma |sđt|phone|đt|số dòng|no\.", out[h][j]):
+            if not 10000 <= max(abs(int(float(v))) for v in vals) < 10**12 or \
+                    re.search(r"(?i)mã|ma |sđt|phone|đt|số dòng|no\.|imei|serial", out[h][j]):
                 continue
             for r in out[h + 1:]:
                 v = r[j].strip()
