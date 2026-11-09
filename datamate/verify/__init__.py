@@ -119,6 +119,27 @@ def _filter_fields(node) -> set[str]:
     return set()
 
 
+def _filter_values(node, field: str) -> list[str]:
+    if isinstance(node, dict):
+        out = []
+        if node.get("field") == field and "value" in node:
+            v = node["value"]
+            out += [str(x) for x in (v if isinstance(v, list) else [v])]
+        return out + [x for v in node.values() for x in _filter_values(v, field)]
+    if isinstance(node, list):
+        return [x for v in node for x in _filter_values(v, field)]
+    return []
+
+
+def _named_in_files(plan, field: str, db: CanonicalDB) -> bool:
+    """N161: every value the plan filters `field` by is a value of the shop's files (CanonicalDB.values), mapped or
+    not. Layout test 09/11: a train POS shop with its headers written without accents ("Nhom hang(3 Cap)") lost its
+    group column, and 7 questions "nhóm sữa chiếm bao nhiêu % doanh thu" became unanswerable (wrong) though "sữa" is
+    in the file: such a question is recorded, not §7."""
+    values = _filter_values(plan.model_dump(mode="json", exclude_none=True), field)
+    return bool(values) and all(" ".join(_fold(v).split()) in db.values for v in values)
+
+
 def _has(db: CanonicalDB, tables: tuple[str, ...], column: str) -> bool:
     return any((df := db.table(t)) is not None and column in df.columns and df[column].notna().any() for t in tables)
 
@@ -140,7 +161,7 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
     if plan.rank is not None:
         fields.add(plan.rank.entity)
     if "product_group" in fields and not _has(db, ("products", "lines"), "product_group") \
-            and not any(_GROUP_NOTE.search(line) for line in readme):
+            and not any(_GROUP_NOTE.search(line) for line in readme) and not _named_in_files(plan, "product_group", db):
         return "nhóm hàng"
     asked = {m.metric for m in list(plan.measures) + ([plan.share_of] if plan.share_of else [])}
     if plan.rank is not None:
@@ -180,10 +201,12 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
     coded = {f.field for m in list(plan.measures) + ([plan.share_of] if plan.share_of else []) for f in m.filters
              if f.field in ("channel", "payment_method")
              and all(linking.concept(f.field, str(v)) for v in (f.value if isinstance(f.value, list) else [f.value]))}
-    if "channel" in coded and not _has(db, ("orders",), "channel") \
+    # K161 (teammate, layout test): a filter value found in the shop's files is recorded, not §7
+    if "channel" in coded and not _has(db, ("orders",), "channel") and not _named_in_files(plan, "channel", db) \
             and not re.search(r"\bkenh\b|\bban qua\b|\bnguon don\b|\bnoi ban\b", text):
         return "kênh bán"
     if "payment_method" in coded and not _has(db, ("orders", "payments"), "payment_method") \
+            and not _named_in_files(plan, "payment_method", db) \
             and not re.search(r"\bthanh toan bang\b|\bhinh thuc (?:thanh toan|tt|tra)\b|\bphuong thuc\b|\btra bang\b"
                               r"|\bcach tra\b|\b(?:thanh toan|tt)\s*:", text):
         return "hình thức thanh toán"

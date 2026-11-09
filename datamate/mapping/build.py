@@ -251,6 +251,26 @@ _CONVENTIONS = re.compile(r"^##\s*Quy ước\s*$", re.M)
 _TOPIC = re.compile(r"^\s*[-*]\s*\*\*([^*]+)\*\*\s*:", re.M)
 
 
+VALUE_COLUMN_MAX = 300  # N161: a column with more distinct values is names, codes or amounts, not a category
+
+
+def raw_values(raw: RawBusiness) -> frozenset[str]:
+    """N161: the folded text values of every column of the shop's files with at most VALUE_COLUMN_MAX distinct
+    values, whether the mapping uses the column or not ("sữa", "gạo" of a "Nhom hang(3 Cap)" column the mapping did
+    not recognise). Numbers and dates are left out."""
+    out: set[str] = set()
+    for t in raw.tables:
+        df = t.frame
+        if df is None or not len(df):
+            continue
+        for c in df.columns:
+            vals = df[c].dropna().astype(str).str.strip()
+            uniq = vals[vals != ""].unique()
+            if 0 < len(uniq) <= VALUE_COLUMN_MAX:
+                out.update(f for v in uniq if (f := _fold(v)) and re.search(r"[a-z]", f) and len(f) <= 60)
+    return frozenset(out)
+
+
 def readme_conventions(readme: str) -> tuple[str, ...] | None:
     """N38: the topics the README's "## Quy ước" section names in bold ("**Nhập hàng**: …" -> "nhap hang"), folded;
     None when the README has no such section (then nothing is known to be missing). Every train README has one."""
@@ -263,7 +283,7 @@ def readme_conventions(readme: str) -> tuple[str, ...] | None:
 
 def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
     db = CanonicalDB(industry=mapping.industry, warnings=list(raw.warnings), conventions=readme_conventions(raw.readme),
-                     readme=raw.readme or "")
+                     readme=raw.readme or "", values=raw_values(raw))
     raw_frames = prepare_raw(raw, mapping)
     for tm in mapping.tables:
         db.tables[tm.target] = _build_table(tm, mapping, db.warnings, raw_frames)

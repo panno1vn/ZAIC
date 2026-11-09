@@ -25,6 +25,17 @@ BUDGET_S = 300.0  # reading one business may take this long; the rest of its fil
 
 
 def _decode(data: bytes) -> tuple[str, str | None]:
+    # N160: Excel's "Unicode text" is UTF-16; cp1258 decodes it into text with a NUL every other character, the shop
+    # then has no table (robust test 09/11: a CSV shop saved as UTF-16 mapped nothing). A BOM, or NULs in half the
+    # bytes, is UTF-16.
+    head = data[:4096]
+    if head[:2] in (b"\xff\xfe", b"\xfe\xff") or (head and head.count(0) * 3 > len(head)):
+        enc = "utf-16" if head[:2] in (b"\xff\xfe", b"\xfe\xff") else (
+            "utf-16-le" if head[1::2].count(0) > head[0::2].count(0) else "utf-16-be")
+        try:
+            return data.decode(enc), f"đọc bằng bảng mã {enc}"
+        except UnicodeDecodeError:
+            pass
     for enc in ("utf-8-sig", "cp1258"):
         try:
             return data.decode(enc), None if enc == "utf-8-sig" else f"đọc bằng bảng mã {enc}"
@@ -73,14 +84,15 @@ READERS = {".csv": _read_csv, ".xlsx": _read_xlsx, ".xlsm": _read_xlsx, ".xls": 
 
 def load_business(root: Path, budget_s: float = BUDGET_S) -> RawBusiness:
     """Read every data file under `root` (read-only) into RawTables of text cells."""
-    readme = root / "README.md"
-    raw = RawBusiness(root=root, readme=readme.read_text(encoding="utf-8", errors="replace") if readme.exists() else "")
+    # N160: README in any case ("readme.md") and any encoding the data files may have (BOM, UTF-16)
+    readmes = sorted(p for p in root.iterdir() if p.is_file() and p.name.lower() == "readme.md") if root.exists() else []
+    raw = RawBusiness(root=root, readme=_decode(readmes[0].read_bytes())[0].lstrip("﻿") if readmes else "")
     start = time.monotonic()
     files = sorted(p for p in root.rglob("*") if p.is_file()) if root.exists() else []
     for f in files:
         reader = READERS.get(f.suffix.lower())
         if reader is None:
-            if f.name != "README.md":
+            if f.name.lower() != "readme.md":
                 raw.warnings.append(f"{f.relative_to(root)}: bỏ qua, không đọc kiểu file {f.suffix or '(không đuôi)'}")
             continue
         if time.monotonic() - start > budget_s:

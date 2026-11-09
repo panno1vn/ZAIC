@@ -177,6 +177,9 @@ class CanonicalDB:
     debt_snapshot_day: date | None = None
     # N112: the shop's README, for what it records (verify.not_recorded: §7 "shop không ghi loại thông tin")
     readme: str = ""
+    # N161: every short text value of the shop's files (folded, columns with few distinct values), mapped or not: a
+    # value the question names that is here is recorded, whatever the mapping found
+    values: frozenset[str] = frozenset()
 
     def table(self, name: str) -> pd.DataFrame | None:
         df = self.tables.get(name)

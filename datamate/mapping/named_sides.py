@@ -653,6 +653,30 @@ def order_people(shop: _Shop) -> tuple[dict[str, list[ColumnMap]], list[TableMap
     return add, tables
 
 
+_PRODUCT_GROUP = re.compile(r"nhomhang|nhomsp|nhomsanpham|nhommathang|loaihang|loaisp|loaisanpham|danhmuc|nganhhang"
+                            r"|phanloai")
+GROUP_MAX = 60  # distinct product groups of one shop
+
+
+def product_groups(shop: _Shop) -> dict[str, list[ColumnMap]]:
+    """N162: {target table: [product_group]} for a shop whose mapping has no product group, from a column of the
+    sales lines or of the catalogue whose header says group ("Nhóm hàng(3 Cấp)", "Nhom hang", "Loại hàng", "Danh
+    mục"…, accents or not) and whose values are a few names. Layout test 09/11: a train POS shop with its headers
+    written without accents lost its group column (moved from an example by meaning), and 7 questions by group went
+    wrong, then blank (N161). Only one such column per table; the lines' own first."""
+    have = {c.target for tm in shop.mapping.tables if tm.target in ("lines", "products") for c in tm.columns}
+    if "product_group" in have:
+        return {}
+    for target in ("lines", "products"):
+        tm = shop.table(target)
+        if tm is None or "product_key" not in {c.target for c in tm.columns}:
+            continue
+        group = _header_column(tm, shop.frames(tm.sources), _PRODUCT_GROUP, GROUP_MAX)
+        if group is not None:
+            return {target: [ColumnMap(target="product_group", source=group)]}
+    return {}
+
+
 def with_named_sides(mapping: Mapping, raw: RawBusiness) -> Mapping:
     """The side tables (stock, expenses, receipts, unit conversions), drug attributes and customer names the README's
     conventions name, where the mapping has none; each kept only when no check newly fails (from_readme._failed_checks).
@@ -703,6 +727,11 @@ def with_named_sides(mapping: Mapping, raw: RawBusiness) -> Mapping:
     for target, cols in people.items():
         extra[target] = list(extra.get(target, [])) + cols
     found += staff
+    try:  # N162
+        for target, cols in product_groups(shop).items():
+            extra[target] = list(extra.get(target, [])) + cols
+    except Exception:
+        pass
     if not found and not any(extra.values()):
         return mapping
     before = _failed_checks(T._settle_constants(mapping, raw), raw)
