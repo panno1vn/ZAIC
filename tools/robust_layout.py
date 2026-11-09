@@ -49,7 +49,8 @@ VARIANTS = ("identity", "reorder", "extra_col", "unaccent", "date_dmy", "fmt_swa
 # the README alone thinned (files unchanged): the task warns some private READMEs are almost empty
 README_VARIANTS = ("readme_line1", "readme_none")
 # file oddities: money with separators, Excel serial dates, title rows, duplicate column, empty sheets, sqlite tables renamed
-ODD_VARIANTS = ("money_dot", "money_comma", "date_serial", "title_rows", "dup_col", "empty_sheet", "sqlite_rename")
+ODD_VARIANTS = ("money_dot", "money_comma", "date_serial", "title_rows", "dup_col", "empty_sheet", "sqlite_rename",
+                "one_sheet_odd")
 _ISO = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$")
 
 
@@ -171,7 +172,7 @@ def transform(grid: list[list[str]], variant: str, renamed: dict[str, str]) -> l
         return [["BÁO CÁO XUẤT TỪ PHẦN MỀM"] + [""] * (w - 1), [""] * w] + grid
     if variant == "dup_col":  # the first column repeated at the end under the same header
         return [r + [r[0]] for r in grid]
-    if variant in ("empty_sheet", "sqlite_rename"):
+    if variant in ("empty_sheet", "sqlite_rename", "one_sheet_odd"):
         return grid
     raise ValueError(variant)
 
@@ -199,6 +200,14 @@ def write_variant(src: Path, dst: Path, variant: str) -> None:
                 _write_csv(out, grid, delim)
         elif ext in (".xlsx", ".xlsm"):
             grids = {s: transform(g, variant, renamed) for s, g in _xlsx_grids(f).items()}
+            if variant == "one_sheet_odd" and len(grids) >= 3:
+                # a workbook of month sheets where one month was typed by hand: headers without accents, columns
+                # in another order (only that sheet)
+                s = list(grids)[len(grids) // 2]
+                g = _square(_xlsx_grids(f)[s])
+                hh, _ = find_header(g)
+                g = [list(reversed([_unaccent(v) for v in r] if i == hh else r)) for i, r in enumerate(g)]
+                grids[s] = g
             if variant == "empty_sheet":
                 grids = {"Trang trống": [[""]], **grids, "Sheet9": [[""]]}
             if variant == "fmt_swap" and len(grids) == 1:
