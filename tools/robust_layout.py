@@ -46,6 +46,8 @@ from datamate.pipeline import NOT_RECORDED_REASON, prepare_business, rule_ids  #
 from datamate.predict import connect_llm  # noqa: E402
 
 VARIANTS = ("identity", "reorder", "extra_col", "unaccent", "date_dmy", "fmt_swap")
+# the README alone thinned (files unchanged): the task warns some private READMEs are almost empty
+README_VARIANTS = ("readme_line1", "readme_none")
 _ISO = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$")
 
 
@@ -112,7 +114,7 @@ def _unaccent(s: str) -> str:
 
 def transform(grid: list[list[str]], variant: str, renamed: dict[str, str]) -> list[list[str]]:
     grid = _square(grid)
-    if not grid or variant in ("identity", "fmt_swap"):
+    if not grid or variant in ("identity", "fmt_swap") + README_VARIANTS:
         return grid
     h, _ = find_header(grid)
     if variant == "reorder":
@@ -181,7 +183,12 @@ def write_variant(src: Path, dst: Path, variant: str) -> None:
         readme = readme.replace(f"**{old}**", f"**{new}**").replace(f"`{old}`", f"`{new}`").replace(f".{old}`", f".{new}`")
     for old, new in files.items():
         readme = readme.replace(old, new)
-    (dst / "README.md").write_text(readme, encoding="utf-8")
+    if variant == "readme_line1":
+        readme = readme.split("
+", 1)[0] + "
+"
+    if variant != "readme_none":
+        (dst / "README.md").write_text(readme, encoding="utf-8")
 
 
 # ---------------------------------------------------------------- answering
