@@ -17,7 +17,8 @@ from datamate.llm import LLMClient
 from datamate.verify import LINKED_FIELDS, SUBJECTIVE_REASON, filter_keys
 
 from . import baseline, jobs, linking, prompt, repair
-from .grounding import (quantity_not_money, anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
+from .grounding import (quantity_not_money, quarter_written, orders_counted, warranty_not_asked, debtors_ranked,
+                        gross_profit_named, anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
                         due_per_order, month_written_as_t, phones_as_whole, trade_in_share, values_together,
                         warranty_over_sold, order_amount_named, particle_not_unit, today_not_this_month,
                         order_amount_no_item, stocked_in_as_purchase,
@@ -185,6 +186,8 @@ def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> 
     plan = month_written_as_t(question, warranty_over_sold(question, phones_as_whole(question, plan)))
     plan = order_amount_named(question, today_not_this_month(question, particle_not_unit(plan)))
     plan = quantity_not_money(question, plan)  # N120
+    plan = debtors_ranked(question, gross_profit_named(question, warranty_not_asked(question, plan)))  # N139, N141, N142
+    plan = orders_counted(question, quarter_written(question, plan))  # N137, N140
     plan = stocked_in_as_purchase(question, order_amount_no_item(question, plan))
     plan = whole_not_part(split_debt_ages(drop_month_as_weekday(question, anchor_by_price(question, plan, as_of))))
     plan = written_last_year(plan)

@@ -176,3 +176,29 @@ def test_the_customers_name_is_the_column_named_as_the_products():
                                     columns=[cm("customer_key", "MaKhachHang"), cm("customer_group", "Loai")])]
     shop_ = N._Shop(Mapping(tables=tables), raw)
     assert [c.source for c in N.customer_names(shop_)] == ["TenGoi"]
+
+
+LOTS = "- **Lô, hạn dùng**: mỗi dòng nhập là một lô, số lô không trùng. Một dòng bán có thể lấy từ nhiều lô.\n"
+
+
+def lot_shop(received=(100, 37, 40)) -> RawBusiness:
+    """N143: shop() with a lot list and a sales-by-lot list; the lots sum to the stock list (SP1 112, SP2 40)."""
+    raw = shop()
+    return RawBusiness(root=Path("."), readme=CONVENTIONS + LOTS, tables=list(raw.tables) + [
+        table("lo.csv", [("L1", "SP1", "2027-01-30", received[0], "PN1"), ("L2", "SP1", "2027-04-08", received[1], "PN2"),
+                         ("L3", "SP2", "2027-07-13", received[2], "PN1")], ["Lô", "Mã món", "HSD", "SL nhập lẻ", "Phiếu"]),
+        table("banlo.csv", [("D1", "L1", 20, 0), ("D1", "L3", 1, 1), ("D2", "L2", 5, 0)], ["Hóa đơn", "Lô", "SL lẻ", "Trả"])])
+
+
+def test_the_lots_are_read_from_their_values_and_settled_by_the_stock():
+    m = N.with_named_sides(Mapping(tables=core(), notes=["chuyển từ mapping mẫu X"]), lot_shop())
+    lots, sold = cols(m, "lots"), cols(m, "lot_sales")
+    assert (lots["lot_id"].source, lots["product_key"].source, lots["expiry_date"].source,
+            lots["base_qty_in"].source, lots["receipt_id"].source) == ("Lô", "Mã món", "HSD", "SL nhập lẻ", "Phiếu")
+    assert (sold["order_id"].source, sold["lot_id"].source, sold["base_qty"].source,
+            sold["returned_base_qty"].source) == ("Hóa đơn", "Lô", "SL lẻ", "Trả")
+
+
+def test_no_lots_when_they_do_not_sum_to_the_stock():
+    m = N.with_named_sides(Mapping(tables=core(), notes=["chuyển từ mapping mẫu X"]), lot_shop(received=(100, 50, 40)))
+    assert not any(t.target == "lots" for t in m.tables)
