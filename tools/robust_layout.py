@@ -48,6 +48,8 @@ from datamate.predict import connect_llm  # noqa: E402
 VARIANTS = ("identity", "reorder", "extra_col", "unaccent", "date_dmy", "fmt_swap")
 # the README alone thinned (files unchanged): the task warns some private READMEs are almost empty
 README_VARIANTS = ("readme_line1", "readme_none")
+# file oddities: money with separators, Excel serial dates, title rows, duplicate column, empty sheets, sqlite tables renamed
+ODD_VARIANTS = ("money_dot", "money_comma", "date_serial", "title_rows", "dup_col", "empty_sheet", "sqlite_rename")
 _ISO = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$")
 
 
@@ -139,6 +141,38 @@ def transform(grid: list[list[str]], variant: str, renamed: dict[str, str]) -> l
                 return day
             return f"{day} {m[4]}:{m[5]}" + (f":{m[6]}" if m[6] not in (None, "00") else "")
         return [r if i <= h else [dmy(v) for v in r] for i, r in enumerate(grid)]
+    if variant in ("money_dot", "money_comma"):
+        # integer columns with big values (money): "1.234.000đ" or "1,234,000"; codes/phones (leading 0) untouched
+        out = [list(r) for r in grid]
+        for j in range(len(out[h])):
+            vals = [r[j] for r in out[h + 1:] if r[j].strip()]
+            if not vals or not all(re.fullmatch(r"-?[1-9]\d*(\.0+)?", v.strip()) or v.strip() == "0" for v in vals):
+                continue
+            if max(abs(int(float(v))) for v in vals) < 10000 or re.search(r"(?i)mã|ma |sđt|phone|đt|số dòng|no\.", out[h][j]):
+                continue
+            for r in out[h + 1:]:
+                v = r[j].strip()
+                if v:
+                    n = int(float(v))
+                    r[j] = f"{n:,}".replace(",", ".") + "đ" if variant == "money_dot" else f"{n:,}"
+        return out
+    if variant == "date_serial":  # ISO day cells as Excel serial day numbers (time kept as fraction)
+        import datetime as _dt
+        def ser(v: str) -> str:
+            m = _ISO.match(v.strip())
+            if not m:
+                return v
+            d = _dt.datetime(int(m[1]), int(m[2]), int(m[3]), int(m[4] or 0), int(m[5] or 0), int(m[6] or 0))
+            x = (d - _dt.datetime(1899, 12, 30)).total_seconds() / 86400
+            return str(int(x)) if x == int(x) else f"{x:.6f}"
+        return [r if i <= h else [ser(v) for v in r] for i, r in enumerate(grid)]
+    if variant == "title_rows":  # a report title and a blank row above the header
+        w = len(grid[0])
+        return [["BÁO CÁO XUẤT TỪ PHẦN MỀM"] + [""] * (w - 1), [""] * w] + grid
+    if variant == "dup_col":  # the first column repeated at the end under the same header
+        return [r + [r[0]] for r in grid]
+    if variant in ("empty_sheet", "sqlite_rename"):
+        return grid
     raise ValueError(variant)
 
 
@@ -165,6 +199,8 @@ def write_variant(src: Path, dst: Path, variant: str) -> None:
                 _write_csv(out, grid, delim)
         elif ext in (".xlsx", ".xlsm"):
             grids = {s: transform(g, variant, renamed) for s, g in _xlsx_grids(f).items()}
+            if variant == "empty_sheet":
+                grids = {"Trang trống": [[""]], **grids, "Sheet9": [[""]]}
             if variant == "fmt_swap" and len(grids) == 1:
                 out = out.with_suffix(".csv")
                 files[f.name] = out.name
@@ -173,8 +209,11 @@ def write_variant(src: Path, dst: Path, variant: str) -> None:
                 _write_xlsx(out.with_suffix(".xlsx"), grids)
         elif ext == ".sqlite":
             grids = {}
-            for t, g in _sqlite_grids(f).items():
-                grids[t] = transform(g, variant, renamed)
+            for k, (t, g) in enumerate(_sqlite_grids(f).items()):
+                name = f"tbl_{k + 1}" if variant == "sqlite_rename" else t
+                if name != t:
+                    renamed[t] = name
+                grids[name] = transform(g, variant, renamed)
             _write_sqlite(out, grids)
         elif f.name != "README.md":
             shutil.copy2(f, out)
