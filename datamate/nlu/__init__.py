@@ -17,12 +17,14 @@ from datamate.llm import LLMClient
 from datamate.verify import LINKED_FIELDS, SUBJECTIVE_REASON, filter_keys
 
 from . import baseline, jobs, linking, prompt, repair
-from .grounding import (anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
+from .grounding import (bought_in_count, employee_named, every_employee_listed, channel_not_self, sold_out_count,
+                        bought_in_as_purchase, payments_listed, quantity_not_money, quarter_written, orders_counted, warranty_not_asked, debtors_ranked,
+                        gross_profit_named, anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
                         due_per_order, month_written_as_t, phones_as_whole, trade_in_share, values_together,
                         warranty_over_sold, order_amount_named, particle_not_unit, today_not_this_month,
                         order_amount_no_item, stocked_in_as_purchase,
                         debt_age_from_question, in_minus_out, k_not_the_month, rulebook_rank_terms, share_as_value,
-                        weekday_as_stated, which_time_as_rank, whole_as_share_of,
+                        average_per_weekday, delivered_from_words, installment_periods_due, phones_sold_then_warrantied, this_month_written_short, written_month_over_relative, weekday_as_stated, which_time_as_rank, whole_as_share_of,
                         drop_restated_status, drop_ungrounded_years, month_of_short_year, one_name_no_values,
                         lots_expiring_count, orders_with_group, series_months_as_filters, stray_numeric_filters,
                         threshold_as_value,
@@ -166,6 +168,9 @@ RETRY_GROUND = ("Plan vừa viết có phần câu hỏi không nói tới, ho�
 def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> tuple[QueryPlan, list[str]]:
     """The plan after the drops (years the question does not state, restated filters) and what in it has no ground
     in the question: filters, days, measures (grounding.py)."""
+    plan = bought_in_count(question, plan)  # N157
+    plan = channel_not_self(question, sold_out_count(question, bought_in_as_purchase(question, plan)))  # N150-N152
+    plan = payments_listed(question, every_employee_listed(question, employee_named(question, plan)))  # N148, N149, N153
     plan = which_time_as_rank(question, rulebook_rank_terms(question, in_minus_out(question, plan)))
     plan = rank_months_as_listed(question, plan)
     plan = lots_expiring_count(question, threshold_as_value(question, orders_with_group(question, plan)), as_of)
@@ -173,6 +178,9 @@ def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> 
     # whole_not_part first: a share_of written as the part itself hides the whole written as a second measure (a full
     # public run 08/11: "bỉm size NB … % tổng số bịch bỉm" read so on one run, without the share_of on the other)
     plan = k_not_the_month(question, whole_as_share_of(whole_not_part(debt_age_from_question(question, plan))))
+    plan = delivered_from_words(question, this_month_written_short(question, plan))  # N128, N130
+    plan = average_per_weekday(question, written_month_over_relative(question, plan, as_of))  # N133, N134
+    plan = phones_sold_then_warrantied(question, installment_periods_due(question, plan, as_of))  # N135, N136
     plan = weekday_as_stated(question, share_as_value(question, count_not_list(question, plan)))
     plan = widen_each_table(question, one_name_no_values(question, plan))
     plan = scale_money(question, count_as_value(month_of_short_year(question, plan)))
@@ -181,6 +189,9 @@ def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> 
     plan = trade_in_share(question, values_together(question, due_per_order(question, plan)))
     plan = month_written_as_t(question, warranty_over_sold(question, phones_as_whole(question, plan)))
     plan = order_amount_named(question, today_not_this_month(question, particle_not_unit(plan)))
+    plan = quantity_not_money(question, plan)  # N120
+    plan = debtors_ranked(question, gross_profit_named(question, warranty_not_asked(question, plan)))  # N139, N141, N142
+    plan = orders_counted(question, quarter_written(question, plan))  # N137, N140
     plan = stocked_in_as_purchase(question, order_amount_no_item(question, plan))
     plan = whole_not_part(split_debt_ages(drop_month_as_weekday(question, anchor_by_price(question, plan, as_of))))
     plan = written_last_year(plan)
@@ -225,7 +236,11 @@ def parse_question(question: str, as_of: date, card: DataCard, llm: LLMClient | 
         trace["subjective"] = True
         return QueryPlan(intent="out_of_scope", out_of_scope_reason=SUBJECTIVE_REASON)
     if plan is None:
-        return base  # the LLM failed or its plan had no ground: the baseline's reading, if it has one
+        # the LLM failed or its plan had no ground: the baseline's reading, if it has one; else N158's few shapes
+        if base is None and (fb := baseline.fallback(question)) is not None:
+            trace["fallback"] = True
+            return fb
+        return base
     if plan.intent == "rank" and subjective_quality(question):
         # N112: the LLM ranks by a quality no file records ("ai là thợ nhiệt tình nhất": the rulebook defines only
         # "chăm chỉ"); train: the 5 questions subjective_quality reads are all unanswerable, whatever their plan
@@ -274,6 +289,11 @@ def link_entities(plan: ResolvedPlan, db: CanonicalDB, question: str = "") -> Re
 
 
 ATTRIBUTE_FIELDS = ("category", "product_line", "brand", "product_group")
+# N118. A "product" that is an active ingredient of the drug list (train pharmacy: "Doanh thu thuốc hoạt chất
+# Paracetamol" with product = "Paracetamol" or "thuốc hoạt chất Povidon iod"; §6 Nhà thuốc filters by ingredient):
+# the ingredient, written without the question's own "thuốc (có) hoạt chất" (5 train questions stopped)
+PRODUCT_ATTRIBUTES = ATTRIBUTE_FIELDS + ("active_ingredient",)
+_INGREDIENT_LEAD = re.compile(r"^(?:thuoc\s+)?(?:co\s+)?hoat\s+chat\s+")
 _EVERY = {"tat ca", "tat ca cac mon", "tat ca mon", "tat ca mat hang", "tat ca cac mat hang", "moi mat hang", "moi mon",
           "toan bo", "toan bo mat hang", "cac mon", "all", "tat ca khach", "moi khach", "all customers"}
 
@@ -284,6 +304,18 @@ def unit_or_all_as_product(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     that names every one ("tất cả các món", "mọi mặt hàng", customer = all) is no filter. Only on a quantity, and
     only a value that links to no product."""
     p = plan.plan
+    # N147: "tổng cộng mấy ly size M, cộng tất cả các món" read as two measures [size M, product = every item] of the
+    # same metric and unit (train 10/11, 2 questions; the one-measure reading of the same words answers right): the
+    # words sum every item of size M, one figure — the measure filtered by "every" alone goes.
+    if len(p.measures) == 2 and p.intent == "value":
+        def every_only(m) -> bool:
+            return len(m.filters) == 1 and m.filters[0].field == "product" and m.filters[0].op == "eq" \
+                and isinstance(m.filters[0].value, str) and linking.norm(m.filters[0].value) in _EVERY
+        a, b = p.measures
+        if every_only(b) and not every_only(a) and a.filters and a.metric == b.metric \
+                and linking.norm(a.unit or "") == linking.norm(b.unit or ""):
+            p = p.model_copy(update={"measures": [a], "answer_type": "number"})
+            plan = plan.model_copy(update={"plan": p})
     cands = units = None
     measures, changed = [], False
     for m in p.measures:
@@ -312,10 +344,33 @@ def unit_or_all_as_product(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
 # "sốp", "tiệm"), its customers in general ("khách"), the figure ("dthu", "tền" for tiền), a particle ("z"), a month
 # ("T8"). Public run11: 9 such plans, every one stopped with no figure.
 GENERIC_VALUES = frozenset({"quan", "wan", "shop", "sop", "tiem", "cua hang", "cuahang", "mik", "minh", "khach",
-                            "khach hang", "dthu", "doanh thu", "tien", "ten", "z", "vay", "nha"})  # not "dt": "đt" is a phone
+                            "khach hang", "dthu", "doanh thu", "tien", "ten", "z", "vay", "nha",
+                            # N119: function words typed with telex left on, read as a value (train: "bữa qua cuwar
+                            # hàng có bao nhiêu bill" with channel = cuwar, "hqua doanh thu dduwowcj" with payment =
+                            # dduwowcj); linking.norm undoes the telex, so they arrive folded as "cua", "duoc"
+                            "cua", "duoc", "roi", "nhe", "nha", "a", "ha",
+                            # N131: the month word alone ("Dthu th 6/26 … so th 6/25" with product = th)
+                            "t", "th", "thg", "thang"})  # not "dt": "đt" is a phone
+# N145 (train 10/11, each a filter no value of the shop has): "lời gộp tháng 9 nawm 2025" (product = năm), "sản phẩm
+# bán nhiều nhất là chi" (là gì), "giá vốn đó" (category = đó), "hqua có tổng cộng nhiêu ddown" (payment = đơn), "xe
+# ddax giao mấy đợt" (xe đã). Not on people: "Đỗ", "Nam" are names too.
+THING_WORDS = frozenset({"nam", "chi", "gi", "do", "don", "da", "xe"})
+PEOPLE_FIELDS = frozenset({"customer", "customer_group", "employee"})
 _MONTH_VALUE = re.compile(r"^(?:t|th|thang)\s?\d{1,2}(?:\s\d{2,4})?$")
+_DATE_VALUE = re.compile(r"^\d{1,2}(?: \d{1,2})?(?: \d{2,4})?$")  # N145: "4/2026" written as a product
 GENERIC_FIELDS = ("product", "product_group", "category", "product_line", "brand", "customer", "customer_group",
-                  "payment_method", "channel")
+                  "payment_method", "channel", "vehicle_model")
+
+
+def _generic_value(value: str, field: str = "") -> bool:
+    """A value that names nothing: generic words only (each word, N145: "xe ddax" is "xe đã"), a month, a bare date.
+    Not a threshold written as the value ("≥ 187", "> 5"): dropping it would count something else."""
+    if re.search(r"[<>≤≥=]", value):
+        return False
+    v = linking.norm(value)
+    words = GENERIC_VALUES if field in PEOPLE_FIELDS else GENERIC_VALUES | THING_WORDS
+    return (v in words or bool(v.split()) and all(w in words for w in v.split())
+            or bool(_MONTH_VALUE.match(v)) or bool(_DATE_VALUE.match(v)))
 
 
 def _without_generic(plan: QueryPlan) -> QueryPlan:
@@ -324,8 +379,7 @@ def _without_generic(plan: QueryPlan) -> QueryPlan:
     def keep(f) -> bool:
         if f.field not in GENERIC_FIELDS or f.op != "eq" or not isinstance(f.value, str):
             return True
-        v = linking.norm(f.value)
-        return v not in GENERIC_VALUES and not _MONTH_VALUE.match(v)
+        return not _generic_value(f.value, f.field)
     measures = [m.model_copy(update={"filters": [f for f in m.filters if keep(f)]}) for m in plan.measures]
     return plan.model_copy(update={"measures": measures}) if measures != list(plan.measures) else plan
 
@@ -338,8 +392,7 @@ def drop_generic_filters(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     def generic(f) -> bool:
         if f.field not in GENERIC_FIELDS or f.op != "eq" or not isinstance(f.value, str):
             return False
-        v = linking.norm(f.value)
-        if v not in GENERIC_VALUES and not _MONTH_VALUE.match(v):
+        if not _generic_value(f.value, f.field):
             return False
         if f.field in ("payment_method", "channel"):
             return linking.concept(f.field, f.value) is None
@@ -366,13 +419,20 @@ def unit_from_question(plan: ResolvedPlan, db: CanonicalDB, question: str) -> Re
     of different base units together)."""
     p = plan.plan
     if (not question or p.share_of is not None or p.rank is not None or p.threshold is not None
-            or p.list_spec is not None or not any(m.metric == "quantity" and not m.unit for m in p.measures)):
+            or p.list_spec is not None or not any(m.metric == "quantity" for m in p.measures)):
         return plan
     found = _counted_in(question, linking.units(db))
     if len(found) != 1:
         return plan
     unit = found.pop()
-    measures = [m.model_copy(update={"unit": unit}) if m.metric == "quantity" and not m.unit else m for m in p.measures]
+
+    # N122: also a unit the question does not count in: "mấy kg nếp cái hoa vàng" read with unit "cái" (a word of the
+    # name), "bán ra nhiêu phần topping" with "đơn vị" (train: 2 quantities with no figure)
+    def wrong(m) -> bool:
+        return m.metric == "quantity" and (not m.unit or linking.norm(m.unit) != unit)
+    if not any(wrong(m) for m in p.measures):
+        return plan
+    measures = [m.model_copy(update={"unit": unit}) if wrong(m) else m for m in p.measures]
     return plan.model_copy(update={"plan": p.model_copy(update={"measures": measures})})
 
 
@@ -484,8 +544,15 @@ def product_as_attribute(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     def field_of(value) -> str | None:
         if not isinstance(value, str) or linking.link_value("product", value, "", cands, units).value is not None:
             return None
-        hits = [a for a in ATTRIBUTE_FIELDS if linking.norm(value) in linking.candidates(a, db)]
+        hits = [a for a in PRODUCT_ATTRIBUTES if linking.norm(value) in linking.candidates(a, db)]
         return hits[0] if len(hits) == 1 else None
+
+    def ingredient_of(value) -> str | None:
+        """"thuốc (có) hoạt chất X" written as the product: X when it is exactly one ingredient of the drug list."""
+        if not isinstance(value, str):
+            return None
+        rest = _INGREDIENT_LEAD.sub("", linking.norm(value))
+        return rest if rest != linking.norm(value) and rest in linking.candidates("active_ingredient", db) else None
 
     products = db.table("products")
     stages = {}
@@ -513,6 +580,8 @@ def product_as_attribute(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
         for f in m.filters:
             if f.field == "product" and (new := field_of(f.value)):
                 filters.append(f.model_copy(update={"field": new}))
+            elif f.field == "product" and (ingredient := ingredient_of(f.value)):
+                filters.append(f.model_copy(update={"field": "active_ingredient", "value": ingredient}))
             elif f.field == "product" and (pair := group_and_stage(f.value)) and \
                     linking.link_value("product", f.value, "", cands, units).value is None:
                 filters += [f.model_copy(update=x) for x in pair]

@@ -20,7 +20,8 @@ from pathlib import Path
 from datamate import loader, rules
 from datamate.contracts import QueryPlan
 from datamate.mapping import transfer
-from datamate.pipeline import prepare_business, rule_ids
+from datamate.nlu.grounding import customer_trait_not_recorded
+from datamate.pipeline import NOT_RECORDED_REASON, prepare_business, rule_ids
 from datamate.predict import connect_llm
 
 from .build_bank import PLANS, current_plans
@@ -36,6 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--business", nargs="*")
     ap.add_argument("--llm-url", help="llama-server để ghép cột theo nghĩa (mặc định: chỉ ghép theo tên cột)")
     ap.add_argument("--llm-cache", default="outputs/llm_cache_mapping.jsonl")
+    ap.add_argument("--save", help="ghi kết quả từng câu (jsonl: id, cửa hàng, kết quả, lý do trống) để đối chiếu")
     ap.add_argument("--readme-only", action="store_true",
                     help="chỉ dựng mapping từ mô tả cột trong README (N23), không dùng mapping mẫu: đo riêng đường này")
     args = ap.parse_args(argv)
@@ -56,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     for q in questions:
         by_business.setdefault(q["business_id"], []).append(q)
 
-    total, wrong = Counter(), []
+    total, wrong, saved = Counter(), [], []
     print(f"  {'cửa hàng':10}{'đúng':>6}{'sai':>5}{'trống':>7}  mapping")
     for b in sorted(args.business or by_business):
         pool = [] if args.readme_only else transfer.examples(leave_out=b)
@@ -68,12 +70,22 @@ def main(argv: list[str] | None = None) -> int:
         outcome = Counter()
         for q in by_business[b]:
             p = plans.get(q["id"])
+            if ctx.mapping.ok and ctx.raw is not None and customer_trait_not_recorded(q["question"], ctx.raw.readme or ""):
+                # as pipeline.answer_question does (N89): the customers' gender or street the shop does not record
+                p = {"intent": "out_of_scope", "out_of_scope_reason": NOT_RECORDED_REASON}
             if not ctx.mapping.ok or p is None:
                 outcome["abstain"] += 1
+                saved.append({"id": q["id"], "business_id": b, "outcome": "abstain",
+                              "stage": "mapping" if not ctx.mapping.ok else "no plan"})
                 continue
             got = check(q, QueryPlan.model_validate(p), ctx, split / "calendar.csv", rule_status)
             o = score_line(got["line"], refs[q["id"]]).outcome
             outcome[o] += 1
+            nr = got.get("no_result") or {}
+            saved.append({"id": q["id"], "business_id": b, "outcome": o, "function": got["function"],
+                          "stage": ("no figure: " + (nr.get("why") or "?") + (f" {nr.get('function') or nr.get('key') or ''}"))
+                          if got["function"] is None and got["line"].get("type") != "unanswerable"
+                          else ("gate: " + (got.get("reason") or "") if got["line"].get("type") == "abstain" else "answered")})
             if o == "wrong":
                 wrong.append((b, q["question"], got["line"], refs[q["id"]], got["function"]))
         total += outcome
@@ -81,6 +93,9 @@ def main(argv: list[str] | None = None) -> int:
             "; ".join(c.detail for c in ctx.mapping.checks if not c.passed)[:110] or "không qua kiểm tra")
         print(f"  {b + ('*' if b in hand else ''):10}{outcome['correct']:>6}{outcome['wrong']:>5}{outcome['abstain']:>7}"
               f"  {how}")
+    if args.save:
+        Path(args.save).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.save).write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in saved), encoding="utf-8")
     n = sum(total.values())
     print(f"\n{n} câu · đúng {total['correct']} · sai {total['wrong']} · bỏ trống {total['abstain']} · "
           f"PA {(total['correct'] - total['wrong']) / max(n, 1):+.3f}   (* có mapping tay, bị bỏ ra khỏi ví dụ)")

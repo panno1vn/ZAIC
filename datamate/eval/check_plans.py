@@ -51,15 +51,18 @@ def check(q: dict, plan: QueryPlan, ctx, calendar: Path, rule_status: dict[str, 
     resolved = temporal.resolve(plan, as_of, calendar, ctx.db)
     if resolved is not None:
         resolved = nlu.link_entities(resolved, ctx.db, q["question"])
-    result = None
+    result, no_result = None, {}
     if resolved is not None and plan.intent != "out_of_scope":
-        result = metrics.execute(resolved, ctx.db)
+        result = metrics.execute(resolved, ctx.db, no_result)
+    elif resolved is None:
+        no_result["why"] = "period_unresolved"
     signals = verify.collect_signals(resolved, result, ctx.db, ctx.mapping, rule_status, q["question"])
     decision = decide.decide(signals, result)
     line = formatter.to_line(q["id"], decision, result).to_dict()
     gates = [g for g in decide.GATES if not getattr(signals, g)]
     return {"line": line, "function": result.function if result else None, "gates": gates,
-            "value": result.value if result is not None and not hasattr(result.value, "to_dict") else None}
+            "value": result.value if result is not None and not hasattr(result.value, "to_dict") else None,
+            "reason": decision.reason, "no_result": no_result}
 
 
 def main(argv: list[str] | None = None) -> int:

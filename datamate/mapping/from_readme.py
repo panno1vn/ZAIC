@@ -296,6 +296,10 @@ def map_from_readme(raw: RawBusiness) -> tuple[Mapping | None, str]:
         dc = [_cm("order_id", shipped.col("ma don")), _cm("delivery_time", shipped.col("ngay giao"), "datetime")]
         if (c := shipped.col("dot giao")) is not None:
             dc.append(_cm("batch_no", c, "number"))
+        # N130: a delivery book written per product line ("Hàng hóa: tên hàng", "Số lượng giao: số lượng đã đổi ra đơn
+        # vị cơ bản"): what each batch carried, for "đã chở đi bao nhiêu thùng <hàng>"
+        if (p := shipped.col(key_phrase)) is not None and (q := shipped.col("so luong da doi ra don vi co ban")) is not None:
+            dc += [_cm("product_key", p), _cm("base_qty", q, "qty")]
         out.append(TableMap(target="deliveries", sources=shipped.ids, columns=dc))
     return Mapping(record_grain=grain, tables=out, notes=["dựng từ mô tả cột trong README"]), ""
 
@@ -520,6 +524,15 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
                 clients = _one(others, lambda x: x.has("ma khach", "nhom khach") and not x.has("ma don"))
                 if (looked := _lookup("customer_group", key, clients, "ma khach", "nhom khach")) is not None:
                     add.append(looked)
+        elif t is not None and tm.target == "deliveries" and "product_key" not in have:
+            # N130: the delivery book's product and base quantity (README "tên hàng", "số lượng đã đổi ra đơn vị cơ
+            # bản"), keyed like the sale lines' product (same README phrase), for "đã chở đi bao nhiêu thùng <hàng>"
+            lt = next((x for x in mapping.tables if x.target == "lines"), None)
+            lkey = plain_source(lt, "product_key") if lt is not None else None
+            lhome = home(lt) if lt is not None else None
+            phrase = lhome.phrases.get(lkey) if lhome is not None and lkey is not None else None
+            if phrase and (p := t.col(phrase)) is not None and (q := t.col("so luong da doi ra don vi co ban")) is not None:
+                add += [_cm("product_key", p), _cm("base_qty", q, "qty")]
         elif t is not None and tm.target == "products":
             if "product_group" not in have and (c := t.col("nhom hang")) is not None:
                 add.append(_cm("product_group", c))
@@ -598,6 +611,25 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
                 mc.append(_cm("phone", phone))
             out.append(TableMap(target="customers", sources=members.ids, columns=mc))
             added.append("customers.registered_date")
+    # N116. Lots a mapping moved from an example left out (§6 Nhà thuốc; train pharmacies whose README writes "Mã lô:
+    # số lô", "Hạn sử dụng", "Số lượng nhập (đơn vị cơ bản)" on the receipt lines and "Số lượng bán lấy từ lô" on the
+    # sale-lot sheet): lots and lot_sales from the README, the lot's product translated to the key the sales lines use
+    # (a receipt sheet keyed by SKU beside lines keyed by name: "nối qua tên"). 12 train stock questions and the
+    # expiry questions of two pharmacies stopped for want of them.
+    # N117. The conversion list a mapping moved from an example left out (train: a grocery whose README writes
+    # "Đơn vị quy đổi: đơn vị lớn", "Tỉ lệ quy đổi: hệ số", "Đơn vị cơ bản" mapped with orders and lines only: a product
+    # sold by gói and by thùng had no base unit, and 9 price-effect questions "bán N ngày kể từ ngày tăng giá" gave no
+    # figure). Keyed as the sales lines key products (by name, or by the code both write).
+    if not any(tm.target == "unit_conversions" for tm in out):
+        conv = _conversion_table(tables, next((tm for tm in out if tm.target == "lines"), None), home, plain_source)
+        if conv is not None:
+            out.append(conv)
+            added.append("unit_conversions")
+    if not any(tm.target in ("lots", "lot_sales") for tm in out):
+        lot_tables = _lot_tables(tables, next((tm for tm in out if tm.target == "lines"), None), home, plain_source)
+        if lot_tables:
+            out += lot_tables
+            added += [f"{tm.target}" for tm in lot_tables]
     # still no product group: the lines' own, or a left-out catalogue's by product code or name
     if lines is not None and not any(c.target == "product_group" for tm in out for c in tm.columns):
         lt = home(lines)
@@ -993,6 +1025,69 @@ def _drug_columns(catalogue: _Table, others: list[_Table], key: str | None, have
                 (looked := _lookup(target, key, drugs, "ma hang", phrase)) is not None:
             out.append(looked.model_copy(update={"parse": parse}))
     return out
+
+
+def _conversion_table(tables: list[_Table], lines: TableMap | None, home, plain_source) -> TableMap | None:
+    """N117: the README's conversion list (large unit, factor, base unit), keyed as the sales lines key products."""
+    conv = _one(tables, lambda t: t.has("don vi lon", "he so") and not t.has("ma don"))
+    if conv is None or lines is None:
+        return None
+    line_key, lt = plain_source(lines, "product_key"), home(lines)
+    if line_key is None or lt is None:
+        return None
+    key_phrase = lt.phrases.get(line_key)
+    if key_phrase == "ma hang":
+        key = conv.col("ma hang")
+    elif key_phrase in ("ten hang", "ten"):
+        key = conv.col("ten hang") or conv.col("ten")
+    else:
+        return None
+    if key is None or conv.col("don vi lon") is None or conv.col("he so") is None:
+        return None
+    cols = [_cm("product_key", key), _cm("unit", conv.col("don vi lon")), _cm("factor", conv.col("he so"), "number")]
+    if (b := conv.col("don vi co ban")) is not None:
+        cols.append(_cm("base_unit", b))
+    return TableMap(target="unit_conversions", sources=conv.ids, columns=cols)
+
+
+def _lot_tables(tables: list[_Table], lines: TableMap | None, home, plain_source) -> list[TableMap]:
+    """N116: [lots, lot_sales] from the README's receipt lines with lot, expiry and quantity received, and its sheet of
+    the lots each sale took; [] unless both are there and the lot's product can be keyed as the sales lines key it."""
+    receipt = _one(tables, lambda t: t.has("so lo", "han su dung", "so luong nhap") and not t.has("ma don"))
+    taken = _one(tables, lambda t: t.has("so lo", "ma don", "so luong ban lay tu lo"))
+    if receipt is None or taken is None or lines is None:
+        return []
+    line_key = plain_source(lines, "product_key")
+    lt = home(lines)
+    if line_key is None or lt is None:
+        return []
+    key_phrase = lt.phrases.get(line_key)
+    lot_product = receipt.col("ma hang") if receipt.has("ma hang") else None
+    if lot_product is None:
+        return []
+    if key_phrase == "ma hang":
+        product = _cm("product_key", lot_product)
+    elif key_phrase in ("ten hang", "ten"):  # lines keyed by name: the SKU through the catalogue
+        cat = _one([t for t in tables if t is not receipt], lambda t: t.has("ma hang") and (t.has("ten") or t.has("ten hang"))
+                   and not t.has("ma don"))
+        name = "ten" if cat is not None and cat.has("ten") else "ten hang"
+        product = _lookup("product_key", lot_product, cat, "ma hang", name)
+        if product is None:
+            return []
+    else:
+        return []
+    lc = [_cm("lot_id", receipt.col("so lo")), product, _cm("expiry_date", receipt.col("han su dung"), "date"),
+          _cm("base_qty_in", receipt.col("so luong nhap"), "qty")]
+    if (r := receipt.col("ma phieu nhap")) is not None:
+        lc.append(_cm("receipt_id", r))
+    sc = [_cm("order_id", taken.col("ma don")), _cm("lot_id", taken.col("so lo")),
+          _cm("base_qty", taken.col("so luong ban lay tu lo"), "qty")]
+    if (r := taken.col("so luong khach tra lai")) is not None:
+        sc.append(_cm("returned_base_qty", r, "qty"))
+    if any(c.source is None for c in lc + sc if c.transform is None):
+        return []
+    return [TableMap(target="lots", sources=receipt.ids, columns=lc),
+            TableMap(target="lot_sales", sources=taken.ids, columns=sc)]
 
 
 PURCHASE_COLUMNS = (  # purchases: phrases -> canonical column, parse (the first phrase found)

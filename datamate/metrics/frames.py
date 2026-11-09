@@ -8,6 +8,7 @@ than being answered without its filter.
 from __future__ import annotations
 
 import re
+import unicodedata
 import weakref
 
 import pandas as pd
@@ -223,8 +224,11 @@ def _job_mask(o: pd.DataFrame, codes: list[str] | None) -> pd.Series | None:
 
 
 def _stage_core(v) -> str:
-    """"Số 2", "số 2", "2" → "2"; "Size XL", "size xl", "XL" → "xl"."""
-    t = linking.norm(str(v))
+    """"Số 2", "số 2", "2" → "2"; "Size XL", "size xl", "XL" → "xl". N146: folded without the telex repair of
+    linking.norm, which reads a doubled letter as a typo and makes "Size XXL" "size xl" (public mẹ-và-bé shop: "bỉm
+    size XL" counted the XXL packs too)."""
+    t = unicodedata.normalize("NFD", str(v).replace("đ", "d").replace("Đ", "D"))
+    t = re.sub(r"[^a-z0-9]+", " ", "".join(c for c in t if not unicodedata.combining(c)).lower()).strip()
     return re.sub(r"^(?:so|size|sz)\s+", "", t).strip()
 
 

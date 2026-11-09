@@ -188,13 +188,42 @@ def purchase_minus_sales(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
     return int(value) if float(value).is_integer() else None
 
 
+def purchased_qty(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
+    """N157. §5 "nhập về bao nhiêu <đơn vị> <mặt hàng>": the receipts of one product dated in the period (cancelled
+    ones left out), each line turned into base units by its own unit, in the unit asked, as purchase_minus_sales counts
+    the bought side. None when the question names no unit, a unit has no factor, or the figure is no whole number."""
+    product = _one_product(m, plan.linked)
+    if product is None or any(f.field != "product" for f in m.filters) or plan.period is None or not m.unit:
+        return None
+    every = db.table("purchases")
+    if every is None or not (every["product_key"].astype(str) == product).any():
+        return None  # a product never received: the receipts may be keyed otherwise (N94), never "0 bought"
+    rows = _receipts(db, plan.period.start, plan.period.end)
+    if rows is None or "qty" not in rows.columns or "unit" not in rows.columns:
+        return None
+    rows = rows[rows["product_key"].astype(str) == product]
+    factors = [_factor(db, product, str(u)) for u in rows["unit"]]
+    unit = _factor(db, product, m.unit)
+    if any(f is None for f in factors) or rows["qty"].isna().any() or not unit:
+        return None
+    value = float((rows["qty"].astype(float) * pd.Series(factors, index=rows.index, dtype=float)).sum()) / unit
+    return int(value) if float(value).is_integer() else None
+
+
 def stock_base_qty(db: CanonicalDB, product: str, day) -> float | None:
     """§2 "đến hết ngày X": the product's stock (base units) in the last stock record dated on or before the day,
     provided nothing moved after it up to that day (no receipt, no order line). A shop's stock file is either one
     snapshot at the end of its data or a stock card with a record after every movement; both read the same way."""
     inv = db.table("inventory")
     if inv is None:
-        return None
+        # N116: a shop that keeps its stock by lot (§6 Nhà thuốc) and no stock file: the base units left in the
+        # product's lots at the end of the day (lots_left, checked against the stock cards: 80 / 80, N74)
+        from .lots import lots_left  # late import: lots imports this module
+        lots = lots_left(db, day)
+        if lots is None:
+            return None
+        mine = lots[lots["product_key"].astype(str) == product]
+        return float(mine["left"].sum()) if not mine.empty else None
     as_of = pd.to_datetime(inv["as_of"]).dt.date
     rows = inv.assign(day=as_of)[(inv["product_key"].astype(str) == product) & (as_of <= day)]
     rows = rows.sort_values("day", kind="stable")  # records of one day keep their file order: the last is its end
@@ -269,7 +298,8 @@ FLOWS = {"purchase_amount": (purchase_amount, R_PURCHASE, ("purchases.receipt_ti
                                                                 "purchases.unit_cost")),
          "unit_price": (unit_price, R_PRICE, ("orders.order_time", "lines.unit_price", "lines.base_qty")),
          "purchase_minus_sales": (purchase_minus_sales, R_IN_MINUS_OUT,
-                                  ("purchases.receipt_time", "purchases.qty", "purchases.unit", "lines.base_qty"))}
+                                  ("purchases.receipt_time", "purchases.qty", "purchases.unit", "lines.base_qty")),
+         "purchased_qty": (purchased_qty, R_PURCHASE, ("purchases.receipt_time", "purchases.qty", "purchases.unit"))}
 
 
 def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
@@ -277,7 +307,8 @@ def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     name = ms[0].metric if ms else None
     if name == "stock_qty":
         value = stock_qty(db, plan, list(ms))
-        rules, requires = R_STOCK, ("inventory.base_qty", "inventory.as_of")
+        rules, requires = R_STOCK, ("inventory.base_qty", "inventory.as_of") if db.has("inventory") else \
+            ("lots.lot_id", "lots.base_qty_in", "lot_sales.lot_id", "lot_sales.base_qty")  # N116: by lot
         answer_type = "list" if isinstance(value, list) else expected_answer_type(plan.plan)
     elif name in FLOWS and len(ms) == 1:
         fn, rules, requires = FLOWS[name]

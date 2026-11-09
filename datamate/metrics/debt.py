@@ -241,9 +241,31 @@ def overdue_installment_count(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
     return None if who.isna().any() else int(who.nunique())
 
 
+def installments_due(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
+    """N135. "Hết hnay, khách Tạ Dũng Long góp tới hạn mấy kỳ rồi, tính luôn kỳ hạn hôm nay?" (public phone shop): the
+    installment periods of the customer's installment orders whose due day is on or before the day — "tính cả kỳ hạn
+    đúng hôm nay", as the question says (§6 "Trả góp": a period due on the day asked is due, not yet overdue).
+    Orders not cancelled; one customer, linked (§3)."""
+    sched, o = db.table("installments"), F.orders(db)
+    if sched is None or o is None or plan.period is None or "customer_key" not in o.columns:
+        return None
+    customers = [f for f in m.filters if f.field == "customer"]
+    if len(customers) != 1 or any(f.field not in ("customer", "payment_method") for f in m.filters):
+        return None
+    keys = {plan.linked.get(str(v)) for v in (customers[0].value if isinstance(customers[0].value, list)
+                                            else [customers[0].value])}
+    if None in keys:
+        return None
+    mine = o[o["customer_key"].isin(keys) & o["status"].ne("cancelled") & (o["day"] <= plan.period.end)]["order_id"]
+    rows = sched[sched["order_id"].isin(set(mine.astype(str)) | set(mine))]
+    if rows.empty:
+        return None
+    return int((pd.to_datetime(rows["due_date"]).dt.date <= plan.period.end).sum())
+
+
 MEASURES = {"debt_added": debt_added, "debt_paid": debt_paid, "debt_total": debt_total,
             "debtor_count": debtor_count, "debt_amount": debt_amount, "overdue_amount": overdue_amount,
-            "overdue_installment_count": overdue_installment_count}
+            "overdue_installment_count": overdue_installment_count, "installments_due": installments_due}
 
 
 def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
@@ -268,7 +290,7 @@ def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
 
 R_AGE = ("§4.tuoi_no",)
 R_INSTALLMENT = ("§6.cua_hang_dien_thoai.tra_gop", "§6.p_luat_rieng_cua_tung_nganh_dung")
-OVERDUE = frozenset({"overdue_amount", "overdue_installment_count"})
+OVERDUE = frozenset({"overdue_amount", "overdue_installment_count", "installments_due"})
 for _name in MEASURES:
     _rules = R_DEBT if _name in FLOW else R_OWED + R_AGE + (R_INSTALLMENT if _name in OVERDUE else ())
     metric("value", _name, requires=REQUIRES, rules=tuple(sorted(set(_rules))),

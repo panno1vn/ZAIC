@@ -276,7 +276,11 @@
             "other",
             "avg_amount_due",
             "trade_in_order_count",
-            "due_order_count"
+            "due_order_count",
+            "delivered_qty",
+            "installments_due",
+            "phones_warrantied",
+            "purchased_qty"
           ],
           "title": "Metric",
           "type": "string"
@@ -573,7 +577,11 @@
             "other",
             "avg_amount_due",
             "trade_in_order_count",
-            "due_order_count"
+            "due_order_count",
+            "delivered_qty",
+            "installments_due",
+            "phones_warrantied",
+            "purchased_qty"
           ],
           "title": "By",
           "type": "string"
@@ -688,7 +696,11 @@
             "other",
             "avg_amount_due",
             "trade_in_order_count",
-            "due_order_count"
+            "due_order_count",
+            "delivered_qty",
+            "installments_due",
+            "phones_warrantied",
+            "purchased_qty"
           ],
           "title": "Metric",
           "type": "string"

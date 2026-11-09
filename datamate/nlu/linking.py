@@ -254,6 +254,9 @@ def dialects(written) -> list[str]:
     return out
 
 
+_TRAILING_DIGITS = re.compile(r"(?:\s+\d+)+$")  # a phone written after a name, folded: "… 0935 174 948", "… 0935174948"
+
+
 def link_value(field: str, written, question: str, cands: Candidates, units: tuple[str, ...] = ()) -> Link:
     """The data value a filter value names, by the steps of the module doc. `units`: the shop's counting units
     (folded, longest first), tried off the front of a product name."""
@@ -269,6 +272,15 @@ def link_value(field: str, written, question: str, cands: Candidates, units: tup
     for v in variants:
         if v in cands:
             return _one([v], cands, "exact")
+    if field == "customer":
+        # N125. A file that writes every customer with the phone after the name ("Ông Hiếu Anh 0935 174 948", public
+        # phone ledger: 1728 of 1728 spellings): the question names the customer ("khách Ông Hiếu Anh còn thiếu bao
+        # nhiêu tiền góp"), 69% alike, below the threshold. The name with the trailing phone left out names the
+        # customer exactly; linked only when every such spelling is one customer (§3: two customers of one name stay
+        # two, and the question does not say which).
+        bare = [n for n in cands if _TRAILING_DIGITS.sub("", n) == w and n != w]
+        if bare and len({x for n in bare for x in cands[n]}) == 1:
+            return Link(next(iter(cands[bare[0]])), 100.0, "exact")
     q = f" {norm(question)} "
     in_question = [n for n in cands if f" {n} " in q]
     in_question = [n for n in in_question if not any(n != m and f" {n} " in f" {m} " for m in in_question)]

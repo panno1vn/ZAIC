@@ -159,6 +159,9 @@ def new_terms(rulebook: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
     return tuple(out)
 
 
+_OTHER_CRITERION = frozenset({"tien", "dthu", "doanh"})
+
+
 def _says(question: list[str], words: tuple[str, ...], gap: int = 2) -> bool:
     """The words come in order in the question, at most `gap` other words between two of them ("khách nào trung
     thành nhất")."""
@@ -166,6 +169,10 @@ def _says(question: list[str], words: tuple[str, ...], gap: int = 2) -> bool:
         at, ok = start, True
         for w in words[1:]:
             nxt = next((j for j in range(at + 1, min(at + 2 + gap, len(question))) if question[j] == w), None)
+            # N156: money between the words is another criterion: "thợ mô làm ra nhiều tiền nhất" (public) is the most
+            # money, not the term "Thợ làm nhiều nhất" (most tickets)
+            if nxt is not None and any(question[j] in _OTHER_CRITERION for j in range(at + 1, nxt)):
+                nxt = None
             if nxt is None:
                 ok = False
                 break

@@ -145,7 +145,48 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
         asked.add(plan.rank.by)
     if asked & PROFIT_METRICS and "gia von" not in text and not _has(db, ("lines", "products"), "unit_cost"):
         return "giá vốn"
+    # N115. Stock in a shop that keeps none: train "hết hôm nay bia tiger còn mấy lon trong kho" in 4 shops whose README
+    # never writes "tồn", "kho" or "lô" and whose mapping has no stock or lot table: 9 / 9 unanswerable; every train
+    # shop whose stock question is answerable writes "Tồn kho", "Tồn thực" or "số lô" (lots, §6 Nhà thuốc)
+    # stock words as phrases: a single "kho" is also "khổ" folded ("lưới B40 mạ kẽm khổ 1.5m", a train shop with no stock)
+    if asked & _STOCK_ASKED and not re.search(_STOCK_WORDS, text) \
+            and not any(db.has(t) for t in ("inventory", "lots")):
+        return "tồn kho"
+    # N121. Customers in a shop that records none, debts in a shop that keeps none (train: two shops whose README has
+    # no column about customers: every customer question unanswerable, 8 / 8; two whose README never writes "nợ":
+    # every debt question unanswerable, 3 / 3). A README column "…khách…" or a mapped customer key is a record.
+    customer_asked = (fields & {"customer", "customer_group"}) or asked & _CUSTOMER_METRICS or (
+        plan.rank is not None and plan.rank.entity == "customer") or (
+        plan.threshold is not None and plan.threshold.entity == "customer")
+    if customer_asked and not any(re.search(r"\bkhach\b", line) for line in readme if line.lstrip().startswith("-")) \
+            and not _has(db, ("orders",), "customer_key"):
+        return "khách hàng"
+    if asked & _DEBT_METRICS and not re.search(r"\bno\b|\bghi so\b|\bchiu\b", text) and not db.has("payments"):
+        return "công nợ"
+    # N126. A sales channel or a payment method in a shop that records none (§7 "shop không ghi loại thông tin câu hỏi
+    # cần … thì không trả lời được"): "doanh thu bán tại quầy với bán qua điện thoại" in a shop with no channel
+    # column. Train (07/11 study, plans with that filter in shops with no such column): channel 3 / 3 unanswerable,
+    # payment method 2 / 2. A README line about it or a mapped column is a record.
+    # Only a value that is a channel / a payment method (a code of synonyms.json): train "hqua cos tổng cộng nhiêu
+    # ddown" (telex for "đơn") read with payment_method = "dDown" is a misread, not a question about payments.
+    from datamate.nlu import linking  # late import: nlu imports this module
+    coded = {f["field"] for m in plan.model_dump(mode="json", exclude_none=True).get("measures", [])
+             for f in m.get("filters", []) if f.get("field") in ("channel", "payment_method")
+             and all(linking.concept(f["field"], str(v)) for v in (f["value"] if isinstance(f["value"], list)
+                                                                    else [f["value"]]))}
+    if "channel" in coded and not _has(db, ("orders",), "channel") \
+            and not re.search(r"\bkenh\b|\bban qua\b|\bnguon don\b", text):
+        return "kênh bán"
+    if "payment_method" in coded and not _has(db, ("orders",), "payment_method") and not db.has("payments") \
+            and not re.search(r"\bthanh toan\b|\bhinh thuc tra\b|\btra bang\b", text):
+        return "hình thức thanh toán"
     return None
+
+
+_STOCK_ASKED = frozenset({"stock_qty", "stock_value"})
+_STOCK_WORDS = r"\bton (?:kho|thuc|cuoi|dau)\b|\bso lo\b|\bma lo\b|\bkho hang\b|\bhang ton\b|\bthe kho\b"
+_CUSTOMER_METRICS = frozenset({"customer_count", "new_customer_count", "debtor_count"})
+_DEBT_METRICS = frozenset({"debt_total", "debt_amount", "debt_paid", "debt_added", "debtor_count", "overdue_amount"})
 
 
 def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: CanonicalDB, mapping: Mapping,

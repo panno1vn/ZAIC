@@ -67,8 +67,32 @@ SHAPES = [  # (pattern on the folded text without its period, plan without perio
 WHICH_WORDS = {"nao", "nhat"}
 
 
+# N129. "Dthu T7/2025 cao hơn T6/2025, rồi T8/2025 lại cao hơn T7/2025, đúng vậy không?" asks a trend (the revenue of
+# three months each above the one before), in words the LLM reads as a comparison with the months as products (public,
+# 2 questions, both refused by the gates on both calls; train has no question of this shape). Only revenue, two "cao
+# hơn", a yes / no ending and exactly three months written that follow each other.
+_CHAIN_MONTH = re.compile(r"\b(?:t|th|thang)\s*(\d{1,2})\s+(\d{4}|\d{2})\b")
+_CHAIN_YESNO = re.compile(r"\b(?:dung (?:vay |ko |khong )?(?:khong|ko|k)|phai (?:khong|ko|k))\s*$")
+
+
+def _chained_rise(t: str) -> QueryPlan | None:
+    if len(re.findall(r"\bcao hon\b", t)) != 2 or not _CHAIN_YESNO.search(t) \
+            or not re.search(r"\b(?:doanh thu|dthu|dt)\b", t) or re.search(r"\b(?:thap hon|giam)\b", t):
+        return None
+    months = sorted({(int(y) + (2000 if len(y) == 2 else 0), int(m)) for m, y in _CHAIN_MONTH.findall(t)})
+    if len(months) != 3 or not all(1 <= m <= 12 for _, m in months):
+        return None
+    index = [y * 12 + m for y, m in months]
+    if index != list(range(index[0], index[0] + 3)):
+        return None
+    return QueryPlan.model_validate({"intent": "trend", "measures": [{"metric": "revenue"}],
+                                     "period": {"kind": "months", "months": [f"{y}-{m:02d}" for y, m in months]}})
+
+
 def parse(question: str) -> QueryPlan | None:
     t = fold(question)
+    if (chained := _chained_rise(t)) is not None:
+        return chained
     period, rest = _period(t)
     if period is None:
         return None
@@ -82,4 +106,36 @@ def parse(question: str) -> QueryPlan | None:
                 return QueryPlan.model_validate({**plan, "period": period})
             except Exception:
                 return None
+    return None
+
+
+# N158. Readings used only when the LLM gives no plan at all (its output broken past repair, or refused on both calls):
+# shapes the verified train bank plans one way every time, read here from the words.
+_SHARE_BY_ORDERS = re.compile(r"\b(?:mua|dat)\s+(tu|it nhat|tren)\s+(\d+)\s+don\b")
+_OVERDUE_WHO = re.compile(r"\b(?:may|mi|bao nhieu|bn|bnhiu|bnhieu)\s+(?:khach|nguoi|ngui)\b")
+_DAY = re.compile(r"\b(\d{1,2})/(\d{1,2})/(\d{4})\b")
+
+
+def fallback(question: str) -> QueryPlan | None:
+    t = fold(question)
+    # "khách có mua th5/2025, mấy % mua từ 4 đơn trở lên": the share of the month's buyers with N orders or more (train
+    # bank: every such question, e.g. "trong số khách đã mua hàng tháng 7/2026, bnhiu % mua từ 8 đơn trở lên", planned
+    # as this count_where)
+    m = _SHARE_BY_ORDERS.search(t)
+    if m and re.search(r"\bkhach\b", t) and ("%" in question or re.search(r"\bphan tram\b", t)):
+        period, _ = _period(t)
+        if period is not None:
+            return QueryPlan.model_validate({
+                "intent": "count_where", "period": period,
+                "threshold": {"entity": "customer", "metric": "order_count", "op": "gt" if m[1] == "tren" else "gte",
+                              "value": float(m[2]), "as_share": True}})
+    # "hết ngày 8/2/2026 shop có mấy người trả góp còn kỳ quá hạn chưa đóng": the customers with an overdue instalment
+    # (§6 Trả góp), as public plans its siblings ("có mấy khách trả góp còn nợ kỳ góp quá hạn")
+    if _OVERDUE_WHO.search(t) and re.search(r"\bgop\b", t) and re.search(r"\bqua han\b", t) and not re.search(
+            r"\b(?:tien|bao nhieu tien)\b", t):
+        days = _DAY.findall(question)
+        if len(days) == 1:
+            d, mo, y = (int(x) for x in days[0])
+            return QueryPlan.model_validate({"intent": "value", "measures": [{"metric": "overdue_installment_count"}],
+                                             "period": {"kind": "until", "date": f"{y:04d}-{mo:02d}-{d:02d}"}})
     return None
