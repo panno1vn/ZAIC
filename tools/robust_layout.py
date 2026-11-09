@@ -244,7 +244,8 @@ def write_variant(src: Path, dst: Path, variant: str) -> None:
                 name = f"tbl_{k + 1}" if variant == "sqlite_rename" else t
                 if name != t:
                     renamed[t] = name
-                grids[name] = transform(g, variant, renamed)
+                # a sqlite table has one header row and unique column names: no title rows, no repeated column
+                grids[name] = g if variant in ("title_rows", "dup_col") else transform(g, variant, renamed)
             _write_sqlite(out, grids)
         elif f.name != "README.md":
             shutil.copy2(f, out)
