@@ -279,7 +279,8 @@
             "due_order_count",
             "delivered_qty",
             "installments_due",
-            "phones_warrantied"
+            "phones_warrantied",
+            "purchased_qty"
           ],
           "title": "Metric",
           "type": "string"
@@ -579,7 +580,8 @@
             "due_order_count",
             "delivered_qty",
             "installments_due",
-            "phones_warrantied"
+            "phones_warrantied",
+            "purchased_qty"
           ],
           "title": "By",
           "type": "string"
@@ -697,7 +699,8 @@
             "due_order_count",
             "delivered_qty",
             "installments_due",
-            "phones_warrantied"
+            "phones_warrantied",
+            "purchased_qty"
           ],
           "title": "Metric",
           "type": "string"

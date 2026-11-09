@@ -51,7 +51,9 @@ def test_an_average_order_value_needs_a_money_or_order_word_and_buying_stock_in_
     assert _accept("Th3/2026 trung bình mỗi đơn khách trả bao nhiêu tiền?", avg) is not None
     revenue = {"intent": "value", "period": {"kind": "month", "year": 2025, "month": 6},
                "measures": [{"metric": "revenue", "filters": []}]}
-    assert _accept("Tháng 6/2025 tiệm cất hàng hết tổng cộng bao nhiêu tiền?", revenue) is None
+    # N152: no sale, the money spent buying in (§5)
+    p = _accept("Tháng 6/2025 tiệm cất hàng hết tổng cộng bao nhiêu tiền?", revenue)
+    assert p is not None and p.measures[0].metric == "purchase_amount"
 
 
 def test_th_nay_is_this_month():
