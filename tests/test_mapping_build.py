@@ -178,3 +178,38 @@ def test_fill_down_takes_the_cell_of_the_order_first_row_not_of_an_earlier_order
     follow = ids.map(lambda v: v == "")
     assert _fill_down(notes, follow).tolist() == ["trả lại hàng", "trả lại hàng", "", "", ""]
     assert _fill_down(customers, follow).tolist() == ["An", "An", "", "", "Bình"]
+
+
+# ---- N169: a core column with unreadable cells fails the shop's check, one stray cell does not
+def _timed_shop(n: int, bad: int):
+    times = ["hôm qua" if i < bad else f"{1 + i % 28}/6/2025 {8 + i % 12}:00" for i in range(n)]
+    df = pd.DataFrame({"Ma": [f"D{i}" for i in range(n)], "Ngay": times, "TT": ["Xong"] * n, "Khach": ["Lan"] * n,
+                       "Hang": ["Bia"] * n, "SL": ["1 lon"] * n, "Tien": ["10k"] * n})
+    return build_canonical(raw(("So.xlsx::T06", df, 2025)), Mapping(tables=[
+        TableMap(target="orders", sources=["So.xlsx::*"], value_maps={"status": STATUS},
+                 columns=[ColumnMap(target="order_id", source="Ma"),
+                          ColumnMap(target="order_time", source="Ngay", parse="datetime"),
+                          ColumnMap(target="status", source="TT"), ColumnMap(target="customer_key", source="Khach")]),
+        TableMap(target="lines", sources=["So.xlsx::*"],
+                 columns=[ColumnMap(target="order_id", source="Ma"), ColumnMap(target="product_key", source="Hang"),
+                          ColumnMap(target="product_name", source="Hang"),
+                          ColumnMap(target="qty", source="SL", transform="split_qty_unit", args={"part": "qty"},
+                                    parse="qty"),
+                          ColumnMap(target="line_amount", source="Tien", parse="money")])]))
+
+
+def test_unreadable_order_times_fail_the_check():
+    from datamate.mapping import REQUIRED_CHECKS
+    name = REQUIRED_CHECKS[-1]
+    ok = {c.name: c.passed for c in run_checks(_timed_shop(1000, 0))}
+    one = {c.name: c.passed for c in run_checks(_timed_shop(1000, 1))}
+    two_pct = {c.name: c.passed for c in run_checks(_timed_shop(1000, 20))}
+    assert ok[name] and one[name] and not two_pct[name]
+    assert _timed_shop(1000, 20).unparsed["orders.order_time"] == (20, 1000)
+
+
+def test_an_export_copy_that_lost_its_seconds_is_still_a_duplicate():
+    from datamate.mapping.build import _drop_export_duplicates
+    f = pd.DataFrame({"Ma": ["A", "A", "B"], "Gio": ["2025-02-01 06:46:58", "01/02/2025 6:46 AM", "01/02/2025 6:46 AM"],
+                      "Tien": ["10k", "10k", "10k"]})
+    assert list(_drop_export_duplicates(f)["Ma"]) == ["A", "B"]

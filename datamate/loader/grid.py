@@ -17,7 +17,7 @@ import pandas as pd
 HEADER_SCAN = 10  # rows searched for the header
 WIDTH_SCAN = 40  # rows used to measure how wide the data is
 _DATA_LIKE = re.compile(
-    r"^-?[\d.,\s]+(?:đ|d|vnđ|vnd|k|tr\d*)?$"  # numbers and money: 25.000đ, 1tr440, 25k, -3
+    r"^\(?-?[\d.,\s]+\)?(?:\s*(?:đ|d|vnđ|vnd|k|tr\d*|triệu|trieu|nghìn|nghin|ngàn|ngan))?$"  # money: 25.000đ, 1tr440, 25k, 2 triệu, (30.000), -3
     r"|^\d{1,4}[/-]\d{1,2}(?:[/-]\d{1,4})?(?:\s.*)?$"  # dates: 01/02/2025, 1/1, 2025-02-01 06:00:25
     r"|^\d{1,2}\s*thg\s*\d{1,2}", re.I)
 # "Cộng", "Tổng cộng", "Tổng tháng", "Total"…; only on sparse rows, so a customer "Tống Văn An" on a full row stays

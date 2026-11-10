@@ -6,7 +6,7 @@ import pytest
 
 from datamate.loader import guess_type, load_business
 from datamate.loader.grid import cell_text, to_table, year_hint
-from datamate.loader.parse import parse_money, parse_number
+from datamate.loader.parse import parse_datetime, parse_money, parse_number
 
 HEADER = ["Mã đơn", "Ngày", "Khách", "Hàng", "SL", "Tiền"]
 ROW = ["ORD1", "01/02/2025", "Tống Văn An", "Mì", "2", "10.000đ"]
@@ -115,3 +115,37 @@ def test_reading_stops_at_the_time_budget(tmp_path):
     (tmp_path / "a.csv").write_text("x,y\n1,2\n", encoding="utf-8")
     raw = load_business(tmp_path, budget_s=-1)
     assert not raw.tables and any("hết" in w for w in raw.warnings)
+
+
+# ---- N169: more forms of date, money and number are read
+@pytest.mark.parametrize("text,when", [
+    ("27/08/2026 2:05 PM", datetime(2026, 8, 27, 14, 5)), ("27/08/2026 12:30 AM", datetime(2026, 8, 27, 0, 30)),
+    ("27/08/2026 12:30 PM", datetime(2026, 8, 27, 12, 30)), ("2026-08-27 2:05 PM", datetime(2026, 8, 27, 14, 5)),
+    ("27/08/2026 2:05 CH", datetime(2026, 8, 27, 14, 5)), ("27/08/2026 9:05 SA", datetime(2026, 8, 27, 9, 5)),
+    ("Thứ Năm, 27/08/2026 14:05", datetime(2026, 8, 27, 14, 5)), ("CN 30/08/2026", datetime(2026, 8, 30)),
+    ("14:05 27/08/2026", datetime(2026, 8, 27, 14, 5)), ("27.08.2026", datetime(2026, 8, 27)),
+    ("27-08-2026 14:05", datetime(2026, 8, 27, 14, 5)), ("2026-01-01 14:58:08", datetime(2026, 1, 1, 14, 58, 8)),
+    ("2026-01-01T10:00:00+07:00", datetime(2026, 1, 1, 10)), ("1 thg 12 2025", datetime(2025, 12, 1)),
+    ("2026-08-27 hello", None), ("2026-08-27 14:05 PM", None), ("hôm qua", None),
+])
+def test_dates_with_am_pm_weekday_and_dots(text, when):
+    assert parse_datetime(text, 2026) == when
+
+
+@pytest.mark.parametrize("text,amount", [
+    ("1,2 triệu", 1_200_000), ("2 triệu", 2_000_000), ("500 nghìn", 500_000), ("150 ngàn", 150_000),
+    ("(30.000)", -30_000), ("VND 30.000", 30_000), ("1 234 000", 1_234_000), ("2 triệu đồng", 2_000_000),
+    ("1tr440", 1_440_000), ("25k", 25_000), ("41,785tr", 41_785_000), ("30.500đ", 30_500), ("-30.500đ", -30_500),
+])
+def test_money_in_words_brackets_and_spaced_thousands(text, amount):
+    assert parse_money(text) == amount
+
+
+def test_number_with_spaced_thousands():
+    assert parse_number("1 234 000") == 1_234_000 and parse_number("1 234") == 1234
+    assert parse_number("5 chai") == 5 and parse_number("3 4") == 3  # not a thousands form
+
+
+def test_a_column_of_weekday_dates_and_of_words_is_typed():
+    assert guess_type(["Thứ Năm, 27/08/2026 14:05", "CN 30/08/2026 09:00", "T2 31/08/2026 10:00"])[0] == "date"
+    assert guess_type(["1,2 triệu", "500 nghìn", "2 triệu", "150 ngàn"])[0] == "money"

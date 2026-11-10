@@ -2,7 +2,7 @@
 
 **Mục tiêu:** tự động map dữ liệu của **cửa hàng chưa từng thấy** về schema chuẩn. Map sai thì phải bị phát hiện, để cửa hàng đó bỏ trống thay vì trả lời sai.
 
-**Hợp đồng:** `map_business(raw, profile, rulebook, llm) -> Mapping` ([contracts/mapping.py](../contracts/mapping.py)). `build_canonical(raw, mapping) -> CanonicalDB`; `run_checks(db)` chạy 6 bước kiểm tra bắt buộc (`REQUIRED_CHECKS`); `build_card(db) -> DataCard`.
+**Hợp đồng:** `map_business(raw, profile, rulebook, llm) -> Mapping` ([contracts/mapping.py](../contracts/mapping.py)). `build_canonical(raw, mapping) -> CanonicalDB`; `run_checks(db)` chạy các bước kiểm tra bắt buộc (`REQUIRED_CHECKS`); `build_card(db) -> DataCard`.
 
 **Đã có (04/11, G2 phần 1):**
 - `build_canonical` ([build.py](build.py)):
