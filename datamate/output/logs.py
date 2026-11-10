@@ -39,3 +39,25 @@ def append_log(log_dir: Path, record: dict) -> None:
     log_dir.mkdir(parents=True, exist_ok=True)
     with open(log_dir / QUESTIONS_JSONL, "a", encoding="utf-8") as fh:
         fh.write(_line(record) + "\n")
+
+
+def reset_questions_log(log_dir: Path) -> None:
+    """Start <log_dir>/questions.jsonl empty (N165: a second run in the same folder must not list every id twice)."""
+    log_dir.mkdir(parents=True, exist_ok=True)
+    (log_dir / QUESTIONS_JSONL).write_text("", encoding="utf-8")
+
+
+def keep_logged(log_dir: Path, ids: set[str]) -> None:
+    """Resume (N165): <log_dir>/questions.jsonl keeps only the records of questions whose answer is kept; the others
+    are answered and logged again, so no id is listed twice."""
+    path = log_dir / QUESTIONS_JSONL
+    if not path.exists():
+        return
+    kept = []
+    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            if json.loads(raw).get("id") in ids:
+                kept.append(raw)
+        except (json.JSONDecodeError, AttributeError):
+            continue
+    path.write_text("".join(k + chr(10) for k in kept), encoding="utf-8")

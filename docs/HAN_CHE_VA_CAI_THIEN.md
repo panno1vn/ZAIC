@@ -1035,6 +1035,11 @@ Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval
 - Còn lại từ thử bố cục (chưa sửa): đảo thứ tự cột nhà thuốc POS → LLM ghép cột hỏng cả shop (112 trống); thêm cột ở shop sổ tay → mất bảng quy đổi (11 trống).
 - **Sau N137–N143:** train **2932 / 0 / 68, PA +0,977** (đầu phiên 2912 / 0 / 88); public (đọc lại lượt thật 80c8c19) 977 / 6 / 17, không đổi: 13 câu public không có plan là loại khác (giá trị lọc không nối được: mã / tên nhân viên, kênh, nhóm hàng; JSON hỏng 2), các nhà thuốc public đã có lô. Bằng chứng của cả phiên ở train; public kỳ vọng ít.
 
+### Phiên 19 (10–13/11): private chưa thấy — bền với bố cục, rulebook, lúc chạy
+- [x] **N165. Lượt chạy luôn ghi đủ một dòng cho mỗi câu, không mất đáp án đã ghi** (`pipeline.find_split_dir` / `load_questions` / `business_dir` / `run`, `SubmissionWriter(resume)`, `predict --resume --elapsed-s`, `docker/predict.sh`; C001, C002, F007). Trước đây bố cục `/data` lạ (câu hỏi sâu 2 cấp, hai split, `questions.json`, UTF-16) làm chương trình dừng **trước khi mở** file nộp → không có file, điểm 0; lượt dự phòng của `predict.sh` mở file bằng `"w"` và xoá mọi đáp án LLM, tính lại giờ từ 0, `logs/questions.jsonl` ghi mỗi id hai lần; id số bị bỏ; `business_id` có khoảng trắng / hoa thường không tìm ra thư mục.
+  - Sửa: tìm `questions.jsonl|json` nông nhất (rồi theo tên), đọc qua `loader._decode` (BOM, UTF-16, cp1258), nhận mảng JSON, id số thành chuỗi; lỗi tìm split → ghi `logs/_run_error.json` và vẫn mở file (rỗng nhưng hợp lệ); thư mục shop tìm theo `strip().casefold()` khi đúng một thư mục khớp; `rulebook.md`, `calendar.csv` không phân biệt hoa thường. Lượt dự phòng `--resume`: giữ dòng đã trả lời (không abstain), chỉ trả lời câu còn thiếu, log mỗi id một lần; `--elapsed-s` giữ một đồng hồ 5,5 h. `predict.sh`: luôn có file (rỗng nếu cần), thoát 0 khi có file.
+  - Đo: pytest xanh (+9 test mới); replay public 991 / 4 / 5; `/data` sâu 2 cấp chỉ có một shop: 1000 dòng, validator OK, thoát 0; `--resume` giữ 12 đáp án đã ghi, mỗi id một dòng log; `/data` rỗng: file rỗng, thoát 0. Không đụng LLM, mapping, kế hoạch.
+
 ## Thứ tự xử lý đề xuất
 1. **T4 sáng:** sửa H1–H7, sinh lại schema, thêm test cho từng mục.
 2. **T4–T5:** K2 (cả nhóm), K3 (người có kinh nghiệm), K1 review chéo.

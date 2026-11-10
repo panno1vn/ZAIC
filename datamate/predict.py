@@ -51,6 +51,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--config", default=str(DEFAULT_CONFIG))
     ap.add_argument("--budget-hours", type=float, help="ghi đè ngân sách thời gian trong config")
     ap.add_argument("--no-logs", action="store_true")
+    ap.add_argument("--resume", action="store_true",
+                    help="giữ các đáp án đã ghi trong submission.jsonl, chỉ trả lời câu còn thiếu (lượt dự phòng)")
+    ap.add_argument("--elapsed-s", type=float, default=0.0, help="giây đã dùng trước tiến trình này (tính vào ngân sách)")
     ap.add_argument("--llm-url", help="llama-server đọc câu hỏi, ví dụ http://127.0.0.1:8091 (mặc định: chỉ baseline)")
     args = ap.parse_args(argv)
 
@@ -59,6 +62,9 @@ def main(argv: list[str] | None = None) -> int:
         config.time_budget_s = args.budget_hours * 3600
     if args.no_logs:
         config.write_logs = False
+    config.resume = args.resume
+    if args.elapsed_s:
+        config.started_at = PROCESS_START - args.elapsed_s
     llm = connect_llm(args.llm_url)
     if args.llm_url and llm is None:
         return 1
