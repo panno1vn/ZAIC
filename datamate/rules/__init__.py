@@ -14,6 +14,7 @@ import difflib
 import json
 import re
 import unicodedata
+from collections import Counter
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -108,6 +109,71 @@ def extends(old: str, new: str) -> bool:
     return True
 
 
+# T015. What a row says is its content words in order, sentence by sentence; the function words and the spelling
+# variants below are the only freedom. Never put both words of an opposite pair here (có / không, đã / chưa, trong /
+# ngoài, trước / sau): the second one is a fact and stays out of STOP.
+STOP = frozenset("là thì mà của các những được bị sẽ đã có cũng vẫn này đó ấy như vậy tức rằng với ở tại trong theo "
+                 "về cho do bởi nên ra vào đều việc cái sự".split())
+# spelling and rulebook-declared equivalents, whole words, longest first
+PHRASES = (("kể cả chỉ", "kể cả"), ("đơn hàng", "đơn"), ("hủy", "huỷ"), ("không bao gồm", "không gồm"),
+           ("bao gồm", "gồm"), ("loại bỏ", "bỏ"), ("bị loại khỏi", "bỏ khỏi"), ("loại khỏi", "bỏ khỏi"),
+           ("toàn bộ", "cả"), ("tất cả", "mọi"), ("hay", "hoặc"), ("không tính", "bỏ"), ("không kể", "bỏ"))
+REWORD_MIN_TOKENS = 4  # fewer content words is too weak a key
+
+
+def _plain(s: str) -> str:
+    return _fold(s)
+
+
+def _sentences(text: str, folded: bool = False) -> list[tuple[str, ...]]:
+    t = normalize(text)
+    stop, phrases = STOP, PHRASES
+    if folded:
+        t = _plain(t)
+        stop = frozenset(_plain(w) for w in STOP)
+        phrases = tuple((_plain(a), _plain(b)) for a, b in PHRASES)
+    for a, b in phrases:
+        t = re.sub(r"(?<!\w)" + re.escape(a) + r"(?!\w)", b, t)
+    out = []
+    for s in re.split(r"[.;|](?:\s|$)|\s\|\s", t + " "):
+        toks = [w for w in re.findall(r"[^\W_]+", s) if w not in stop]
+        if toks:
+            out.append(tuple(toks))
+    return out
+
+
+def reworded(old: str, new: str) -> bool:
+    """T015: `new` says what `old` says in other function words, punctuation or sentence order (F005 free rewording:
+    "kể cả chỉ trả một phần" → "kể cả trả một phần" blanked 792 of 995 public answers). The content words of every
+    sentence of `old`, in order, are all there; a sentence only `new` has passes N167's limits. A number, status,
+    negation, bound, noun or verb added, removed, swapped or reordered inside a sentence is a changed rule."""
+    n = normalize(new)
+    folded = _plain(n) == n.replace("đ", "d")  # a row written without any accent: compare the unaccented forms
+    a, b = _sentences(old, folded), _sentences(new, folded)
+    if sum(len(s) for s in a) < REWORD_MIN_TOKENS:
+        return False
+    if [w for s in a for w in s] == [w for s in b for w in s]:
+        return True
+    left = Counter(b)
+    for s in a:
+        if not left[s]:
+            return False
+        left[s] -= 1
+    bounding = {_plain(w) for w in _BOUNDING} if folded else _BOUNDING
+    for s, k in left.items():  # sentences only the new text has
+        if k and (set(s) & bounding or any(w.isdigit() for w in s)):
+            return False
+    return True
+
+
+def accepted_version(old: str, new: str) -> bool:
+    """`new` is the accepted text `old`: the same text, that text with harmless additions (N159 / N167), or the same
+    content words in the same order under other function words and punctuation (T015). Replaces the character
+    similarity test, which refused a reworded row (F005) and let a one-word change of a long row through ("hết hôm
+    nay" → "hết hôm qua"; "bắt đầu thứ Hai" → "Chủ nhật"; "hai mã trùng tên là hai khách" → "là một khách")."""
+    return normalize(old) == normalize(new) or extends(old, new) or reworded(old, new)
+
+
 # a bullet's bold label, with or without its opening marks (the parser keeps "Tên**: …" of "- **Tên**: …")
 _LABEL = re.compile(r"^(?:\*\*)?[^*:：]{1,80}\*\*\s*[:：]\s*|^\*\*[^*]{1,80}[:：]\*\*\s*")
 
@@ -129,11 +195,11 @@ def adopt_by_text(rows: dict[str, RuleRow], ref: dict[str, list[str]], wanted) -
         for fid, row in free.items():
             if fid in taken or len(normalize(_LABEL.sub("", row.text))) < ADOPT_MIN_CHARS:
                 continue
-            if any(same_rule(t, v) or extends(v, t) for v in versions for t in (row.text, _LABEL.sub("", row.text))):
+            if any(accepted_version(v, t) for v in versions for t in (row.text, _LABEL.sub("", row.text))):
                 hits.append(fid)
         if len(hits) == 1:
             row = free[hits[0]]
-            plain = any(same_rule(row.text, v) or extends(v, row.text) for v in versions)
+            plain = any(accepted_version(v, row.text) for v in versions)
             out[rid] = RuleRow(rid, row.section, row.name, row.text if plain else _LABEL.sub("", row.text))
             taken.add(hits[0])
     return out
@@ -212,7 +278,8 @@ def load_reference(path: Path = REFERENCE) -> dict[str, list[str]]:
 
 def check_rules(rulebook: str, rule_ids: tuple[str, ...], reference: dict[str, str | list[str]] | None = None,
                 threshold: float = THRESHOLD) -> dict[str, bool]:
-    """rule id -> True when the rule exists in this rulebook and matches one accepted version closely enough."""
+    """rule id -> True when the rule exists in this rulebook and says what one accepted version says (T015: the
+    `threshold` argument is kept for callers and no longer used)."""
     ref = load_reference() if reference is None else reference
     current = canonical_rows(parse_rulebook(rulebook), set(ref) | set(rule_ids))
     current = {**current, **adopt_by_text(current, {k: ([v] if isinstance(v, str) else v) for k, v in ref.items()},
@@ -222,8 +289,7 @@ def check_rules(rulebook: str, rule_ids: tuple[str, ...], reference: dict[str, s
         row, versions = current.get(rid), ref.get(rid)
         if isinstance(versions, str):
             versions = [versions]
-        out[rid] = row is not None and bool(versions) and any(
-            same_rule(row.text, v, threshold) or extends(v, row.text) for v in versions)
+        out[rid] = row is not None and bool(versions) and any(accepted_version(v, row.text) for v in versions)
     return out
 
 
