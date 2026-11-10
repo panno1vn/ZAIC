@@ -18,7 +18,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends git cmake build
     && rm -rf /var/lib/apt/lists/*
 RUN git clone --depth 1 --branch ${LLAMA_TAG} https://github.com/ggml-org/llama.cpp /src/llama.cpp
 WORKDIR /src/llama.cpp
-RUN cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="120" -DLLAMA_CURL=OFF -DCMAKE_BUILD_TYPE=Release \
+# no GPU during `docker build`: libcuda.so is absent, so the driver symbols stay unresolved at link time and the NVIDIA
+# runtime provides them when the container runs (as llama.cpp's own CUDA Dockerfile does). GGML_NATIVE=OFF: CPU code
+# for any x86-64, not only the build machine's CPU (the scoring machine's CPU is unknown).
+RUN cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="120" -DGGML_NATIVE=OFF -DLLAMA_CURL=OFF \
+        -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS=-Wl,--allow-shlib-undefined \
     && cmake --build build --target llama-server -j"$(nproc)" \
     && mkdir -p /opt/llama && cp build/bin/llama-server /opt/llama/ \
     && find build -name "*.so*" -exec cp -P {} /opt/llama/ \;
