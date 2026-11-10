@@ -69,6 +69,8 @@ def same_rule(a: str, b: str, threshold: float = 0.95) -> bool:
 
 # N159: words that, added inside a list of the rule, would narrow or flip it ("…, không tính đơn sỉ")
 _NARROWING = frozenset({"không", "chỉ", "trừ", "ngoài", "bỏ", "riêng", "ko"})
+# N167: what an added sentence or list item may not contain either: a way to widen or condition the rule
+_BOUNDING = _NARROWING | {"hoặc", "hay", "nếu", "khi"}
 
 
 def _tokens(text: str) -> list[str]:
@@ -82,7 +84,10 @@ def extends(old: str, new: str) -> bool:
     functions were already right under (public 991 right / 4 wrong with them), but 0.57 similar, so without a public
     version 925 of the 965 public answers that come from a function would have been blanked. The private rulebook is
     read by the frozen image, where no version can be added. A word changed or removed, a number changed, or a
-    narrowing word added inside a sentence is still a changed rule."""
+    narrowing word added inside a sentence is still a changed rule.
+    N167 (10/11, reviewer R002, F006): an added sentence or item with a narrowing or widening word ("Đơn huỷ không
+    tính", "Riêng đơn sỉ…", "…, hoặc tổng chi từ 5 triệu"), or with a number ("Từ 01/2026 là từ 5 đơn"), changes the
+    rule; and a sentence is added only where the old text ends one (not in the middle of an old sentence)."""
     a, b = _tokens(old), _tokens(new)
     if not a:
         return False
@@ -92,8 +97,11 @@ def extends(old: str, new: str) -> bool:
         if tag != "insert":
             return False
         run, before = b[j1:j2], (a[i1 - 1] if i1 > 0 else None)
-        sentence = run[0] in (".", ";") or (run[-1] in (".", ";") and before in (None, ".", ";"))
-        item = run[0] == "," and not _NARROWING & set(run)
+        after = a[i1] if i1 < len(a) else None
+        if _BOUNDING & set(run) or any(t.isdigit() for t in run):
+            return False
+        sentence = (run[0] in (".", ";") and after in (None, ".", ";")) or             (run[-1] in (".", ";") and before in (None, ".", ";"))
+        item = run[0] == ","
         if not (sentence or item):
             return False
     return True
