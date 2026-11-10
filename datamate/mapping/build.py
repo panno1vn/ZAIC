@@ -27,7 +27,8 @@ REQUIRED_CHECKS = ("có orders và lines (hoặc tiền hàng của đơn)", "b�
                    "dòng hàng thuộc đơn có thật", "cột bắt buộc đủ giá trị",
                    # H17, checks of meaning; thresholds measured on the 8 hand mappings of 05/11 (docs/HAN_CHE §E)
                    "thành tiền khớp số lượng × đơn giá", "trạng thái hợp lý", "ngày cuối khớp README",
-                   "số âm chỉ ở đơn trả", "tiền hàng của đơn khớp tổng dòng", "mã hàng và tên hàng hợp lý")
+                   "số âm chỉ ở đơn trả", "tiền hàng của đơn khớp tổng dòng", "mã hàng và tên hàng hợp lý",
+                   "ô ngày, tiền, số lượng đọc được")  # N169, last: the indices of the others stay
 AMOUNT_MATCH_MIN = 0.95  # share of lines with amount ≈ qty × price − discount; 0.980–1.000 on correct mappings
 SOLD_SHARE_MIN = 0.5  # share of orders completed or delivering; 0.95–0.98 on correct mappings
 NEGATIVE_MAX = 0.001  # share of lines with a negative amount or qty outside returned orders; 0 on correct mappings
@@ -135,7 +136,7 @@ def _transform(values: pd.Series, cm: ColumnMap, frame: pd.DataFrame, raw_frames
 
 
 def _column(frame: pd.DataFrame, cm: ColumnMap, raw_frames: dict[str, pd.DataFrame], warnings: list[str],
-            target: str) -> pd.Series:
+            target: str, unparsed: dict | None = None) -> pd.Series:
     if cm.const is not None:  # a constant is parsed like a cell ("2026-06-24" with parse date), except as text
         values = pd.Series([cm.const] * len(frame), index=frame.index, dtype=object)
         if cm.parse == "text" or not isinstance(cm.const, str):
@@ -147,12 +148,20 @@ def _column(frame: pd.DataFrame, cm: ColumnMap, raw_frames: dict[str, pd.DataFra
         values = frame[cm.source].map(_text) if cm.source in frame.columns else pd.Series(None, index=frame.index)
     if cm.transform is not None:
         values = _transform(values, cm, frame, raw_frames, warnings, target)
+    before = values if unparsed is not None and cm.const is None and cm.parse in (*_DATED, "money", "number", "qty") \
+        else None
     if cm.parse in _DATED:
         parse = _DATED[cm.parse]
         values = pd.Series([parse(v, int(y) if pd.notna(y) else None) for v, y in zip(values, frame["_year"])],
                            index=frame.index, dtype=object)
     elif cm.parse in _PARSERS:
         values = values.map(_PARSERS[cm.parse])
+    if before is not None:  # N169: count the cells that had text and came out unread
+        filled = before.map(lambda v: not _blank(v))
+        bad = int((filled & values.map(_blank)).sum())
+        key = f"{target}.{cm.target}"
+        old = unparsed.get(key, (0, 0))
+        unparsed[key] = (old[0] + bad, old[1] + int(filled.sum()))
     if cm.transform == "negate":
         values = values.map(lambda v: -v if isinstance(v, (int, float)) and not isinstance(v, bool) else v)
     return values
@@ -197,8 +206,24 @@ def _status_from_lines(statuses: pd.Series) -> str | None:
     return "completed" if s == {"completed"} else None  # anything else is unclear: the status check fails
 
 
+def _minute(v):
+    """N169: a time of day, whatever way it is written, to the minute: the copy of a row that lost its seconds
+    ('6:46 AM' next to '2025-02-01 06:46:58') is still that row."""
+    if isinstance(v, str) and ":" in v:
+        d = parse_datetime(v)
+        if d is not None:
+            return d.strftime("%Y-%m-%d %H:%M")
+    return v
+
+
+def _drop_export_duplicates(frame: pd.DataFrame) -> pd.DataFrame:
+    cols = [c for c in frame.columns if c not in PSEUDO]
+    key = frame[cols].map(_minute) if hasattr(frame, "map") else frame[cols].applymap(_minute)
+    return frame[~key.duplicated()]
+
+
 def _build_table(tm: TableMap, mapping: Mapping, warnings: list[str], raw_frames: dict[str, pd.DataFrame]
-                 ) -> pd.DataFrame:
+                 , unparsed: dict | None = None) -> pd.DataFrame:
     ids = source_ids(tm, list(raw_frames))
     frames = [raw_frames[s] for s in ids]
     missing = [s for s in tm.sources if not source_ids(TableMap(target=tm.target, sources=[s], columns=[]), ids)]
@@ -208,10 +233,10 @@ def _build_table(tm: TableMap, mapping: Mapping, warnings: list[str], raw_frames
         return pd.DataFrame(columns=[c.target for c in tm.columns])
     frame = pd.concat(frames, ignore_index=True)
     if mapping.record_grain == "order" and tm.target in ("orders", "lines"):  # §8 export duplicates
-        frame = frame.drop_duplicates(subset=[c for c in frame.columns if c not in PSEUDO])
+        frame = _drop_export_duplicates(frame)
     out = pd.DataFrame(index=frame.index)
     for cm in tm.columns:
-        col = _column(frame, cm, raw_frames, warnings, tm.target)
+        col = _column(frame, cm, raw_frames, warnings, tm.target, unparsed)
         if cm.target in tm.value_maps:
             vm = tm.value_maps[cm.target]
 
@@ -286,7 +311,7 @@ def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
                      readme=raw.readme or "", values=raw_values(raw))
     raw_frames = prepare_raw(raw, mapping)
     for tm in mapping.tables:
-        db.tables[tm.target] = _build_table(tm, mapping, db.warnings, raw_frames)
+        db.tables[tm.target] = _build_table(tm, mapping, db.warnings, raw_frames, db.unparsed)
     chained_factors(db, mapping, raw_frames)
     sane_base_units(db)
     split_toppings(db)
@@ -743,6 +768,22 @@ def empty_required_cells(db: CanonicalDB) -> list[str]:
     return out
 
 
+UNPARSED_MAX = 0.005  # N169: share of a core column's cells the parser may leave unread
+UNPARSED_MIN_ROWS = 20
+UNPARSED_CORE = ("orders.order_time", "orders.goods_amount", "lines.line_amount", "lines.qty", "lines.unit_price")
+
+
+def unparsed_cells(db: CanonicalDB) -> list[str]:
+    """N169. Core columns with more unreadable cells than UNPARSED_MAX: a shop that answers from part of its rows
+    (one order time in seven written '27/08/2026 2:05 PM') is wrong without any error, so it abstains."""
+    out = []
+    for key in UNPARSED_CORE:
+        bad, total = db.unparsed.get(key, (0, 0))
+        if total >= UNPARSED_MIN_ROWS and bad / total > UNPARSED_MAX:
+            out.append(f"{key}: {bad}/{total} ô không đọc được")
+    return out
+
+
 def meaning_checks(db: CanonicalDB, readme: str = "") -> list[tuple[bool, str]]:
     """(passed, detail) of the H17 checks; a check whose columns are missing does not apply and passes. They catch a
     mapping that is well formed but wrong: amount mapped to the price column, statuses mapped the wrong way round,
@@ -836,8 +877,11 @@ def run_checks(db: CanonicalDB, readme: str = "") -> list[CheckResult]:
     empty = empty_required_cells(db)
     meaning = meaning_checks(db, readme)
     meaning.append(product_check(db))
-    results = [has_core, not problems, status_ok, span_ok, lines_ok, not empty] + [ok for ok, _ in meaning]
-    details = ["", "; ".join(problems[:5]), "", str(span), "", "; ".join(empty[:5])] + [d for _, d in meaning]
+    unread = unparsed_cells(db)
+    results = [has_core, not problems, status_ok, span_ok, lines_ok, not empty] + [ok for ok, _ in meaning] \
+        + [not unread]
+    details = ["", "; ".join(problems[:5]), "", str(span), "", "; ".join(empty[:5])] + [d for _, d in meaning] \
+        + ["; ".join(unread[:5])]
     return [CheckResult(name=n, passed=bool(ok), detail=d) for n, ok, d in zip(REQUIRED_CHECKS, results, details)]
 
 

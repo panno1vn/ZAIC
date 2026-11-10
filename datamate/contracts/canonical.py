@@ -182,6 +182,10 @@ class CanonicalDB:
     # N161: every short text value of the shop's files (folded, columns with few distinct values), mapped or not: a
     # value the question names that is here is recorded, whatever the mapping found
     values: frozenset[str] = frozenset()
+    # N169: "table.column" -> (non-blank cells the parser could not read, non-blank cells) of the date, money and
+    # quantity columns: a few unreadable cells are not seen by the other checks (an order takes the earliest time of
+    # its rows, a sum skips the empty ones)
+    unparsed: dict[str, tuple[int, int]] = field(default_factory=dict)
 
     def table(self, name: str) -> pd.DataFrame | None:
         df = self.tables.get(name)
