@@ -220,7 +220,7 @@ def price_rise_day(plan: QueryPlan, db: CanonicalDB | None) -> date | None:
     """§5 "Hiệu ứng tăng giá: lần tăng giá = ngày D giá mới cao hơn giá liền trước (theo bảng giá); tăng lên cùng một
     giá nhiều lần thì lấy lần đầu": the first day the product's price list moved up to the plan's anchor price. The
     product is the plan's one product filter, linked as [C3] links it; None when anything is missing or unclear
-    (public 06/11: "Từ hồi Trà vải (L) lên giá 47.000đ, so 30 ngày…", which no train question asks without a day)."""
+    (public 06/11: the 30 days since a product's price rose to a stated price, which no train question asks without a day)."""
     ph = db.table("price_history") if db is not None else None
     products = [f for m in plan.measures for f in m.filters if f.field == "product"]
     if ph is None or len(products) != 1 or not isinstance(products[0].value, str):

@@ -100,7 +100,7 @@ def _fold(text: str) -> str:
 # in a shop whose README names no such column and whose mapping found none. Train: "lãi gộp tháng 3/2025" in a pharmacy
 # whose README names no cost, "đơn bị huỷ vì giao trễ", "trả hàng vì lỗi và vì mua nhầm" in shops naming no reason:
 # all three unanswerable. Public (s65): 7 questions by "nhóm trà / nhóm sơn / nhóm điện" in two shops with no group
-# column, 3 by a return or cancel reason, 1 "mặt hàng nào lời nhiều nhất" without cost.
+# column, 3 by a return or cancel reason, 1 asking the most profitable product without cost.
 _REASON_ASKED = re.compile(r"\b(?:huy|tra)\b(?:\s+\S+){0,4}?\s+vi\s+(?!dien\b)\S")  # "bị huỷ vì giao trễ", "trả lại vì"
 _NOT_REASON = re.compile(r"\bbang vi\b|\bvi (?:dien tu|momo|zalo|shopee|tien)\b")  # "trả bằng ví điện tử"
 # a column the README names for the group: "- **Nhóm**: nhóm hàng", "loại hàng", "danh mục" (folded lines)
@@ -185,7 +185,7 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
     if asked & _DEBT_METRICS and not re.search(r"\bno\b|\bghi so\b|\bchiu\b", text) and not db.has("payments"):
         return "công nợ"
     # N126. A sales channel or a payment method in a shop that records none (§7 "shop không ghi loại thông tin câu hỏi
-    # cần … thì không trả lời được"): "doanh thu bán tại quầy với bán qua điện thoại" in a shop with no channel
+    # cần … thì không trả lời được"): revenue at the counter versus by phone, in a shop with no channel
     # column. Train (07/11 study, plans with that filter in shops with no such column): channel 3 / 3 unanswerable,
     # payment method 2 / 2. A README line about it or a mapped column is a record.
     # Only a value that is a channel / a payment method (a code of synonyms.json): train "hqua cos tổng cộng nhiêu

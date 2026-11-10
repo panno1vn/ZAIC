@@ -227,8 +227,8 @@ def _shared_words(a: str, b: str) -> int:
     return len({t for t in a.split() if t.isalpha()} & {t for t in b.split() if t.isalpha()})
 
 
-# One thing, a northern and a southern word (public 06/11: "Lạc rang muối 200g" for the shop's "Đậu phộng rang muối
-# 200g", "Đậu phụ rán giòn" for "Đậu hũ chiên giòn"). Replaced with their diacritics only: "lạc" is not "lắc"
+# One thing, a northern and a southern word (public 06/11: "lạc" for a shop's "đậu phộng",
+# "đậu phụ rán" for "đậu hũ chiên"). Replaced with their diacritics only: "lạc" is not "lắc"
 # ("khoai tây lắc"), which folding would merge.
 DIALECT = (("đậu phụ", "đậu hũ"), ("lạc", "đậu phộng"), ("rán", "chiên"), ("vừng", "mè"), ("ngô", "bắp"),
            ("mì chính", "bột ngọt"), ("lợn", "heo"), ("dứa", "thơm"), ("dưa chuột", "dưa leo"), ("mướp đắng", "khổ qua"),
@@ -273,9 +273,8 @@ def link_value(field: str, written, question: str, cands: Candidates, units: tup
         if v in cands:
             return _one([v], cands, "exact")
     if field == "customer":
-        # N125. A file that writes every customer with the phone after the name ("Ông Hiếu Anh 0935 174 948", public
-        # phone ledger: 1728 of 1728 spellings): the question names the customer ("khách Ông Hiếu Anh còn thiếu bao
-        # nhiêu tiền góp"), 69% alike, below the threshold. The name with the trailing phone left out names the
+        # N125. A file that writes every customer with the phone after the name (a name, then a phone
+        # number; public phone ledger: 1728 of 1728 spellings): the question names the customer by name only, 69% alike, below the threshold. The name with the trailing phone left out names the
         # customer exactly; linked only when every such spelling is one customer (§3: two customers of one name stay
         # two, and the question does not say which).
         bare = [n for n in cands if _TRAILING_DIGITS.sub("", n) == w and n != w]
