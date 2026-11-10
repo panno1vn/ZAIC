@@ -102,3 +102,68 @@ def test_public_additions_still_extend_train():
     public = parse_rulebook((DATA / "public_test" / "rulebook.md").read_text(encoding="utf-8-sig"))
     for rid in ("§1.don_thuoc_ky_nao", "§2.den_het_ngay_x_tinh_den_hom_nay", "§6.vat_lieu_xay_dung.giao_nhieu_dot"):
         assert extends(train[rid].text, public[rid].text), rid
+
+
+# ---- N168: a renamed row, or one written as a bullet, is found by its text
+def _ref():
+    return {rid: r.text for rid, r in parse_rulebook(SAMPLE).items()}
+
+
+def test_renamed_row_found_by_its_text():
+    ref = _ref()
+    ids = tuple(ref)
+    renamed = SAMPLE.replace("| Đơn thuộc kỳ nào |", "| Đơn tính vào kỳ nào |")
+    assert check_rules(SAMPLE, ids, ref)["§1.don_thuoc_ky_nao"] is True
+    assert check_rules(renamed, ids, ref) == check_rules(SAMPLE, ids, ref)
+
+
+def test_bullet_row_found_by_its_text():
+    ref = _ref()
+    ids = tuple(ref)
+    row = "| Đơn thuộc kỳ nào | theo **ngày đặt**, không theo ngày giao hay ngày thu tiền |\n"
+    bullet = SAMPLE.replace(row, "").replace(
+        "\n## 2.", "\n- **Đơn thuộc kỳ nào**: theo **ngày đặt**, không theo ngày giao hay ngày thu tiền\n\n## 2.")
+    assert bullet != SAMPLE
+    assert check_rules(bullet, ids, ref)["§1.don_thuoc_ky_nao"] is True
+
+
+def test_two_rows_with_the_same_text_adopt_nothing():
+    ref = _ref()
+    ids = tuple(ref)
+    twice = SAMPLE.replace("| Đơn thuộc kỳ nào |", "| Đơn tính vào kỳ nào |").replace(
+        "| Khách sộp |", "| Đơn kỳ nào |", 1).replace("chỉ xét khách có **từ 3 đơn trở lên**",
+                                                      "theo **ngày đặt**, không theo ngày giao hay ngày thu tiền")
+    assert check_rules(twice, ids, ref)["§1.don_thuoc_ky_nao"] is False
+
+
+def test_renamed_and_changed_is_still_changed():
+    ref = _ref()
+    ids = tuple(ref)
+    bad = SAMPLE.replace("| Khách sộp | chỉ xét khách có **từ 3 đơn trở lên** |",
+                         "| Khách quan trọng | chỉ xét khách có **từ 5 đơn trở lên** |")
+    assert check_rules(bad, ids, ref)["§1.khach_sop"] is False
+
+
+def test_short_text_not_adopted():
+    ref = {"§1.so_don": "đếm đơn"}
+    book = "## 1. Đơn\n| Luật | Mặc định |\n|---|---|\n| Số lượng đơn | đếm đơn |\n"
+    assert check_rules(book, ("§1.so_don",), ref)["§1.so_don"] is False
+
+
+@pytest.mark.skipif(not (DATA / "public_test" / "rulebook.md").exists(), reason="cần data/")
+def test_renamed_row_is_not_a_new_term():
+    text = (DATA / "public_test" / "rulebook.md").read_text(encoding="utf-8-sig")
+    old = "| Đơn thuộc kỳ nào |"
+    if old in text:
+        assert new_terms(text.replace(old, "| Đơn tính vào kỳ nào cho ngày đặt |")) == new_terms(text)
+
+
+@pytest.mark.skipif(not (DATA / "public_test" / "rulebook.md").exists(), reason="cần data/")
+def test_renamed_rows_of_the_public_rulebook_change_nothing():
+    from datamate import pipeline
+    text = (DATA / "public_test" / "rulebook.md").read_text(encoding="utf-8-sig")
+    base = check_rules(text, pipeline.rule_ids())
+    for old, new in (("| Đơn tính vào doanh thu |", "| Đơn được tính doanh thu |"),
+                     ("| Đơn thuộc kỳ nào |", "| Đơn tính vào kỳ nào |")):
+        if old in text:
+            assert check_rules(text.replace(old, new), pipeline.rule_ids()) == base, old
