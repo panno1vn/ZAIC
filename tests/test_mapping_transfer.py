@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from datamate.contracts import Mapping, RawBusiness, RawTable
 from datamate.mapping import transfer
@@ -234,7 +235,8 @@ def test_tables_of_a_format_no_example_shares_are_paired_by_the_llm():
     prompt = llm.calls[0][0][1]["content"]
     assert '"bang_a.csv::x", 2 dòng' in prompt and "lines (Một dòng mỗi dòng hàng của đơn)" in prompt
     assert transfer.pair_tables_by_llm(EX, shop, MockLLM([{"t1": "b2", "t2": "b2", "t3": ""}])) == {}  # no ids group
-    assert transfer.pair_tables_by_llm(EX, shop, MockLLM([])) == {}  # the LLM failed: nothing paired
+    with pytest.raises(transfer.LLMUnavailable):  # the LLM failed (twice): said so, not "nothing pairs" (N164b)
+        transfer.pair_tables_by_llm(EX, shop, MockLLM([]))
 
 
 def test_a_required_column_left_unmatched_is_asked_again_among_the_free_columns():
