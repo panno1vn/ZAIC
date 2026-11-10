@@ -112,7 +112,7 @@ def _fix_series_months(raw: dict, question: str) -> bool:
     if len(months) >= 2 and months == list(range(months[0], months[0] + len(months))):
         raw["period"] = {"kind": "months", "months": [f"{p['year']:04d}-{m:02d}" for m in months]}
         return True
-    # across a year, each month with its year ("th 12/25, th 1/26, th 2/26", run11 07/11): consecutive, rising, and
+    # across a year, each month with its year ("<tháng>, <tháng>, <tháng>", run11 07/11): consecutive, rising, and
     # starting at the plan's month
     from .grounding import stated_months  # late: grounding is the larger module, repair stays importable alone
     pairs = stated_months(question)
@@ -155,7 +155,7 @@ def _fix_warranty_share(raw: dict) -> bool:
 
 
 def _fix_threshold_count(raw: dict, question: str) -> bool:
-    """N104. "Khách có mua th5/2025, mấy % mua từ 4 đơn trở lên?" written with the customers counted as a measure
+    """N104. "Khách có mua <tháng>, mấy % mua từ 4 đơn trở lên?" written with the customers counted as a measure
     (customer_count, filter order_status completed) beside a threshold on their orders (public run11, both readings;
     the contract wants the threshold's own metric or none): the customers passing the bound, as a share of every
     customer when the question asks a percent (as the train plans of this template). Customers and their orders or

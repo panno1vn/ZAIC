@@ -40,9 +40,9 @@ data`). Steps that call the LLM need `llama-server` on port 8091 (`/code/llama/l
 | `assets/rules/reference_rules.json` | reference rule texts | `python -m datamate.rules build data/train/rulebook.md <public rulebook>` |
 
 Verification on train with the final code: `python tools/eval_cached.py` (no server; reads
-`data/generated/llm_cache_mapping.jsonl` and `llm_plans.jsonl`): 3000 questions, 2752 right, 0 wrong, 248 blank.
-`python tools/prod_train.py 2 out.jsonl` (server; as the run reads a shop it never saw): 1500 questions, 1421 right,
-0 wrong, 79 blank.
+`data/generated/llm_cache_mapping.jsonl` and `llm_plans.jsonl`): 3000 questions, 2981 right, 0 wrong, 19 blank (`eval_cached_n189.log`).
+`python tools/prod_train.py 2 out.jsonl` (server; as the run reads a shop it never saw): 1500 questions, 1425 right,
+0 wrong, 75 blank (`prod_train_n109b.log`, code of 08/11).
 
 ## Hardware, runtime, nondeterminism
 

@@ -99,7 +99,7 @@ def _fold(text: str) -> str:
 
 # N112. §7 "Thông tin file không ghi thì không suy ra từ cột khác … shop không ghi loại thông tin câu hỏi cần thì không
 # trả lời được": a question by product group, by a sale's profit or by the reason an order was returned or cancelled,
-# in a shop whose README names no such column and whose mapping found none. Train: "lãi gộp tháng 3/2025" in a pharmacy
+# in a shop whose README names no such column and whose mapping found none. Train: "lãi gộp <tháng>" in a pharmacy
 # whose README names no cost, "đơn bị huỷ vì giao trễ", "trả hàng vì lỗi và vì mua nhầm" in shops naming no reason:
 # all three unanswerable. Public (s65): 7 questions by "nhóm trà / nhóm sơn / nhóm điện" in two shops with no group
 # column, 3 by a return or cancel reason, 1 "mặt hàng nào lời nhiều nhất" without cost.
@@ -222,7 +222,7 @@ def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: Ca
     s.out_of_scope = p.intent == "out_of_scope"
     if s.out_of_scope and question and all(rules.get(r, False) for r in R_OUTSIDE):
         # N83: nlu's own reading of a quality question is unanswerable with or without a time ("khách thân thiện
-        # nhất tháng 12/2025"); the LLM's out-of-scope reading only without one (N37)
+        # nhất <tháng>"); the LLM's out-of-scope reading only without one (N37)
         s.subjective = p.out_of_scope_reason in OWN_REASONS or not _TIME.search(_fold(question))
     measures = list(p.measures) + ([p.share_of] if p.share_of else [])
     filters = [f for m in measures for f in m.filters] + list((p.compare.filters or []) if p.compare else [])

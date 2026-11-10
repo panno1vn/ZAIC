@@ -244,7 +244,7 @@ def parse_question(question: str, as_of: date, card: DataCard, llm: LLMClient | 
         return QueryPlan(intent="out_of_scope", out_of_scope_reason=SUBJECTIVE_REASON)
     if plan.intent == "out_of_scope" and subjective_quality(question):
         # N83: the LLM reads it out of scope and the question asks a quality the data does not record: unanswerable
-        # even with a time ("Khách trung thực nhất tháng 10/2025 là ai?"), which N37 otherwise leaves blank
+        # even with a time ("Khách trung thực nhất <tháng> là ai?"), which N37 otherwise leaves blank
         plan = plan.model_copy(update={"out_of_scope_reason": SUBJECTIVE_REASON})
     if base is not None and canonical_plan(_without_generic(plan)) != canonical_plan(base):
         trace["disagree_baseline"] = base.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
@@ -414,7 +414,7 @@ def _without_generic(plan: QueryPlan) -> QueryPlan:
 
 def drop_generic_filters(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     """N88. A filter whose value is one of GENERIC_VALUES or a month, and links to no value of the shop, is no filter
-    ("Doanh thu tháng 1/2025 của sốp mình": customer = sốp). Not when dropping it would leave two equal measures."""
+    ("Doanh thu <tháng> của sốp mình": customer = sốp). Not when dropping it would leave two equal measures."""
     p = plan.plan
 
     def generic(f) -> bool:
@@ -496,7 +496,7 @@ _PHONE_FIELDS = ("category", "product", "product_group", "product_line")
 
 def phone_kinds(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     """N102. §6 Cửa hàng điện thoại, a shop whose kinds of goods are phones ("máy mới", "máy cũ") and "phụ kiện":
-    "bán được bao nhiêu máy, không tính phụ kiện" with category = "máy", "điện thoại cũ tháng 6/26 bán ra mấy máy" with
+    "bán được bao nhiêu máy, không tính phụ kiện" with category = "máy", "điện thoại cũ <tháng> bán ra mấy máy" with
     category = "điện thoại cũ" (public run11, 3 questions, no value linked): "máy", "điện thoại" name every kind that is
     no accessory (the phones §6 Bảo hành counts, metrics.sales.phones_sold), "điện thoại cũ" the kind "máy cũ". Only a
     name that links to nothing in its own field."""
