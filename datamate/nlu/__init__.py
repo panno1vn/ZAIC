@@ -17,7 +17,8 @@ from datamate.llm import LLMClient
 from datamate.verify import LINKED_FIELDS, SUBJECTIVE_REASON, filter_keys
 
 from . import baseline, jobs, linking, prompt, repair
-from .grounding import (quantity_not_money, anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
+from .grounding import (average_not_asked, compared_measure_restated, debt_added_named, month_note_dropped, nearest_expiry_of_one, quantity_not_money, quarter_written, orders_counted, warranty_not_asked, debtors_ranked,
+                        gross_profit_named, anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
                         due_per_order, month_written_as_t, phones_as_whole, trade_in_share, values_together,
                         warranty_over_sold, order_amount_named, particle_not_unit, today_not_this_month,
                         order_amount_no_item, stocked_in_as_purchase,
@@ -181,7 +182,11 @@ def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> 
     plan = trade_in_share(question, values_together(question, due_per_order(question, plan)))
     plan = month_written_as_t(question, warranty_over_sold(question, phones_as_whole(question, plan)))
     plan = order_amount_named(question, today_not_this_month(question, particle_not_unit(plan)))
-    plan = quantity_not_money(question, plan)  # N120
+    plan = average_not_asked(question, quantity_not_money(question, plan))  # N120, N165
+    plan = nearest_expiry_of_one(debt_added_named(question, month_note_dropped(plan)))  # N166-N168
+    plan = compared_measure_restated(plan)  # N169
+    plan = debtors_ranked(question, gross_profit_named(question, warranty_not_asked(question, plan)))  # N139, N141, N142
+    plan = orders_counted(question, quarter_written(question, plan))  # N137, N140
     plan = stocked_in_as_purchase(question, order_amount_no_item(question, plan))
     plan = whole_not_part(split_debt_ages(drop_month_as_weekday(question, anchor_by_price(question, plan, as_of))))
     plan = written_last_year(plan)
@@ -290,6 +295,18 @@ def unit_or_all_as_product(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     that names every one ("tất cả các món", "mọi mặt hàng", customer = all) is no filter. Only on a quantity, and
     only a value that links to no product."""
     p = plan.plan
+    # N147: "tổng cộng mấy ly size M, cộng tất cả các món" read as two measures [size M, product = every item] of the
+    # same metric and unit (train 10/11, 2 questions; the one-measure reading of the same words answers right): the
+    # words sum every item of size M, one figure — the measure filtered by "every" alone goes.
+    if len(p.measures) == 2 and p.intent == "value":
+        def every_only(m) -> bool:
+            return len(m.filters) == 1 and m.filters[0].field == "product" and m.filters[0].op == "eq" \
+                and isinstance(m.filters[0].value, str) and linking.norm(m.filters[0].value) in _EVERY
+        a, b = p.measures
+        if every_only(b) and not every_only(a) and a.filters and a.metric == b.metric \
+                and linking.norm(a.unit or "") == linking.norm(b.unit or ""):
+            p = p.model_copy(update={"measures": [a], "answer_type": "number"})
+            plan = plan.model_copy(update={"plan": p})
     cands = units = None
     measures, changed = [], False
     for m in p.measures:
@@ -323,9 +340,26 @@ GENERIC_VALUES = frozenset({"quan", "wan", "shop", "sop", "tiem", "cua hang", "c
                             # hàng có bao nhiêu bill" with channel = cuwar, "hqua doanh thu dduwowcj" with payment =
                             # dduwowcj); linking.norm undoes the telex, so they arrive folded as "cua", "duoc"
                             "cua", "duoc", "roi", "nhe", "nha", "a", "ha"})  # not "dt": "đt" is a phone
+# N145 (train 10/11, each a filter no value of the shop has): "lời gộp tháng 9 nawm 2025" (product = năm), "sản phẩm
+# bán nhiều nhất là chi" (là gì), "giá vốn đó" (category = đó), "hqua có tổng cộng nhiêu ddown" (payment = đơn), "xe
+# ddax giao mấy đợt" (xe đã). Not on people: "Đỗ", "Nam" are names too.
+THING_WORDS = frozenset({"nam", "chi", "gi", "do", "don", "da", "xe"})
+PEOPLE_FIELDS = frozenset({"customer", "customer_group", "employee"})
 _MONTH_VALUE = re.compile(r"^(?:t|th|thang)\s?\d{1,2}(?:\s\d{2,4})?$")
+_DATE_VALUE = re.compile(r"^\d{1,2}(?: \d{1,2})?(?: \d{2,4})?$")  # N145: "4/2026" written as a product
 GENERIC_FIELDS = ("product", "product_group", "category", "product_line", "brand", "customer", "customer_group",
-                  "payment_method", "channel")
+                  "payment_method", "channel", "vehicle_model")
+
+
+def _generic_value(value: str, field: str = "") -> bool:
+    """A value that names nothing: generic words only (each word, N145: "xe ddax" is "xe đã"), a month, a bare date.
+    Not a threshold written as the value ("≥ 187", "> 5"): dropping it would count something else."""
+    if re.search(r"[<>≤≥=]", value):
+        return False
+    v = linking.norm(value)
+    words = GENERIC_VALUES if field in PEOPLE_FIELDS else GENERIC_VALUES | THING_WORDS
+    return (v in words or bool(v.split()) and all(w in words for w in v.split())
+            or bool(_MONTH_VALUE.match(v)) or bool(_DATE_VALUE.match(v)))
 
 
 def _without_generic(plan: QueryPlan) -> QueryPlan:
@@ -334,8 +368,7 @@ def _without_generic(plan: QueryPlan) -> QueryPlan:
     def keep(f) -> bool:
         if f.field not in GENERIC_FIELDS or f.op != "eq" or not isinstance(f.value, str):
             return True
-        v = linking.norm(f.value)
-        return v not in GENERIC_VALUES and not _MONTH_VALUE.match(v)
+        return not _generic_value(f.value, f.field)
     measures = [m.model_copy(update={"filters": [f for f in m.filters if keep(f)]}) for m in plan.measures]
     return plan.model_copy(update={"measures": measures}) if measures != list(plan.measures) else plan
 
@@ -348,8 +381,7 @@ def drop_generic_filters(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     def generic(f) -> bool:
         if f.field not in GENERIC_FIELDS or f.op != "eq" or not isinstance(f.value, str):
             return False
-        v = linking.norm(f.value)
-        if v not in GENERIC_VALUES and not _MONTH_VALUE.match(v):
+        if not _generic_value(f.value, f.field):
             return False
         if f.field in ("payment_method", "channel"):
             return linking.concept(f.field, f.value) is None

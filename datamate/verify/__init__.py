@@ -76,8 +76,10 @@ def _sane(result: ExecResult) -> bool:
 # N37: a time in the question ("tháng 12/2025", "hôm qua", "Tết"): an out-of-scope reading of it is an LLM misreading
 # of a figure, not a question the data cannot hold (train 05/11: 7 of 8 out-of-scope readings have no time, all
 # unanswerable; the eighth, "nhân viên bán giỏi nhất tháng 12/2025", is a ranking)
-_TIME = re.compile(r"\b(?:thang|tuan|quy|ngay|hom nay|hom qua|bua qua|bua nay|hqua|tet|nam nay|nam ngoai|nam truoc"
-                   r"|nam \d{4}|\d{1,2}/\d{2,4}|\d{4})\b")
+# N159: "quý" only as a quarter ("quý 2", "quý này"): "khách quý mến nhất" folds to "quy men", no time (train: "Ai
+# trong cửa hàng đc khách quý mến nhất?" unanswerable, refused as a reading with a time)
+_TIME = re.compile(r"\b(?:thang|tuan|quy (?:\d|i|ii|iii|iv|nay|truoc|toi|sau|vua|roi)|ngay|hom nay|hom qua|bua qua"
+                   r"|bua nay|hqua|tet|nam nay|nam ngoai|nam truoc|nam \d{4}|\d{1,2}/\d{2,4}|\d{4})\b")
 
 
 # N38, train 05/11: the 104 purchase questions of shops whose README conventions name "Nhập hàng" are answerable, the
@@ -161,9 +163,38 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
     if customer_asked and not any(re.search(r"\bkhach\b", line) for line in readme if line.lstrip().startswith("-")) \
             and not _has(db, ("orders",), "customer_key"):
         return "khách hàng"
-    if asked & _DEBT_METRICS and not re.search(r"\bno\b|\bghi so\b|\bchiu\b", text) and not db.has("payments"):
+    # N160: "ghi sổ" (on credit), not "ghi số lượng" (train: a README "hàng trả ghi số lượng âm" with no debt at all
+    # read as a debt record, so "3 khách nợ nhiều nhất" stayed blank instead of unanswerable)
+    if asked & _DEBT_METRICS and not re.search(r"\bno\b|\bghi so\b(?! luong)|\bchiu\b", text) \
+            and not db.has("payments"):
         return "công nợ"
+    # N161. A sales channel, a payment method, a customer group the shop does not record (§7: train, plans with such
+    # a filter in shops with neither a mapped column nor a README word for it: channel 2 / 2, payment method 2 / 2,
+    # customer group 1 / 1 unanswerable). Only a value that is a channel / payment code (synonyms.json): "hqua có
+    # tổng cộng nhiêu ddown" read with payment_method = "đơn" is a misreading, not a payment question.
+    from datamate.nlu import linking  # late import: nlu imports this module
+    coded = {f.field for m in list(plan.measures) + ([plan.share_of] if plan.share_of else []) for f in m.filters
+             if f.field in ("channel", "payment_method")
+             and all(linking.concept(f.field, str(v)) for v in (f.value if isinstance(f.value, list) else [f.value]))}
+    if "channel" in coded and not _has(db, ("orders",), "channel") \
+            and not re.search(r"\bkenh\b|\bban qua\b|\bnguon don\b|\bnoi ban\b", text):
+        return "kênh bán"
+    if "payment_method" in coded and not _has(db, ("orders", "payments"), "payment_method") \
+            and not re.search(r"\bthanh toan bang\b|\bhinh thuc (?:thanh toan|tt|tra)\b|\bphuong thuc\b|\btra bang\b"
+                              r"|\bcach tra\b|\b(?:thanh toan|tt)\s*:", text):
+        return "hình thức thanh toán"
+    if "customer_group" in fields and not _has(db, ("orders", "customers"), "customer_group") \
+            and not re.search(r"\bnhom khach\b|\bloai khach\b|\bhang (?:thanh vien|khach)\b|\bthanh vien\b", text):
+        return "nhóm khách"
+    # N162. Expiry dates in a shop that keeps none (§6 Nhà thuốc keeps lots): train "những sp nào đang còn hàng có hạn
+    # dùng từ … đến hết …" in 3 shops with no lot table and no README word for expiry, 3 / 3 unanswerable
+    expiry = (plan.list_spec is not None and plan.list_spec.condition in _EXPIRY_CONDITIONS) or asked & {"nearest_expiry"}
+    if expiry and not db.has("lots") and not re.search(r"\bhan (?:dung|su dung)\b|\bhsd\b|\bhet han\b|\bso lo\b", text):
+        return "hạn dùng"
     return None
+
+
+_EXPIRY_CONDITIONS = frozenset({"expiring_within"})
 
 
 _STOCK_ASKED = frozenset({"stock_qty", "stock_value"})

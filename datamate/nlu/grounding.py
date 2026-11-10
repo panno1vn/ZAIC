@@ -12,6 +12,7 @@ from datetime import date, timedelta
 from rapidfuzz import fuzz
 
 from datamate.contracts import QueryPlan
+from datamate.contracts.plan import DATE_METRICS
 
 from .baseline import fold
 from .templates import tokens
@@ -258,7 +259,7 @@ _MEASURE_WORDS = {
     # run10: "đh" for "đơn hàng" (14 of 23 questions refused), "o đờ" for "order"; §3 "giờ cao điểm" counts orders
     # N109: §3 "ngày đắt khách nhất" is the day with the most orders
     "order_count": r"\b(?:don|hoa don|bil|bill|orde|order|dh|o do|gio cao diem|dat khach)\b",
-    "quantity": r"\b(?:ban|tieu thu|xuat|chay|hot)\b",  # sold: "còn bao nhiêu viên" is stock (run 04/11)
+    "quantity": r"\b(?:ban|tieu thu|xuat|chay|hot|best)\b",  # sold ("best seller", N138): "còn bao nhiêu viên" is stock (run 04/11)
     # left in stock: "số nhập trừ số bán" read as stock (check_plans 04/11, after the stock metrics)
     "stock_qty": r"\b(?:ton|con|trong kho|het hang)\b",
     # the public rulebook tells "nhà cung cấp chính" (most receipts) from the one bought from for the most money
@@ -384,7 +385,10 @@ def ungrounded_measures(question: str, plan: QueryPlan) -> list[str]:
         bad.append("compare=same_period_last_year")  # "ca chiều hơn hay kém ca sáng" compared with last year
     if plan.compare is not None and plan.compare.kind == "previous" and _year_over_year(months):
         bad.append("compare=previous")  # "th 6/26 so với th 6/25" read as June against May (run10, 06/11)
-    if plan.intent in ("series", "value") and re.search(_WHICH_TIME, t) and re.search(r"\bnhat\b", t):
+    # N139b: "lô X gần hết hạn nhất có hạn dùng ngày nào" asks a date, the plan nearest_expiry (§5, the prompt's own
+    # example); train 4 such plans refused here
+    if plan.intent in ("series", "value") and re.search(_WHICH_TIME, t) and re.search(r"\bnhat\b", t) \
+            and not (metrics and set(metrics) <= DATE_METRICS):
         bad.append("asks=which_time")  # N78: "doanh thu cao nhất rơi vào tháng nào trong 3 tháng" read as the series
     return bad
 
@@ -929,7 +933,127 @@ def rulebook_rank_terms(question: str, plan: QueryPlan) -> QueryPlan:
     if r is not None and r.entity == "day" and re.search(r"\bdat khach (?:nhat|nhut)\b", t) and r.by != "order_count" \
             and not any(m.filters for m in plan.measures):
         return _rebuilt(plan, rank={"entity": "day", "by": "order_count", "k": r.k, "order": r.order}, measures=[])
+    # N138. §3 "Bán chạy: theo số lượng … Bán nhiều nhất, bán được nhiều nhất, hot nhất cùng nghĩa với bán chạy nhất":
+    # "cho tôi 3 món hot nhất tháng 3" ranked by revenue (train, refused by the measure gate, the retry too)
+    if r is not None and r.entity == "product" and r.by == "revenue" and re.search(_BEST_SELLING, t) \
+            and not re.search(_MONEY, t) and not any(m.filters for m in plan.measures):
+        return _rebuilt(plan, rank={**r.model_dump(mode="json", exclude_none=True), "by": "quantity"}, measures=[])
     return plan
+
+
+_BEST_SELLING = r"\b(?:ban chay|hot|best|ban nhieu|ban duoc nhieu)\b"
+
+
+# N137, N139–N142 (09/11): train questions with no plan at all, read wrong on the first call and the retry alike, in
+# a way the rulebook settles. Each rewrites the misread part instead of refusing the plan; the rewritten plan meets
+# every gate as any other.
+
+_QUARTER_WRITTEN = re.compile(r"\b(?:quy|q) ([1-4]) (?:nam )?(20\d\d)\b")
+
+
+def quarter_written(question: str, plan: QueryPlan) -> QueryPlan:
+    """N137. §2 "quý Q … mỗi quý 3 tháng tính từ tháng 1": "số đơn quý 2/2025", "số đơn quý 1/2026" read as February
+    2025, January 2026 (train 2 questions, refused kind=month, the retries too): a question that writes one quarter
+    with its year, and a plan whose one period is the month of that number in that year, asks the quarter."""
+    t = " ".join(tokens(denoised(question)))
+    found = set(_QUARTER_WRITTEN.findall(t))
+    p = plan.period
+    if len(found) != 1 or p is None or p.kind != "month" or plan.compare is not None:
+        return plan
+    q, y = (int(x) for x in found.pop())
+    if p.month != q or p.year not in (None, y):
+        return plan
+    return _rebuilt(plan, period={"kind": "quarter", "year": y, "quarter": q})
+
+
+_ORDERS_COUNTED = r"\bso (?:luong )?(?:dh|don|don hang|hoa don|bil|bill|order)\b"
+_ORDER_NOUN = frozenset({"so", "luong", "dh", "don", "hang", "hoa", "bil", "bill", "order"})
+
+
+def orders_counted(question: str, plan: QueryPlan) -> QueryPlan:
+    """N140. "số bill quý 2/2026 là bnhiu", "số đơn ca chiều tăng hay giảm bao nhiêu % so với ca sáng" read as revenue
+    (train 2 questions, refused metric=revenue, the retries too; orders_not_money leaves a percent alone): a question
+    that names the number of orders ("số đơn", "số bill", §3) and no money word asks the orders, also as a percent.
+    Filters whose value is only those words ("payment_method = số bill") go; others stay."""
+    t = " ".join(tokens(denoised(question)))
+    if not re.search(_ORDERS_COUNTED, t) or re.search(_MONEY, t) or not plan.measures:
+        return plan
+    if plan.intent not in ("value", "compare", "series", "trend") or any(
+            m.metric != "revenue" or m.unit for m in plan.measures):
+        return plan
+
+    def noun_only(v) -> bool:
+        return set(tokens(denoised(str(v)))) <= _ORDER_NOUN
+
+    def fix(m):
+        kept = [f for f in m.filters if not (f.field == "order_status" and f.value == "completed")
+                and not (isinstance(f.value, str) and noun_only(f.value))]
+        return m.model_copy(update={"metric": "order_count", "filters": kept})
+    return plan.model_copy(update={"measures": [fix(m) for m in plan.measures]})
+
+
+def warranty_not_asked(question: str, plan: QueryPlan) -> QueryPlan:
+    """N141. A warranty flag on a question that never says "bảo hành" ("doanh thu tháng sau có luôn cao hơn tháng
+    trước", "dthu tháng 2/2026 so với cùng kỳ năm ngoái": train 4 questions in 3 shops, none of them §6 phone or repair
+    shops; the flag comes from the examples, not from the question). The filter gate refuses exactly these; the flag is
+    dropped instead, every other part kept."""
+    if re.search(r"\b(?:bao hanh|bh)\b", fold(question)):
+        return plan
+
+    def fix(m):
+        if m.metric not in _SALES:  # a repair shop's tickets: "phiếu sửa xe" may well mean not warranty, refused
+            return m
+        kept = [f for f in m.filters if f.field != "is_warranty"]
+        return m.model_copy(update={"filters": kept}) if len(kept) < len(m.filters) else m
+    measures = [fix(m) for m in plan.measures]
+    if measures == list(plan.measures):
+        return plan
+    # measures told apart by the flag alone (warranty false / true) are one measure once it goes: a same-period
+    # comparison written as two revenues, flag false and true, would otherwise keep two equal measures
+    seen, kept = set(), []
+    for m in measures:
+        key = m.model_dump_json()
+        if key not in seen:
+            seen.add(key)
+            kept.append(m)
+    return _rebuilt(plan, measures=[m.model_dump(mode="json", exclude_none=True) for m in kept])  # answer type again
+
+
+_AMOUNTS_ASKED = r"\b(?:bao nhieu|bao nhiu|bn|bnhiu|so tien|so no|kem|bang|moi nguoi|tung nguoi|tung khach|moi khach)\b"
+
+
+def debtors_ranked(question: str, plan: QueryPlan) -> QueryPlan:
+    """N142. §4 "3 khách nào đang nợ nhiều nhất, mỗi người còn nợ bao nhiêu" read as one debt with the filter
+    "customer = top_3", or as a ranking with the typo "nowj" as a customer (train 2 questions, refused, the retries too):
+    a question that states k customers (k ≥ 2) and the most debt, and a plan on debt_amount, asks the customers ranked
+    by debt, with their amounts when the question asks them."""
+    t = " ".join(tokens(denoised(question)))
+    k = stated_k(question)
+    if k is None or k < 2 or not re.search(r"\bkhach\b", t) or not re.search(r"\bno\b", t) \
+            or not re.search(_SUPERLATIVE, t):
+        return plan
+    metrics = [m.metric for m in plan.measures] + ([plan.rank.by] if plan.rank else [])
+    if "debt_amount" not in metrics or any(m != "debt_amount" for m in metrics):
+        return plan
+    r = plan.rank
+    if r is not None and r.entity == "customer" and r.k == k and not any(m.filters for m in plan.measures):
+        return plan
+    return _rebuilt(plan, intent="rank", measures=[], compare=None, threshold=None,
+                    rank={"entity": "customer", "by": "debt_amount", "k": k,
+                          "with_values": bool(re.search(_AMOUNTS_ASKED, t))})
+
+
+def gross_profit_named(question: str, plan: QueryPlan) -> QueryPlan:
+    """N139. §5 "Lãi gộp": "tháng 8/2025 lãi gộp của cửa hàng là bao nhiêu" read as revenue with a filter
+    "product_group = lai gop" (train, refused metric=revenue, the retry too): a question that names the gross profit
+    asks it; filters whose value is that name go."""
+    t = " ".join(tokens(denoised(question)))
+    if not re.search(r"\b(?:lai gop|loi nhuan gop|lai gross)\b", t) or plan.intent not in ("value", "compare", "series") \
+            or len(plan.measures) != 1 or plan.measures[0].metric != "revenue":
+        return plan
+    m = plan.measures[0]
+    kept = [f for f in m.filters if not (isinstance(f.value, str) and fold(f.value) in ("lai gop", "loi nhuan gop"))]
+    return plan.model_copy(update={"measures": [m.model_copy(update={"metric": "gross_profit", "filters": kept})]})
 
 
 _IN_MINUS_OUT = re.compile(r"\bnhap\b(?: \w+){0,6} (?:tru|chenh)\b(?: \w+){0,5} ban\b"
@@ -1036,15 +1160,18 @@ def _age_bounds(text: str, previous_upper: float | None) -> list[dict] | None:
 def debt_age_from_question(question: str, plan: QueryPlan) -> QueryPlan:
     """N87. "khách còn nợ ở các đơn đã đặt quá 7 ngày" planned with debt_age_days "gt" whose value is a word ("gt", the
     N in a note or nowhere; public run11 5 questions, train 1): the age the question states, when it states exactly
-    one ("quá / hơn / trên N ngày": older than N days, §4 "tuổi nợ: số ngày tính từ ngày đặt")."""
-    bad = [(m, f) for m in plan.measures for f in m.filters
-           if f.field == "debt_age_days" and not (isinstance(f.value, (int, float)) and not isinstance(f.value, bool))]
-    if not bad or len(bad) != sum(f.field == "debt_age_days" for m in plan.measures for f in m.filters):
-        return plan
+    one ("quá / hơn / trên N ngày": older than N days, §4 "tuổi nợ: số ngày tính từ ngày đặt"). N164: also the same N
+    written "gte" ("các đơn đặt đã hơn 7 ngày" as age ≥ 7: train 2 questions, the answers are the orders older than 7
+    days; with ≥ one of them counts the 7-day-old orders too)."""
+    ages_written = [f for m in plan.measures for f in m.filters if f.field == "debt_age_days"]
     ages = set(re.findall(r"\b(?:qua|tren|hon)\s+(\d+)\s*ngay\b", " ".join(tokens(denoised(question)))))
-    if len(ages) != 1 or len(bad) != 1:
+    if len(ages_written) != 1 or len(ages) != 1:
         return plan
-    n = float(ages.pop())
+    f = ages_written[0]
+    numeric = isinstance(f.value, (int, float)) and not isinstance(f.value, bool)
+    n = float(next(iter(ages)))
+    if numeric and not (f.op == "gte" and float(f.value) == n):
+        return plan
     raw = plan.model_dump(mode="json", exclude_none=True)
     for m in raw["measures"]:
         m["filters"] = [{"field": "debt_age_days", "op": "gt", "value": n} if f["field"] == "debt_age_days" else f
@@ -1455,3 +1582,88 @@ def stocked_in_as_purchase(question: str, plan: QueryPlan) -> QueryPlan:
     measures = [m.model_copy(update={"metric": "purchase_amount", "unit": None, "unit_split": False})
                 if m.metric in ("stock_value", "stock_qty") else m for m in plan.measures]
     return plan.model_copy(update={"measures": measures})
+
+
+_AVERAGE_WORDS = re.compile(r"\b(?:trung binh|tb|binh quan|moi ngay|mot ngay|1 ngay|bq)\b")
+
+
+def average_not_asked(question: str, plan: QueryPlan) -> QueryPlan:
+    """N165. An average per day the question never asks for ("So số ly Latte (L) bán ra trong 30 ngày kể từ ngày tăng
+    giá … với 30 ngày ngay trước", "lượng bán tính theo đĩa tăng hay giảm bn %" read with aggregate avg_per_day; train
+    2 questions, refused for a rule the train rulebook does not have): the totals the question asks. Only on a
+    comparison of two windows of the same length, where the two readings give the same percentage."""
+    if plan.compare is None or plan.compare.kind != "before_days_from" or plan.period is None \
+            or plan.period.kind != "days_from" or not any(m.aggregate != "total" for m in plan.measures):
+        return plan
+    if _AVERAGE_WORDS.search(" ".join(tokens(denoised(question)))):
+        return plan
+    measures = [{**m.model_dump(mode="json", exclude_none=True), "aggregate": "total"} for m in plan.measures]
+    return _rebuilt(plan, measures=measures)
+
+
+_MONTH_NOTE = re.compile(r"^(?:t|th|thg|thang)?\s*\d{1,2}\s*(?:/|-|\.|\s)\s*(?:nam\s*)?\d{2,4}$|^nam\s*\d{4}$")
+
+
+def month_note_dropped(plan: QueryPlan) -> QueryPlan:
+    """N166. A month written as an "other" filter on a comparison that already has its periods ("dthu thang 5/2026 so
+    vs thang 5/2025 tang hay giam" with other = "thang 5/2025" beside same_period_last_year; train 1, the metrics
+    take no such filter): the note goes, the periods stay."""
+    if plan.compare is None or plan.compare.kind == "filter":
+        return plan
+    notes = [f for m in plan.measures for f in m.filters
+             if f.field == "other" and isinstance(f.value, str) and _MONTH_NOTE.match(fold(f.value).replace(",", " "))]
+    if not notes:
+        return plan
+    measures = [{**m.model_dump(mode="json", exclude_none=True),
+                 "filters": [f.model_dump(mode="json", exclude_none=True) for f in m.filters if f not in notes]}
+                for m in plan.measures]
+    return _rebuilt(plan, measures=measures)
+
+
+def debt_added_named(question: str, plan: QueryPlan) -> QueryPlan:
+    """N167. "Khách X tháng 8 nợ thêm bao nhiêu, trả được bao nhiêu" with the first figure read as what X still owes
+    (debt_amount; train 1, its twins planned debt_added): §4 "Nợ thêm … trong kỳ" is debt_added. Only on a period
+    that is a span (not "đến hết ngày"), the question writing "nợ thêm" and the plan no debt_added yet."""
+    if plan.intent != "value" or plan.period is None or plan.period.kind in ("until", "today") \
+            or any(m.metric == "debt_added" for m in plan.measures):
+        return plan
+    if not re.search(r"\bno them\b", " ".join(tokens(denoised(question)))):
+        return plan
+    owed = [m for m in plan.measures if m.metric in ("debt_amount", "debt_total")]
+    if len(owed) != 1:
+        return plan
+    measures = [{**m.model_dump(mode="json", exclude_none=True), "metric": "debt_added"} if m is owed[0]
+                else m.model_dump(mode="json", exclude_none=True) for m in plan.measures]
+    return _rebuilt(plan, measures=measures)
+
+
+def nearest_expiry_of_one(plan: QueryPlan) -> QueryPlan:
+    """N168. "lô acyclovir stella kem 5% tuýp 5g gần hết hạn nhất có hạn dùng ngày nào" read as a ranking of products by
+    nearest expiry filtered to that one product (train 1; no metric ranks so): the date of that product's nearest lot,
+    as the hand plans of the same question (value nearest_expiry with the product)."""
+    r = plan.rank
+    if plan.intent != "rank" or r is None or r.by != "nearest_expiry" or len(plan.measures) != 1:
+        return plan
+    m = plan.measures[0]
+    products = [f for f in m.filters if f.field == "product"]
+    if m.metric != "nearest_expiry" or len(products) != 1 or len(m.filters) != 1 or isinstance(products[0].value, list):
+        return plan
+    raw = plan.model_dump(mode="json", exclude_none=True)
+    for k in ("rank", "answer_type", "period"):
+        raw.pop(k, None)
+    raw["intent"] = "value"
+    return QueryPlan.model_validate(raw)
+
+
+def compared_measure_restated(plan: QueryPlan) -> QueryPlan:
+    """N169. "doanh thu ca chiều tăng hay giảm bao nhiêu % so với ca sáng" written with the morning twice: as a second
+    measure and as the comparison filter (train 1; the verified plans of the template have one measure, the base in
+    compare.filters). The second measure, the same metric under exactly the comparison's filters, goes."""
+    c = plan.compare
+    if plan.intent != "compare" or c is None or c.kind != "filter" or not c.filters or len(plan.measures) != 2:
+        return plan
+    first, second = plan.measures
+    key = lambda fs: sorted((f.field, str(f.value), f.op) for f in fs)  # noqa: E731
+    if first.metric != second.metric or key(second.filters) != key(c.filters) or key(first.filters) == key(c.filters):
+        return plan
+    return _rebuilt(plan, measures=[first.model_dump(mode="json", exclude_none=True)])

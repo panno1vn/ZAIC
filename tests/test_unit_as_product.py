@@ -39,4 +39,6 @@ def test_every_product_beside_another_measure_is_left_alone():
         {"metric": "quantity", "filters": [{"field": "size", "value": "M"}]},
         {"metric": "quantity", "filters": [{"field": "product", "value": "tất cả các món"}]}]}),
         as_of=date(2026, 6, 30), period=JUNE)
-    assert nlu.unit_or_all_as_product(two, shop()).plan.measures[1].filters
+    # N147: one figure, the every-item measure goes (not a list of two, as dropping its filter alone gave)
+    p = nlu.unit_or_all_as_product(two, shop()).plan
+    assert len(p.measures) == 1 and p.measures[0].filters[0].field == "size" and p.answer_type == "number"

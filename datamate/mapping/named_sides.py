@@ -428,6 +428,212 @@ def _receipt_column(frames: list[pd.DataFrame], skip: set[str], day: str) -> str
     return hits[0] if len(hits) == 1 else None
 
 
+# N143. §6 Nhà thuốc lots. Every pharmacy README writes "**Lô, hạn dùng**: mỗi dòng nhập là một lô, số lô không trùng.
+# Một dòng bán có thể lấy từ nhiều lô. Hàng khách trả về lại lô đã bán." and names no column. A mapping moved from an
+# example may leave the lots out (train: a POS database, its lot tables unread) or keep them without the quantity
+# received (an export: the lot list mapped without "SL nhập"), and every expiry and lot-stock question of the shop
+# stops (train 10/11, two pharmacies, 10 questions). The lot list and the sales-by-lot list are found from their
+# values: the lot list's product is the lines' product, its one date column the expiry, its lot number a column unique
+# per row; the sales list's order is the orders' and its lot the lot list's. Which number columns are the quantity
+# received, taken and given back is settled by the shop's own stock list: received − taken + given back, summed over
+# each product's lots, is the stock the shop writes on its last day.
+LOTS_TEXT = "moi dong nhap la mot lo"
+STOCK_SHARE = 0.9  # products whose lots sum to their written stock
+
+
+def _layouts(shop: _Shop, free: set[str]) -> list[list[str]]:
+    """The raw tables not read by the mapping (or in `free`), grouped by layout (one file's months or parts)."""
+    groups: dict[frozenset, list[str]] = {}
+    for t in shop.raw.tables:
+        if t.table_id in shop.used and t.table_id not in free:
+            continue
+        groups.setdefault(frozenset(map(str, t.frame.columns)), []).append(t.table_id)
+    return list(groups.values())
+
+
+def _number_columns(frames: list[pd.DataFrame], skip: set[str]) -> dict[str, pd.Series]:
+    out = {}
+    for c in _columns(frames):
+        if c in skip:
+            continue
+        s = _numbers(frames, c, parse_number)
+        if len(s) and s.notna().all() and (s >= 0).all():
+            out[c] = s
+    return out
+
+
+def lot_tables(shop: _Shop, conv: dict) -> list[TableMap]:
+    """[lots, lot_sales] as the shop's raw tables hold them, or [] when not exactly one reading fits its stock."""
+    text, _ = conv.get("lo, han dung", ("", []))
+    inv, orders = shop.db.table("inventory"), shop.db.table("orders")
+    if not text.startswith(LOTS_TEXT) or inv is None or orders is None or shop.last_day is None:
+        return []
+    inv = inv.dropna(subset=["product_key", "base_qty"])
+    if "as_of" in inv.columns:
+        # a stock card writes several rows a day, in the order they happened: a stable sort keeps the day's last
+        inv = inv.assign(d=pd.to_datetime(inv["as_of"], errors="coerce")).sort_values("d", kind="stable")
+    stock = inv.groupby(inv["product_key"].astype(str).map(T._fold))["base_qty"].last().astype(float)
+    order_ids = {T._fold(v) for v in orders["order_id"].dropna().astype(str)}
+    status = dict(zip(orders["order_id"].astype(str).map(T._fold), orders["status"])) if "status" in orders.columns else {}
+    old = [s for t in ("lots", "lot_sales") if (tm := shop.table(t)) is not None for s in tm.sources]
+    groups = _layouts(shop, set(old))
+    lot_cands = []
+    for ids in groups:
+        frames = shop.frames(ids)
+        key = product_key(shop, ids, set())
+        if key is None or key.transform is not None:
+            continue
+        dates = _date_columns(frames, {key.source})
+        if len(dates) != 1:
+            continue
+        lot_cols = [c for c in _columns(frames) if c not in (key.source, dates[0]) and _unique(frames, c)
+                    and parse_number(_values(frames, c)[0]) is None]
+        if len(lot_cols) != 1:
+            continue
+        nums = _number_columns(frames, {key.source, dates[0], lot_cols[0]})
+        lot_cands.append((ids, key, dates[0], lot_cols[0], nums))
+    found = []
+    for ids, key, expiry, lot_col, nums in lot_cands:
+        frames = shop.frames(ids)
+        lots = pd.DataFrame({"lot": [T._fold(v) for v in _values(frames, lot_col)],
+                             "p": [T._fold(v) for v in _values(frames, key.source)]})
+        lot_set = set(lots["lot"])
+        for sids in groups:
+            if sids == ids:
+                continue
+            sframes = shop.frames(sids)
+            ocols = [c for c in _columns(sframes) if _share_in(_folded(sframes, c), order_ids) >= QTY_SHARE]
+            lcols = [c for c in _columns(sframes) if _share_in(_folded(sframes, c), lot_set) >= QTY_SHARE]
+            if len(ocols) != 1 or len(lcols) != 1:
+                continue
+            snums = _number_columns(sframes, {ocols[0], lcols[0]})
+            sale = pd.DataFrame({"o": [T._fold(v) for v in _values(sframes, ocols[0])],
+                                 "lot": [T._fold(v) for v in _values(sframes, lcols[0])]})
+            live = sale["o"].map(status).ne("cancelled").values
+            for q_in, qin in nums.items():
+                received = pd.Series(qin.values, index=lots["lot"])
+                for q_out, qout in snums.items():
+                    # a column of zeros gives back nothing: the same reading as none, so no second reading
+                    for q_back in [None] + [c for c in snums if c != q_out and snums[c].sum() > 0]:
+                        moved = pd.Series(qout.values * live, index=sale["lot"]).groupby(level=0).sum()
+                        if q_back is not None:
+                            moved = moved - pd.Series(snums[q_back].values, index=sale["lot"]).groupby(level=0).sum()
+                        left = received.sub(moved, fill_value=0)
+                        by_product = left.groupby(lots.set_index("lot")["p"]).sum()
+                        both = by_product.index.intersection(stock.index)
+                        if len(both) < 0.5 * len(by_product) or not len(both):
+                            continue
+                        ok = ((by_product[both] - stock[both]).abs() < 1e-6).mean()
+                        if ok >= STOCK_SHARE:
+                            found.append((ids, key, expiry, lot_col, q_in, sids, ocols[0], lcols[0], q_out, q_back))
+    if len(found) != 1:
+        return []
+    ids, key, expiry, lot_col, q_in, sids, o_col, l_col, q_out, q_back = found[0]
+    lc = [ColumnMap(target="lot_id", source=lot_col), key, ColumnMap(target="expiry_date", source=expiry, parse="date"),
+          ColumnMap(target="base_qty_in", source=q_in, parse="qty")]
+    frames = shop.frames(ids)
+    pur = shop.db.table("purchases")
+    if pur is not None and "receipt_id" in pur.columns:
+        rids = {T._fold(v) for v in pur["receipt_id"].dropna().astype(str)}
+        rc = [c for c in _columns(frames) if c not in (lot_col, key.source, expiry)
+              and _share_in(_folded(frames, c), rids) >= QTY_SHARE]
+        if len(rc) == 1:
+            lc.append(ColumnMap(target="receipt_id", source=rc[0]))
+            # the lot's cost of one base unit: times the quantity received, the money of its receipt line (§6 "theo giá
+            # nhập của chính lô đó quy về đơn vị cơ bản")
+            if {"product_key", "qty", "unit_cost"} <= set(pur.columns):
+                line = pur.assign(r=pur["receipt_id"].astype(str).map(T._fold), p=pur["product_key"].astype(str).map(
+                    T._fold), m=pur["qty"].astype(float) * pur["unit_cost"].astype(float)).groupby(["r", "p"])["m"].sum()
+                lots = pd.DataFrame({"r": [T._fold(v) for v in _values(frames, rc[0])],
+                                     "p": [T._fold(v) for v in _values(frames, key.source)],
+                                     "q": _numbers(frames, q_in, parse_number).values})
+                want = pd.Series([line.get((r, p)) for r, p in zip(lots["r"], lots["p"])], dtype="float64")
+                costs = [c for c in _columns(frames) if c not in (lot_col, key.source, expiry, q_in, rc[0])
+                         and _fits(_numbers(frames, c, parse_money) * lots["q"], want)]
+                if len(costs) == 1:
+                    lc.append(ColumnMap(target="unit_cost", source=costs[0], parse="money"))
+    sc = [ColumnMap(target="order_id", source=o_col), ColumnMap(target="lot_id", source=l_col),
+          ColumnMap(target="base_qty", source=q_out, parse="qty")]
+    if q_back is not None:
+        sc.append(ColumnMap(target="returned_base_qty", source=q_back, parse="qty"))
+    return [TableMap(target="lots", sources=ids, columns=lc), TableMap(target="lot_sales", sources=sids, columns=sc)]
+
+
+# N144. The seller and the customer group of a shop whose README lists its files without describing each column (train:
+# a POS export with "Người bán" on every order and "Nhóm khách hàng" in the customer list, a POS database with
+# "MaNhanVien" on every order beside a staff table): a mapping moved from an example whose shop kept neither leaves them
+# out, and every question by seller or customer group stops (train 10/11: 8 questions in two shops). Its header must
+# say what it is AND its values must be what such a column holds: few values on (nearly) every row; a staff table's
+# codes must be the codes the orders carry.
+_SELLER = re.compile(r"nguoiban|nhanvien|manv|nvban|thungan")
+_CUSTOMER_GROUP = re.compile(r"nhomkhach|nhomkh")
+_PERSON_NAME = re.compile(r"^(?:ho)?ten|tengoi")
+STAFF_MAX = 50  # distinct sellers of one shop
+
+
+def _compact(column) -> str:
+    return re.sub(r"[^a-z0-9]", "", T._fold(str(column)))
+
+
+def _few_values(frames: list[pd.DataFrame], column: str, most: int) -> bool:
+    values = [str(v).strip() for v in _values(frames, column) if v is not None and not pd.isna(v)]
+    filled = [v for v in values if v]
+    return bool(filled) and len(filled) >= 0.9 * len(_values(frames, column)) and 1 <= len(set(filled)) <= most \
+        and sum(parse_number(v) is not None for v in filled) == 0
+
+
+def _header_column(tm: TableMap, frames: list[pd.DataFrame], pattern: re.Pattern, most: int) -> str | None:
+    used = {c.source for c in tm.columns} | {s for c in tm.columns for s in c.sources}
+    hits = [c for c in _columns(frames) if c not in used and pattern.search(_compact(c)) and _few_values(frames, c, most)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def order_people(shop: _Shop) -> tuple[dict[str, list[ColumnMap]], list[TableMap]]:
+    """({target table: columns to add}, [staff table]) for the seller and the customer group the mapping lacks."""
+    orders, customers = shop.table("orders"), shop.table("customers")
+    add: dict[str, list[ColumnMap]] = {}
+    tables: list[TableMap] = []
+    have_o = {c.target for c in orders.columns} if orders is not None else set()
+    if orders is not None and "employee" not in have_o:
+        frames = shop.frames(orders.sources)
+        seller = _header_column(orders, frames, _SELLER, STAFF_MAX)
+        if seller is not None:
+            add.setdefault("orders", []).append(ColumnMap(target="employee", source=seller))
+            codes = _folded(frames, seller)
+            if shop.table("employees") is None:
+                staff = []
+                for ids in _layouts(shop, set()):
+                    sf = shop.frames(ids)
+                    keys = [c for c in _columns(sf) if _unique(sf, c) and _share_in(codes, _folded(sf, c)) >= KEY_SHARE]
+                    names = [c for c in _columns(sf) if c not in keys and _PERSON_NAME.search(_compact(c))
+                             and _unique(sf, c) and _share_in(_folded(sf, c), codes) == 0]
+                    if len(keys) == 1 and len(names) == 1:
+                        staff.append(TableMap(target="employees", sources=ids, columns=[
+                            ColumnMap(target="employee_key", source=keys[0]),
+                            ColumnMap(target="employee_name", source=names[0])]))
+                if len(staff) == 1:
+                    tables.append(staff[0])
+    groups_known = "customer_group" in have_o or (customers is not None and "customer_group" in {
+        c.target for c in customers.columns})
+    if not groups_known:
+        for tm in (orders, customers):  # the order's own group first, then the customer list's
+            if tm is None:
+                continue
+            group = _header_column(tm, shop.frames(tm.sources), _CUSTOMER_GROUP, CATEGORY_MAX)
+            if group is None:
+                continue
+            add.setdefault(tm.target, []).append(ColumnMap(target="customer_group", source=group))
+            # the order filters read the group on the order: looked up there by the customer code the orders carry,
+            # as the hand mappings do (from_readme.enrich does the same from the README's "nhóm khách")
+            okey, ckey = _plain(orders, "customer_key"), _plain(tm, "customer_key")
+            if tm is customers and okey and ckey and len(tm.sources) == 1:
+                add.setdefault("orders", []).append(ColumnMap(
+                    target="customer_group", source=okey, transform="lookup",
+                    args={"table": tm.sources[0], "key": ckey, "value": group, "keep_missing": False}))
+            break
+    return add, tables
+
+
 def with_named_sides(mapping: Mapping, raw: RawBusiness) -> Mapping:
     """The side tables (stock, expenses, receipts, unit conversions), drug attributes and customer names the README's
     conventions name, where the mapping has none; each kept only when no check newly fails (from_readme._failed_checks).
@@ -458,7 +664,25 @@ def with_named_sides(mapping: Mapping, raw: RawBusiness) -> Mapping:
                 tm = None
             if tm is not None:
                 found.append(tm)
+    # N143: lots last, matched against the stock list this step may just have found
+    lots_tm, sold_tm = shop.table("lots"), shop.table("lot_sales")
+    if lots_tm is None or sold_tm is None or "base_qty_in" not in {c.target for c in lots_tm.columns} \
+            or "base_qty" not in {c.target for c in sold_tm.columns}:
+        try:
+            with_found = mapping.model_copy(update={"tables": [t for t in mapping.tables
+                                                               if t.target not in {f.target for f in found}] + found})
+            lot_shop = _Shop(T._settle_constants(with_found, raw), raw) if found else shop
+            found += lot_tables(lot_shop, conv)
+        except Exception:
+            pass
     extra = {"products": drugs(shop, conv) if "products" in have else [], "customers": customer_names(shop)}
+    try:  # N144
+        people, staff = order_people(shop)
+    except Exception:
+        people, staff = {}, []
+    for target, cols in people.items():
+        extra[target] = list(extra.get(target, [])) + cols
+    found += staff
     if not found and not any(extra.values()):
         return mapping
     before = _failed_checks(T._settle_constants(mapping, raw), raw)

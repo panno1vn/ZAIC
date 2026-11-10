@@ -87,3 +87,22 @@ def test_one_customers_added_and_paid_debt_in_the_order_asked():
     assert run([{"metric": "debt_added", "filters": customer}, {"metric": "debt_paid", "filters": customer}],
                linked={"chị lan": "KH1"}) == [200_000, 250_000]
     assert run([{"metric": "debt_paid", "filters": customer}]) is None  # name not linked: no answer
+
+
+def test_what_the_orders_older_than_n_days_still_owe():
+    """N163 / N164: "tổng số tiền khách còn nợ ở các đơn đã đặt quá N ngày" without a customer is the balances of the
+    orders of that age (§4 "tuổi nợ" from the day of the order); "quá / hơn 27 ngày" is older than 27, also when the
+    plan writes ≥ 27."""
+    from datamate import nlu
+    # at 30/06: o1 (28/05, 33 days) 300 000, o2 (03/06, 27 days) 150 000, o3 (05/06, 25 days) 200 000
+    older = lambda op: {"intent": "value", "measures": [  # noqa: E731
+        {"metric": "debt_amount", "filters": [{"field": "debt_age_days", "op": op, "value": 27}]}]}
+    assert owed(older("gt")) == 300_000
+    assert owed(older("gte")) == 450_000
+    q = "Tính đến hết ngày 30/06/2026, các đơn đặt đã hơn 27 ngày mà khách chưa trả hết còn nợ bao nhiêu tiền?"
+    raw = {**older("gte"), "period": {"kind": "until", "date": "2026-06-30"}}
+    p = nlu.accept_plan(q, QueryPlan.model_validate(raw), date(2026, 6, 30))
+    assert p is not None and p.measures[0].filters[0].op == "gt"
+    # a bound the question does not write as "quá / hơn / trên N ngày" stays
+    p = nlu.accept_plan("nợ của các đơn từ 27 ngày trở lên", QueryPlan.model_validate(raw), date(2026, 6, 30))
+    assert p is None or p.measures[0].filters[0].op == "gte"

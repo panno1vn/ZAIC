@@ -174,8 +174,11 @@ def debtor_count(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
 
 
 def debt_amount(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
-    """What one customer (the filter) still owes: a debt amount needs its customer."""
-    return debt_total(db, plan, m) if any(f.field == "customer" for f in m.filters) else None
+    """What one customer (the filter) still owes: a debt amount needs its customer. N163: or its debt age, "tổng số
+    tiền khách còn nợ ở các đơn đã đặt quá N ngày" (§4 "tuổi nợ"; "còn nợ = cộng các đơn còn nợ > 0"): the balances
+    of the orders of that age, as debt_total (train: 7 questions in 3 shops, none answered before)."""
+    keyed = any(f.field in ("customer", "debt_age_days") for f in m.filters)
+    return debt_total(db, plan, m) if keyed else None
 
 
 def rank_debtors(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
