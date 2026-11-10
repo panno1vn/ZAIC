@@ -20,6 +20,7 @@ from pathlib import Path
 
 REFERENCE = Path(__file__).resolve().parents[2] / "assets" / "rules" / "reference_rules.json"
 THRESHOLD = 0.95  # similarity below which a rule counts as changed; see docs/HAN_CHE_VA_CAI_THIEN.md H9
+ADOPT_MIN_CHARS = 25  # N168: a row shorter than this is too weak a key to adopt under another name
 
 
 @dataclass(frozen=True)
@@ -107,6 +108,37 @@ def extends(old: str, new: str) -> bool:
     return True
 
 
+# a bullet's bold label, with or without its opening marks (the parser keeps "Tên**: …" of "- **Tên**: …")
+_LABEL = re.compile(r"^(?:\*\*)?[^*:：]{1,80}\*\*\s*[:：]\s*|^\*\*[^*]{1,80}[:：]\*\*\s*")
+
+
+def adopt_by_text(rows: dict[str, RuleRow], ref: dict[str, list[str]], wanted) -> dict[str, RuleRow]:
+    """N168: {missing id: row} for the ids of `wanted` this rulebook lacks, each given the one row no known id claims
+    whose text is an accepted version of the id: the row was renamed ("Đơn tính vào doanh thu" → "Đơn được tính doanh
+    thu": 792 answers blank), or written as a bullet "- **Tên**: …" (65). Exactly one candidate, else nothing; a
+    renamed row whose text also changed stays a changed rule (the text must still be an accepted version)."""
+    free = {rid: row for rid, row in rows.items() if rid not in ref}
+    out: dict[str, RuleRow] = {}
+    taken: set[str] = set()
+    for rid in sorted(wanted):
+        versions = ref.get(rid) or []
+        versions = [versions] if isinstance(versions, str) else versions
+        if rid in rows or not versions:
+            continue
+        hits = []
+        for fid, row in free.items():
+            if fid in taken or len(normalize(_LABEL.sub("", row.text))) < ADOPT_MIN_CHARS:
+                continue
+            if any(same_rule(t, v) or extends(v, t) for v in versions for t in (row.text, _LABEL.sub("", row.text))):
+                hits.append(fid)
+        if len(hits) == 1:
+            row = free[hits[0]]
+            plain = any(same_rule(row.text, v) or extends(v, row.text) for v in versions)
+            out[rid] = RuleRow(rid, row.section, row.name, row.text if plain else _LABEL.sub("", row.text))
+            taken.add(hits[0])
+    return out
+
+
 def _key(rid: str) -> str:
     """The id without its section number: "§1.so_don" -> "so_don", "§6.ca_phe.size_m" -> "ca_phe.size_m"."""
     return rid.split(".", 1)[1] if rid.startswith("§") and "." in rid else rid
@@ -183,6 +215,8 @@ def check_rules(rulebook: str, rule_ids: tuple[str, ...], reference: dict[str, s
     """rule id -> True when the rule exists in this rulebook and matches one accepted version closely enough."""
     ref = load_reference() if reference is None else reference
     current = canonical_rows(parse_rulebook(rulebook), set(ref) | set(rule_ids))
+    current = {**current, **adopt_by_text(current, {k: ([v] if isinstance(v, str) else v) for k, v in ref.items()},
+                                          rule_ids)}
     out = {}
     for rid in rule_ids:
         row, versions = current.get(rid), ref.get(rid)
@@ -213,8 +247,10 @@ def new_terms(rulebook: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
     the words after its head noun ("trung thanh nhat"), of the last name when a row names several ("Nhân viên, thợ
     chăm chỉ nhất"); one word left is too common to tell ("Bảo hành")."""
     known, out = train_rule_ids(), []
-    for rid, row in canonical_rows(parse_rulebook(rulebook), load_reference()).items():
-        if rid in known or row.name.startswith("p_"):
+    rows = canonical_rows(parse_rulebook(rulebook), load_reference())
+    adopted = {(a.section, a.name) for a in adopt_by_text(rows, load_reference(), known).values()}
+    for rid, row in rows.items():
+        if rid in known or row.name.startswith("p_") or (row.section, row.name) in adopted:  # N168: renamed, not new
             continue
         words = _words(row.name.split(",")[-1])[1:]
         if len(words) >= 2:
