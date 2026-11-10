@@ -14,7 +14,7 @@ from datetime import timedelta
 import pandas as pd
 
 from datamate.contracts import CanonicalDB, ExecResult, Filter, Measure, ResolvedPeriod, ResolvedPlan
-from datamate.contracts.plan import expected_answer_type
+from datamate.contracts.plan import CODED_VALUES, expected_answer_type
 from datamate.formatter import money
 from datamate.nlu import linking
 
@@ -25,9 +25,23 @@ from .registry import metric
 R_TODAY = ("§0.p_hom_nay_cua_moi_cau_la",)
 R_VALID = ("§1.don_tinh_vao_doanh_thu", "§1.don_thuoc_ky_nao") + R_TODAY
 R_REVENUE = R_VALID + ("§1.doanh_thu_mot_don", "§1.ban_duoc_bao_nhieu_tien_thu_ve_bao_nhieu_tien", "§3.mat_hang")
-R_FILTERS = ("§1.doanh_thu_theo_hinh_thuc_thanh_toan", "§1.doanh_thu_theo_nhom_khach", "§2.ca_sang_ca_chieu",
-             "§3.nhom_hang", "§3.xac_dinh_khach", "§6.ca_phe.size_m_size_l", "§6.nha_thuoc.doanh_thu_theo_hoat_chat",
-             "§6.nha_thuoc.thuoc_ke_don", "§8.ten_goi_nhan")
+# N166: a rule row is cited when the plan depends on it (a filter, a ranked entity, a comparison, a period kind),
+# not by every answer: a rulebook that drops or rewords an industry's section blanked 85 % of the split (F004)
+FILTER_RULES = {
+    "payment_method": ("§1.doanh_thu_theo_hinh_thuc_thanh_toan",),
+    "customer_group": ("§1.doanh_thu_theo_nhom_khach", "§3.xac_dinh_khach"),
+    "customer": ("§3.xac_dinh_khach",),
+    "shift": ("§2.ca_sang_ca_chieu",),
+    "product_group": ("§3.nhom_hang",), "category": ("§3.nhom_hang",),
+    "size": ("§6.ca_phe.size_m_size_l",),
+    "active_ingredient": ("§6.nha_thuoc.doanh_thu_theo_hoat_chat",),
+    "prescription": ("§6.nha_thuoc.thuoc_ke_don",),
+    # rows a filter of a repair ledger reads by (train's rulebook has neither)
+    "service": ("§6.sua_xe.viec_ghi_trong_o_lam_gi",), "vehicle_model": ("§6.sua_xe.dong_xe_bien_so",),
+    "stage": ("§6.me_va_be.so_sua_size_bim",),
+}
+R_NAMES = ("§8.ten_goi_nhan",)  # cited when a filter value is a name linked to the data
+ENTITY_RULES = {"customer": ("§3.xac_dinh_khach",), "product_group": ("§3.nhom_hang",)}
 R_METRIC = {
     "revenue": R_REVENUE,
     "order_count": R_VALID + ("§1.so_don",),
@@ -40,7 +54,24 @@ R_METRIC = {
     "net_profit": R_REVENUE + ("§5.lai_gop", "§5.lai_rong_mot_thang"),
 }
 R_COMPARE = ("§1.phan_tram_thay_doi_tang_truong", "§1.chenh_lech_hon_kem_tang_giam_bao_nhieu_so_khong_",
-             "§2.thang_nay", "§2.tet_nam_y_dip_tet_mua_tet", "§5.hieu_ung_tang_gia")
+             "§2.thang_nay", "§2.tet_nam_y_dip_tet_mua_tet", "§5.hieu_ung_tang_gia")  # every id a comparison may cite
+
+
+def compare_rules(p) -> tuple[str, ...]:
+    """The rows this comparison reads: its output, and its kind (the same days of last month, before Tết, the days
+    since a price rise)."""
+    c = p.compare
+    out = ("§1.phan_tram_thay_doi_tang_truong",) if c.output == "pct_change" else \
+        ("§1.chenh_lech_hon_kem_tang_giam_bao_nhieu_so_khong_",)
+    if c.kind == "previous_same_days":
+        out += ("§2.thang_nay",)
+    if c.kind == "before_tet":
+        out += ("§2.tet_nam_y_dip_tet_mua_tet",)
+    if c.kind == "before_days_from":
+        out += ("§5.hieu_ung_tang_gia",)
+    return out
+
+
 R_TIES = ("§9.p_bang_nhau_hai_doi_tuong_bang",)
 R_RANK = R_TIES + ("§3.ban_chay", "§3.xac_dinh_khach", "§3.nhan_vien_ban_gioi_nhat")
 R_COUNT = ("§2.qua_n_hon_n_tren_n_duoi_n", "§1.so_don", "§3.xac_dinh_khach")
@@ -498,15 +529,17 @@ def _result(plan: ResolvedPlan, value, rules: tuple[str, ...], requires: tuple[s
     answer_type = answer_type or expected_answer_type(plan.plan)
     if value is None or answer_type is None:
         return None
-    filters = [f for m in plan.plan.measures for f in m.filters]
+    p = plan.plan
+    measures = list(p.measures) + ([p.share_of] if p.share_of else [])
+    filters = [f for m in measures for f in m.filters] + list((p.compare.filters or []) if p.compare else [])
     rules = tuple(rules) + tuple(r for f in filters for r in FILTER_RULES.get(f.field, ()))
+    if any(isinstance(f.value, (str, list)) and f.field not in CODED_VALUES for f in filters):
+        rules += R_NAMES
+    for entity in (p.rank.entity if p.rank else None, p.threshold.entity if p.threshold else None):
+        rules += ENTITY_RULES.get(entity, ())
     return ExecResult(value=value, answer_type=answer_type, source="D1", function=f"sales.{fn}",
                       rule_ids=sorted(set(rules)), requires=sorted(set(requires) | set(F.filter_columns(filters))))
 
-
-# rows a filter of a repair ledger reads by (only cited when the plan has the filter: train's rulebook has neither)
-FILTER_RULES = {"service": ("§6.sua_xe.viec_ghi_trong_o_lam_gi",), "vehicle_model": ("§6.sua_xe.dong_xe_bien_so",),
-                "stage": ("§6.me_va_be.so_sua_size_bim",)}
 
 
 # ---------------------------------------------------------------- value, compare, share, trend, series
@@ -516,7 +549,7 @@ def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     values = [figure(db, m, plan.period, plan) for m in ms]
     if not ms or any(v is None for v in values):
         return None
-    rules = sum((measure_rules(m) for m in ms), R_FILTERS)
+    rules = sum((measure_rules(m) for m in ms), ())
     requires = sum((measure_requires(db, m.metric) for m in ms), ())
     return _result(plan, values[0] if len(values) == 1 else values, rules, requires, "value_of")
 
@@ -541,7 +574,7 @@ def compare(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
         value = None if b == 0 else (a - b) / b * 100
     else:
         value = a - b
-    rules = measure_rules(m) + R_FILTERS + R_COMPARE
+    rules = measure_rules(m) + compare_rules(p)
     return _result(plan, value, rules, measure_requires(db, m.metric), "compare")
 
 
@@ -564,7 +597,7 @@ def share(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
         total = figure(db, whole, plan.period, plan)
     if part is None or not total:
         return None
-    rules = measure_rules(m) + measure_rules(whole) + R_FILTERS
+    rules = measure_rules(m) + measure_rules(whole)
     return _result(plan, part / total * 100, rules, measure_requires(db, m.metric), "share")
 
 
@@ -584,7 +617,7 @@ def trend(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
         return None
     rising = all(b > a for a, b in zip(values, values[1:]))
     m = plan.plan.measures[0]
-    return _result(plan, rising, measure_rules(m) + R_FILTERS, measure_requires(db, m.metric), "trend")
+    return _result(plan, rising, measure_rules(m), measure_requires(db, m.metric), "trend")
 
 
 def series(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
@@ -592,7 +625,7 @@ def series(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     m = plan.plan.measures[0] if plan.plan.measures else None
     if values is None or m is None:
         return None
-    return _result(plan, values, measure_rules(m) + R_FILTERS, measure_requires(db, m.metric), "series")
+    return _result(plan, values, measure_rules(m), measure_requires(db, m.metric), "series")
 
 
 # ---------------------------------------------------------------- rank
@@ -640,7 +673,7 @@ def rank(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
             return None
         totals = v.groupby("product_line").size()
         keys = _ordered(totals, r.k)
-        out = _result(plan, keys[0] if r.k == 1 else keys, R_RANK + R_METRIC["warranty_count"],
+        out = _result(plan, keys[0] if r.k == 1 else keys, R_TIES + R_METRIC["warranty_count"],
                       ("warranty_visits.visit_time", "warranty_visits.product_line"), "rank")
         if out is not None and _tied(totals, r.k):
             out.notes.append(TIE)
@@ -739,7 +772,11 @@ def rank(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
                  "rows": [[label, v] for label, v in zip(labels, figures)]}
     else:
         value = labels[0] if r.k == 1 else labels
-    rules = R_RANK + R_METRIC.get(r.by, ()) + R_FILTERS
+    rules = R_TIES + R_METRIC.get(r.by, ())
+    if r.by == "quantity":
+        rules += ("§3.ban_chay",)
+    if r.entity == "employee" and r.by == "revenue":
+        rules += ("§3.nhan_vien_ban_gioi_nhat",)
     if r.entity == "employee" and r.by in ("order_count", "ticket_count") and "vehicle_plate" in o.columns:
         rules += R_TICKETS + ("§6.sua_xe.tho_lam_nhieu_nhat",)
     if r.entity == "vehicle_model":
@@ -809,7 +846,9 @@ def count_where(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
         value = hits / len(per) * 100
     else:
         value = hits
-    rules = R_COUNT + R_VALID + R_METRIC.get(t.metric, ()) + R_FILTERS
+    rules = ("§2.qua_n_hon_n_tren_n_duoi_n",) + R_VALID + R_METRIC.get(t.metric, ())
+    if t.metric == "order_count" or t.entity == "order":
+        rules += ("§1.so_don",)
     if t.entity == "vehicle":
         rules += R_TICKETS + ("§6.sua_xe.khach_quen_xe_toi_nhieu_lan", "§6.sua_xe.dong_xe_bien_so")
     return _result(plan, value, rules, REQ_METRIC.get(t.metric, REQ_ORDERS), "count_where")
@@ -841,7 +880,7 @@ def unsold(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
 def _register(intent: str, names, fn, entity: str = "", rules: tuple[str, ...] = ()) -> None:
     for name in names:
         metric(intent, name, requires=REQ_METRIC.get(name, REQ_ORDERS),
-               rules=tuple(sorted(set(R_METRIC.get(name, ()) + R_FILTERS + rules))), entity=entity,
+               rules=tuple(sorted(set(R_METRIC.get(name, ()) + rules))), entity=entity,
                filters=tuple(sorted(F.FILTERS)))(fn)
 
 
@@ -863,6 +902,7 @@ _register("rank", ("order_count",), rank, entity="hour", rules=R_RANK)
 # (pipeline.rule_ids), or [V] reads them as missing and every such answer abstains (caught 06/11 before any run)
 CONDITIONAL_RULES = tuple(sorted(set(
     R_PER_DAY + tuple(r for rs in FILTER_RULES.values() for r in rs) + tuple(r for rs in RANK_TERMS.values() for r in rs)
+    + R_NAMES + tuple(r for rs in ENTITY_RULES.values() for r in rs) + R_COMPARE + R_RANK + R_COUNT
     + R_TICKETS + ("§6.sua_xe.tho_lam_nhieu_nhat", "§6.sua_xe.khach_quen_xe_toi_nhieu_lan", "§6.sua_xe.dong_xe_bien_so"))))
 _register("rank", ("revenue", "order_count", "ticket_count"), rank, entity="vehicle_model", rules=R_RANK)
 _register("rank", ("warranty_count",), rank, entity="product_line", rules=R_RANK)

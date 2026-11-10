@@ -17,6 +17,32 @@ from . import industry  # noqa: F401,E402  registers industry rules (§6)
 from . import lots  # noqa: F401,E402  registers lots, expiry and out of stock (§5, §6 Nhà thuốc)
 
 
+# N166: the §2 rows a function reads by the kind of period, cited whatever the function (F006: the rows for week, last
+# N days and year-to-date were cited by none, so a rulebook that changed them still got the old formula)
+PERIOD_RULES = {
+    "day": ("§2.ngay_x_hom_nay_hom_qua",), "today": ("§2.ngay_x_hom_nay_hom_qua",),
+    "yesterday": ("§2.ngay_x_hom_nay_hom_qua",),
+    "this_week": ("§2.tuan",), "last_week": ("§2.tuan",),
+    "this_month": ("§2.thang_nay",), "month": ("§2.thang_m_y",),
+    "ytd": ("§2.tu_dau_nam_tu_dau_nam_toi_nay",), "last_n_days": ("§2.n_ngay_gan_nhat",),
+    "range": ("§2.tu_x_den_y_nhom_x_y",), "tet": ("§2.tet_nam_y_dip_tet_mua_tet",),
+    "until": ("§2.den_het_ngay_x_tinh_den_hom_nay",),
+}
+YEARLESS = ("§2.thang_m_quy_q_khong_ghi_nam",)  # a month or quarter written without its year
+
+
+def period_rules(plan: ResolvedPlan) -> tuple[str, ...]:
+    out: tuple[str, ...] = ()
+    c = plan.plan.compare
+    for pe in (plan.plan.period, c.period if c is not None else None):
+        if pe is None:
+            continue
+        out += PERIOD_RULES.get(pe.kind, ())
+        if pe.kind in ("month", "quarter") and pe.year is None:
+            out += YEARLESS
+    return out
+
+
 def metric_name(plan: ResolvedPlan) -> str | None:
     """Registry key of a plan: rank.by for rankings, the threshold's metric for counts (v1.1: no measures needed),
     the condition for lists, else the first measure's metric."""
@@ -66,6 +92,7 @@ def execute(plan: ResolvedPlan, db: CanonicalDB, trace: dict | None = None) -> E
     result = spec.fn(plan, db)
     if result is not None:  # what the figure read in this shop (an orders-only shop: the order's goods amount)
         result.requires = frames.requires(db, result.requires)
+        result.rule_ids = sorted(set(result.rule_ids) | set(period_rules(plan)))
     elif trace is not None:
         trace.update({"why": "function_none", "function": spec.fn.__name__})
         if diagnose.ENABLED:
@@ -73,5 +100,5 @@ def execute(plan: ResolvedPlan, db: CanonicalDB, trace: dict | None = None) -> E
     return result
 
 
-__all__ = ["REGISTRY", "MetricSpec", "execute", "lookup", "metric", "metric_entity", "metric_name",
+__all__ = ["PERIOD_RULES", "YEARLESS", "period_rules", "REGISTRY", "MetricSpec", "execute", "lookup", "metric", "metric_entity", "metric_name",
            "plan_filter_fields"]
