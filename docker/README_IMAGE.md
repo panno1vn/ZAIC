@@ -94,7 +94,9 @@ Không tinh chỉnh; dùng nguyên bản phát hành. Tổng tham số mọi mod
 
 ## Dữ liệu
 
-- Chỉ dùng dữ liệu train BTC phát hành (30 cửa hàng, 3000 câu có đáp án) và model công khai ở trên. Không dùng dữ liệu public / private test để dựng gì (chỉ đọc lời văn rulebook public làm bản luật tham chiếu, không đáp án nào).
+- Chỉ dùng dữ liệu train BTC phát hành (30 cửa hàng, 3000 câu có đáp án) và model công khai ở trên để dựng hệ thống.
+- Public test chỉ được dùng để chạy hệ thống và phân tích lỗi; các sửa đổi được viết thành luật tổng quát. Không lưu đáp án, id câu hỏi hay id cửa hàng nào. Rulebook public được đọc lúc chạy như rulebook của bất kỳ split nào; bản luật tham chiếu `assets/rules/reference_rules.json` dựng từ lời văn hai rulebook train và public (không đáp án nào).
+- Qwen3-14B chỉ được thử khi phát triển (notebook Kaggle `kaggle/k1_qwen14b.ipynb`) và không có trong image.
 - Không có tập validation tách riêng: các hàm và luật được kiểm trên chính train (`training_code/README.md`): mã cuối đúng 2752, sai 0, bỏ trống 248 trên 3000 câu.
 - Chi tiết, lệnh dựng lại và checksum: `/code/training_code/README.md`, `/code/training_code/data_manifest.json`.
 

@@ -242,7 +242,7 @@ def overdue_installment_count(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
 
 
 def installments_due(db: CanonicalDB, plan: ResolvedPlan, m: Measure):
-    """N135. "Hết hnay, khách Tạ Dũng Long góp tới hạn mấy kỳ rồi, tính luôn kỳ hạn hôm nay?" (public phone shop): the
+    """N135. A question asking how many instalments of one named customer are due, today's included (public phone shop): the
     installment periods of the customer's installment orders whose due day is on or before the day — "tính cả kỳ hạn
     đúng hôm nay", as the question says (§6 "Trả góp": a period due on the day asked is due, not yet overdue).
     Orders not cancelled; one customer, linked (§3)."""

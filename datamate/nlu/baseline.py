@@ -67,7 +67,7 @@ SHAPES = [  # (pattern on the folded text without its period, plan without perio
 WHICH_WORDS = {"nao", "nhat"}
 
 
-# N129. "Dthu T7/2025 cao hơn T6/2025, rồi T8/2025 lại cao hơn T7/2025, đúng vậy không?" asks a trend (the revenue of
+# N129. A question asking whether the revenue rose over three named months, each above the one before, asks a trend (the revenue of
 # three months each above the one before), in words the LLM reads as a comparison with the months as products (public,
 # 2 questions, both refused by the gates on both calls; train has no question of this shape). Only revenue, two "cao
 # hơn", a yes / no ending and exactly three months written that follow each other.
@@ -118,7 +118,7 @@ _DAY = re.compile(r"\b(\d{1,2})/(\d{1,2})/(\d{4})\b")
 
 def fallback(question: str) -> QueryPlan | None:
     t = fold(question)
-    # "khách có mua th5/2025, mấy % mua từ 4 đơn trở lên": the share of the month's buyers with N orders or more (train
+    # Of the customers who bought in a month, the percent with N orders or more: the share of the month's buyers with N orders or more (train
     # bank: every such question, e.g. "trong số khách đã mua hàng tháng 7/2026, bnhiu % mua từ 8 đơn trở lên", planned
     # as this count_where)
     m = _SHARE_BY_ORDERS.search(t)
@@ -130,7 +130,7 @@ def fallback(question: str) -> QueryPlan | None:
                 "threshold": {"entity": "customer", "metric": "order_count", "op": "gt" if m[1] == "tren" else "gte",
                               "value": float(m[2]), "as_share": True}})
     # "hết ngày 8/2/2026 shop có mấy người trả góp còn kỳ quá hạn chưa đóng": the customers with an overdue instalment
-    # (§6 Trả góp), as public plans its siblings ("có mấy khách trả góp còn nợ kỳ góp quá hạn")
+    # (§6 Trả góp), as public plans its siblings (other wordings of the same count)
     if _OVERDUE_WHO.search(t) and re.search(r"\bgop\b", t) and re.search(r"\bqua han\b", t) and not re.search(
             r"\b(?:tien|bao nhieu tien)\b", t):
         days = _DAY.findall(question)

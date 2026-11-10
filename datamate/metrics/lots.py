@@ -110,7 +110,7 @@ def expiry_window(plan: ResolvedPlan, day: date, n: int | float | None = None) -
         elif p.kind == "next_n_days" and p.n:
             windows.add((day, day + timedelta(days=p.n)))
         elif p.kind == "last_n_days" and p.n and n is not None and p.n == n:
-            pass  # "hết hạn trong 180 ngày tới" with the 180 days also written as a past period: the same N
+            pass  # expiring within the next N days, with the N days also written as a past period: the same N
         elif not (p.kind == "today" or (p.kind == "until" and p.date == day.isoformat())):
             return None
     if len(windows) != 1:
