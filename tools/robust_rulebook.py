@@ -94,6 +94,119 @@ EDITS: dict[str, tuple[str, str, str, object]] = {
     "drop_sua_xe": ("wording", None, None, None),
 }
 
+# T015: rewordings that keep the rule (the gate should accept them) and changes of meaning (it must refuse them), as
+# (rule id, old text, new text); old "<row>" = the whole row, new "<fold>" = without accents, "<unbold>" = without **.
+# Texts are rows of data/public_test/rulebook.md only.
+REWORD = [
+    ("§1.don_tinh_vao_doanh_thu", "Đơn có trả hàng, **kể cả chỉ trả một phần**, là đơn trả hàng: bỏ **cả đơn**.", "Đơn có trả hàng (kể cả trả một phần) là đơn trả hàng, bỏ **cả đơn**."),
+    ("§1.don_tinh_vao_doanh_thu", "đơn **không huỷ** và **không trả hàng**", "các đơn không hủy và không trả hàng"),
+    ("§1.don_tinh_vao_doanh_thu", "Đơn đang giao vẫn tính", "Đơn hàng đang giao thì vẫn được tính"),
+    ("§1.don_tinh_vao_doanh_thu", "bỏ **cả đơn**", "loại bỏ toàn bộ đơn"),
+    ("§1.don_thuoc_ky_nao", "theo **ngày đặt**, không theo ngày giao hay ngày thu tiền", "theo ngày đặt; không theo ngày giao hoặc ngày thu tiền"),
+    ("§1.don_thuoc_ky_nao", "vẫn bị loại khỏi doanh thu kỳ đặt", "vẫn loại khỏi doanh thu của kỳ đặt"),
+    ("§1.so_don", "chỉ tính đơn không huỷ, không trả; cả khi", "chỉ tính các đơn hàng không hủy, không trả; cả khi"),
+    ("§1.doanh_thu_mot_don", "tổng **thành tiền các dòng hàng** (đã trừ giảm giá trên từng dòng)", "tổng thành tiền của các dòng hàng, đã trừ giảm giá trên từng dòng"),
+    ("§1.doanh_thu_mot_don", "**không** gồm phí giao hàng", "không bao gồm phí giao hàng"),
+    ("§1.don_bi_huy", "Đơn trả hàng **không** phải đơn huỷ", "Đơn trả hàng thì không phải là đơn hủy"),
+    ("§2.thang_nay", "từ ngày 1 đến **hết hôm nay**", "từ ngày 1 đến hết ngày hôm nay"),
+    ("§2.tuan", "bắt đầu **thứ Hai**", "bắt đầu vào thứ Hai"),
+    ("§2.n_ngay_gan_nhat", "N ngày liền nhau **kể cả hôm nay**, ngày cuối là hôm nay", "N ngày liên tiếp, kể cả hôm nay; ngày cuối cùng là hôm nay"),
+    ("§3.ban_chay", "không theo số dòng hay số tiền; bỏ đơn huỷ, trả", "không theo số dòng hoặc số tiền. Bỏ đơn hủy, đơn trả"),
+    ("§3.xac_dinh_khach", "mỗi **mã khách** là một khách, hai mã trùng tên là hai khách", "mỗi mã khách là một khách; hai mã trùng tên thì là hai khách"),
+    ("§4.tuoi_no", "số ngày tính từ **ngày đặt**, không từ hạn thanh toán", "là số ngày tính từ ngày đặt, không tính từ hạn thanh toán"),
+    ("§4.don_duoc_tinh_vao_no", "đơn không huỷ; **đơn trả hàng vẫn tính** nếu còn nợ", "đơn không hủy. Đơn trả hàng vẫn được tính nếu còn nợ"),
+    ("§1.ti_le_don_huy_trong_ky", "Làm tròn 2 chữ số thập phân.", "Kết quả làm tròn đến 2 chữ số thập phân."),
+    # the fixer's own
+    ("§1.don_thuoc_ky_nao", "<row>", "<fold>"),
+    ("§3.mat_hang", "<row>", "<fold>"),
+    ("§2.tuan", "<row>", "<unbold>"),
+    ("§1.so_don", "một đơn như vậy trong kỳ", "một đơn như vậy trong kỳ. Kết quả là số nguyên"),
+    ("§2.n_ngay_gan_nhat", "**kể cả hôm nay**, ngày cuối là hôm nay", "**kể cả hôm nay**; ngày cuối là hôm nay"),
+    ("§3.xac_dinh_khach", "Khách mua **nhiều tiền** nhất xếp theo doanh thu (§1).", "Khách mua nhiều tiền nhất được xếp theo doanh thu (§1)."),
+    ("§3.mat_hang", "**Món**, hàng, sản phẩm cùng nghĩa với mặt hàng.", "Món, hàng, sản phẩm có cùng nghĩa với mặt hàng."),
+    ("§10.don_vi_co_ban_don_vi_lon", "(đơn vị nhỏ nhất shop đếm)", "(là đơn vị nhỏ nhất mà shop đếm)"),
+]
+MEAN = [
+    ("§1.don_tinh_vao_doanh_thu", "Đơn đang giao vẫn tính", "Đơn đang giao cũng bỏ"),
+    ("§1.don_tinh_vao_doanh_thu", "đơn **không huỷ** và **không trả hàng**", "đơn **không huỷ**"),
+    ("§1.don_tinh_vao_doanh_thu", "đơn **không huỷ** và **không trả hàng**", "đơn **hoàn thành**"),
+    ("§1.don_tinh_vao_doanh_thu", "**kể cả chỉ trả một phần**", "**trừ khi chỉ trả một phần**"),
+    ("§1.don_tinh_vao_doanh_thu", "bỏ **cả đơn**", "bỏ **phần đã trả**"),
+    ("§1.don_tinh_vao_doanh_thu", "Đơn đang giao vẫn tính", "Đơn đang giao và đơn COD vẫn tính"),
+    ("§1.don_thuoc_ky_nao", "theo **ngày đặt**, không theo ngày giao hay ngày thu tiền", "theo **ngày giao**, không theo ngày đặt hay ngày thu tiền"),
+    ("§1.don_thuoc_ky_nao", "kể cả trả sau hôm nay", "trừ trả sau hôm nay"),
+    ("§1.so_don", "chỉ tính đơn không huỷ, không trả; cả khi", "tính đơn không huỷ, kể cả đơn trả; cả khi"),
+    ("§1.doanh_thu_mot_don", "(đã trừ giảm giá trên từng dòng)", "(chưa trừ giảm giá trên từng dòng)"),
+    ("§1.doanh_thu_mot_don", "**Không** trừ giảm giá trên cả đơn", "Trừ giảm giá trên cả đơn"),
+    ("§1.doanh_thu_mot_don", "**không** cộng thuế VAT, **không** gồm phí giao hàng", "**có** cộng thuế VAT, **có** gồm phí giao hàng"),
+    ("§1.don_bi_huy", "Đơn trả hàng **không** phải đơn huỷ", "Đơn trả hàng cũng là đơn huỷ"),
+    ("§2.thang_nay", "từ ngày 1 đến **hết hôm nay**", "từ ngày 1 đến **hết hôm qua**"),
+    ("§2.tuan", "bắt đầu **thứ Hai**", "bắt đầu **Chủ nhật**"),
+    ("§2.n_ngay_gan_nhat", "**kể cả hôm nay**, ngày cuối là hôm nay", "**trước hôm nay**, ngày cuối là hôm qua"),
+    ("§3.ban_chay", "theo **số lượng quy về đơn vị cơ bản**, không theo số dòng hay số tiền", "theo **số tiền**, không theo số dòng hay số lượng quy về đơn vị cơ bản"),
+    ("§3.xac_dinh_khach", "hai mã trùng tên là hai khách", "hai mã trùng tên là một khách"),
+    ("§4.tuoi_no", "số ngày tính từ **ngày đặt**, không từ hạn thanh toán", "số ngày tính từ **hạn thanh toán**, không từ ngày đặt"),
+    ("§4.don_duoc_tinh_vao_no", "**đơn trả hàng vẫn tính** nếu còn nợ", "đơn trả hàng không tính"),
+    ("§1.ti_le_don_huy_trong_ky", "Làm tròn 2 chữ số thập phân.", "Làm tròn 1 chữ số thập phân."),
+    ("§1.ti_le_don_huy_trong_ky", "**mọi trạng thái**: cả đơn huỷ, đơn trả, đơn đang giao", "**mọi trạng thái** trừ đơn đang giao: cả đơn huỷ, đơn trả"),
+    ("§2.tuan", "**cả** tuần liền trước, thứ Hai đến Chủ nhật", "tuần liền trước, thứ Hai đến thứ Bảy"),
+    ("§4.no_mot_don_tai_ngay_x", "**gồm phí giao**", "**không gồm phí giao**"),
+    ("§1.phan_tram_thay_doi_tang_truong", "so với **kỳ trước**; giảm thì ra **số âm**", "so với **cùng kỳ năm trước**; giảm thì ra **số âm**"),
+    ("§1.chenh_lech_hon_kem_tang_giam_bao_nhieu_so_khong_", "**kỳ hỏi − kỳ so**", "**kỳ so − kỳ hỏi**"),
+    # the fixer's own
+    ("§2.thang_nay", "hết ngày trùng số với hôm nay", "hết ngày trùng số với hôm qua"),
+    ("§3.mat_hang", "không xếp hạng, không đếm", "xếp hạng, không đếm"),
+    ("§3.mat_hang", "Vẫn tính vào doanh thu", "Không tính vào doanh thu"),
+    ("§3.xac_dinh_khach", "hai tên **chỉ khác cách viết** là cùng một khách", "hai tên khác cách viết là hai khách"),
+    ("§3.xac_dinh_khach", "đơn không ghi mã (**khách lẻ**) không phải khách", "đơn không ghi mã (khách lẻ) là một khách"),
+    ("§3.ban_chay", "bỏ đơn huỷ, trả", "bỏ đơn huỷ"),
+    ("§10.don_vi_co_ban_don_vi_lon", "hệ số 1", "hệ số 10"),
+    ("§4.tuoi_no", "tuổi nợ **0** ngày", "tuổi nợ **1** ngày"),
+    ("§2.tuan", "tuần liền trước, thứ Hai", "tuần liền sau, thứ Hai"),
+    ("§2.tuan", "từ thứ Hai của tuần chứa hôm nay", "từ Chủ nhật của tuần chứa hôm nay"),
+]
+# meaning changes the gate still accepts: the changed words sit in a whole sentence the row has beyond its train
+# version, with no narrowing word or number (N167 accepts such a sentence as a clarification). Open, reported.
+KNOWN_HOLES = {
+    "hole_added_sentence_reversed": ("meaning", "vẫn bị loại khỏi doanh thu kỳ đặt", "vẫn tính vào doanh thu kỳ đặt",
+                                     "§1.don_thuoc_ky_nao"),
+}
+EDITS.update(KNOWN_HOLES)
+for _i, (_rid, _old, _new) in enumerate(REWORD, 1):
+    EDITS[f"reword_{_i:02d}"] = ("wording", _old, _new, _rid)
+for _i, (_rid, _old, _new) in enumerate(MEAN, 1):
+    EDITS[f"mean_{_i:02d}"] = ("meaning", _old, _new, _rid)
+
+# T015 held-out: written after the gate code and the lists above were final; STOP / PHRASES were not touched after them.
+HELD_REWORD = [
+    ("§1.don_bi_huy", "đơn có trạng thái huỷ.", "đơn có trạng thái hủy."),
+    ("§4.tuoi_no", "Đơn đặt hôm nay có tuổi nợ **0** ngày, đơn đặt hôm qua **1** ngày", "Đơn đặt hôm nay có tuổi nợ 0 ngày; đơn đặt hôm qua 1 ngày"),
+    ("§3.hang_loi_nhat", "theo **tổng lãi gộp** của mặt hàng (§5)", "theo tổng lãi gộp của các mặt hàng (§5)"),
+    ("§3.nhan_vien_ban_gioi_nhat", "trong kỳ, không theo số đơn", "trong kỳ; không theo số đơn"),
+    ("§4.don_cod_don_ban_qua_san_tmdt", "**không phải khách nợ**, kể cả khi chưa thu được tiền; bỏ khỏi công nợ và tuổi nợ", "không phải là khách nợ, kể cả khi chưa thu được tiền. Bỏ khỏi công nợ và tuổi nợ"),
+    ("§5.gia_von", "tại thời điểm bán; không theo FIFO", "tại thời điểm bán. Không theo FIFO"),
+    ("§2.ngay_x_hom_nay_hom_qua", "chỉ **trong** ngày đó", "chỉ trong ngày đó."),
+    ("§3.ngay_dat_khach_nhat", "ngày có **nhiều đơn nhất** trong kỳ", "ngày mà có nhiều đơn nhất trong kỳ"),
+    ("§5.tien_nhap_hang_trong_ky", "**ngày phiếu** trong kỳ, bỏ phiếu huỷ", "ngày phiếu trong kỳ, bỏ các phiếu hủy"),
+    ("§2.ca_sang_ca_chieu", "<row>", "<fold>"),
+]
+HELD_MEAN = [
+    ("§2.ca_sang_ca_chieu", "mốc là **ca sáng**", "mốc là **ca chiều**"),
+    ("§3.khach_sop_nhat", "cao nhất trong kỳ, chỉ xét khách", "thấp nhất trong kỳ, chỉ xét khách"),
+    ("§3.ngay_dat_khach_nhat", "ngày có **nhiều đơn nhất** trong kỳ", "ngày có **nhiều tiền nhất** trong kỳ"),
+    ("§4.don_cod_don_ban_qua_san_tmdt", "bỏ khỏi công nợ và tuổi nợ", "bỏ khỏi công nợ, vẫn tính tuổi nợ"),
+    ("§5.gia_von", "không theo giá nhập lần cuối", "theo giá nhập lần cuối"),
+    ("§5.tien_nhap_hang_trong_ky", "bỏ phiếu huỷ. Phiếu, dòng ghi", "kể cả phiếu huỷ. Phiếu, dòng ghi"),
+    ("§2.thang_m_quy_q_khong_ghi_nam", "của **năm nay** nếu không sau hôm nay; sau hôm nay thì của **năm trước**", "của **năm trước** nếu không sau hôm nay; sau hôm nay thì của **năm nay**"),
+    ("§8.trang_thai_don", "đúng một trong bốn trạng thái", "đúng một trong ba trạng thái"),
+    ("§1.doanh_thu_theo_nhom_khach", "tính cả đơn vãng lai", "bỏ đơn vãng lai"),
+    ("§3.gio_cao_diem", "Đáp án là **giờ bắt đầu khung**", "Đáp án là **giờ kết thúc khung**"),
+]
+for _i, (_rid, _old, _new) in enumerate(HELD_REWORD, 1):
+    EDITS[f"held_reword_{_i:02d}"] = ("wording", _old, _new, _rid)
+for _i, (_rid, _old, _new) in enumerate(HELD_MEAN, 1):
+    EDITS[f"held_mean_{_i:02d}"] = ("meaning", _old, _new, _rid)
+
 
 def apply(text: str, name: str) -> str:
     kind, old, new, _ = EDITS[name]
@@ -126,6 +239,10 @@ def apply(text: str, name: str) -> str:
                "| Phiếu giặt gấp | phiếu có ghi **giặt nhanh**; tính theo ngày nhận đồ |\n")
         assert anchor in text
         return text.replace(anchor, sec + anchor, 1)
+    if old == "<row>":  # the whole row of the rule, rewritten as a whole
+        row = rules.parse_rulebook(text)[EDITS[name][3]].text
+        new = {"<fold>": rules._fold(row), "<unbold>": row.replace("**", "")}[new]
+        old = row
     assert text.count(old) == 1, (name, text.count(old))
     return text.replace(old, new)
 
@@ -135,11 +252,13 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--split", default=str(ROOT / "data" / "public_test"))
     ap.add_argument("--run", default=str(ROOT / "outputs" / "public_live_778f898"))
-    ap.add_argument("--edits", nargs="*", default=list(EDITS))
+    ap.add_argument("--edits", nargs="*", default=None)
+    ap.add_argument("--prefix", nargs="*", default=[], help="every edit whose name starts with one of these")
     ap.add_argument("--out", default=str(ROOT / "outputs" / "robust_rulebook"))
     ap.add_argument("--replay", action="store_true", help="also replay the run (slow, ~25 min an edit); without it "
                     "the blanks are counted from the [R] gate (verify: an answer whose cited rule fails is blanked)")
     args = ap.parse_args(argv)
+    args.edits = args.edits or [n for n in EDITS if not args.prefix or n.startswith(tuple(args.prefix))]
     split, run, out = Path(args.split), Path(args.run), Path(args.out)
     rulebook = (split / "rulebook.md").read_text(encoding="utf-8-sig")
     ids = rule_ids()
@@ -169,7 +288,8 @@ def main(argv: list[str] | None = None) -> int:
                                                     else {}) or {}).get("rule_ids") or []) & set(flipped)}
         row = {"edit": name, "kind": kind, "flipped": flipped, "exposed": len(exposed), "gate_blanks": len(gate_blank),
                "gate_blank_shops": len({logs[k]["business_id"] for k in gate_blank}),
-               "exposed_not_blanked": len(exposed - gate_blank)}
+               "exposed_not_blanked": len(exposed - gate_blank),
+               "accepted": isinstance(expose, str) and expose not in flipped}
         if args.replay:
             import replay_run
             copy = out / "splits" / name
