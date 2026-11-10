@@ -182,7 +182,8 @@ def prepare_business(root: Path, rulebook: str, llm: LLMClient | None, map_fn: M
 def rule_ids() -> tuple[str, ...]:
     """Every rulebook row the run relies on, checked by [R]: the metric functions' and the decisions' (§7)."""
     return tuple(sorted({r for spec in metrics.REGISTRY.values() for r in spec.rules} | set(verify.R_OUTSIDE)
-                        | set(metrics.sales.CONDITIONAL_RULES)))
+                        | set(metrics.sales.CONDITIONAL_RULES) | {r for rs in metrics.PERIOD_RULES.values() for r in rs}
+                        | set(metrics.YEARLESS)))
 
 
 def twin_check(question: str, plan: QueryPlan, ctx: BusinessContext, threshold: float | None, log: dict,

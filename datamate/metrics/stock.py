@@ -26,7 +26,8 @@ R_PURCHASE = ("§5.tien_nhap_hang_trong_ky",) + R_TODAY
 R_MAIN_SUPPLIER = ("§5.nha_cung_cap_chinh",) + R_TODAY  # a public rulebook row: [R] blocks it where the row is absent
 R_AVG_COST = ("§5.gia_nhap_binh_quan_mot_mat_hang_trong_thang",) + R_TODAY
 R_PRICE = ("§5.gia_ban_x_ngay_d", "§2.ngay_x_hom_nay_hom_qua", "§10.don_vi_co_ban_don_vi_lon") + R_TODAY
-R_STOCK = ("§2.den_het_ngay_x_tinh_den_hom_nay", "§5.ton_theo_don_vi_lon", "§10.don_vi_co_ban_don_vi_lon") + R_TODAY
+R_STOCK = ("§2.den_het_ngay_x_tinh_den_hom_nay", "§10.don_vi_co_ban_don_vi_lon") + R_TODAY
+R_UNIT_SPLIT = ("§5.ton_theo_don_vi_lon",)  # N166: cited only by a stock written in a larger unit, then the base unit
 R_NAMES = ("§8.ten_goi_nhan",)
 R_TIES = ("§9.p_bang_nhau_hai_doi_tuong_bang",)
 R_IN_MINUS_OUT = ("§5.nhap_tru_ban_chenh_nhap_va_ban", "§5.tien_nhap_hang_trong_ky", "§10.don_vi_co_ban_don_vi_lon") \
@@ -284,7 +285,8 @@ def value_of(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     name = ms[0].metric if ms else None
     if name == "stock_qty":
         value = stock_qty(db, plan, list(ms))
-        rules, requires = R_STOCK, ("inventory.base_qty", "inventory.as_of") if db.has("inventory") else \
+        rules = R_STOCK + (R_UNIT_SPLIT if ms[0].unit_split else ())
+        requires = ("inventory.base_qty", "inventory.as_of") if db.has("inventory") else \
             ("lots.lot_id", "lots.base_qty_in", "lot_sales.lot_id", "lot_sales.base_qty")  # N116: by lot
         answer_type = "list" if isinstance(value, list) else expected_answer_type(plan.plan)
     elif name in FLOWS and len(ms) == 1:
@@ -302,7 +304,7 @@ for _name, (_fn, _rules, _requires) in FLOWS.items():
     metric("value", _name, requires=_requires, rules=tuple(sorted(set(_rules + R_NAMES))),
            filters=("product", "supplier") if _name == "purchase_amount" else ("product",))(value_of)
 metric("value", "stock_qty", requires=("inventory.base_qty", "inventory.as_of"),
-       rules=tuple(sorted(set(R_STOCK + R_NAMES))), filters=("product",))(value_of)
+       rules=tuple(sorted(set(R_STOCK + R_UNIT_SPLIT + R_NAMES))), filters=("product",))(value_of)
 for _by, _rules in (("purchase_amount", R_PURCHASE), ("receipt_count", R_MAIN_SUPPLIER)):
     metric("rank", _by, entity="supplier", requires=("purchases.receipt_time", "purchases.supplier"),
            rules=tuple(sorted(set(_rules + R_NAMES + R_TIES))))(rank_suppliers)
