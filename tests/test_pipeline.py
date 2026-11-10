@@ -108,3 +108,87 @@ def test_a_computed_answer_logs_its_function_inputs_and_output():
     got = pipeline.audit_fields(log, SimpleNamespace(raw=SimpleNamespace(root=Path("/data/data/shop_a"))))
     assert got["code"] == "datamate/metrics/sales.py::value_of" and got["output"] == 42 and got["thinking"] is None
     assert got["inputs"]["plan"] == {"period": {"start": "2026-01-01"}}
+
+
+# ---- N165: whatever is odd about the data folder, a line per question; a second process keeps written answers
+def _questions(split: Path) -> list[dict]:
+    return [json.loads(l) for l in (split / "questions.jsonl").read_text(encoding="utf-8").splitlines()]
+
+
+def test_split_two_levels_down(tmp_path):
+    split = fake_split(tmp_path / "x")
+    deep = tmp_path / "a" / "b" / "c"
+    deep.parent.mkdir(parents=True)
+    split.rename(deep)
+    assert find_split_dir(tmp_path / "a") == deep
+    run(tmp_path / "a", tmp_path / "out")
+    assert len(lines(tmp_path / "out")) == 3
+
+
+def test_two_splits_takes_the_shallowest_then_first(tmp_path):
+    fake_split(tmp_path / "z")
+    deeper = fake_split(tmp_path / "m" / "n")
+    only = tmp_path / "a"
+    only.mkdir()
+    fake_split(only)
+    assert find_split_dir(tmp_path) == only / "fake_split"  # depth 2 before depth 3, then by name
+    run(tmp_path, tmp_path / "out")
+    assert len(lines(tmp_path / "out")) == 3 and deeper.exists()
+
+
+def test_questions_json_name_and_array(tmp_path):
+    split = fake_split(tmp_path)
+    qs = _questions(split)
+    (split / "questions.jsonl").unlink()
+    (split / "Questions.JSON").write_text(json.dumps(qs), encoding="utf-8")
+    run(split, tmp_path / "out")
+    assert sorted(l["id"] for l in lines(tmp_path / "out")) == ["q1", "q2", "q3"]
+
+
+def test_questions_utf16(tmp_path):
+    split = fake_split(tmp_path)
+    text = (split / "questions.jsonl").read_text(encoding="utf-8")
+    (split / "questions.jsonl").write_bytes(text.encode("utf-16"))
+    run(split, tmp_path / "out")
+    assert sorted(l["id"] for l in lines(tmp_path / "out")) == ["q1", "q2", "q3"]
+
+
+def test_no_questions_anywhere_leaves_an_empty_file(tmp_path):
+    (tmp_path / "empty").mkdir()
+    s = run(tmp_path / "empty", tmp_path / "out")
+    assert s.n_questions == 0 and (tmp_path / "out" / "submission.jsonl").read_text(encoding="utf-8") == ""
+    assert (tmp_path / "out" / "logs" / "_run_error.json").exists()
+
+
+def test_integer_id_gets_a_line(tmp_path):
+    split = fake_split(tmp_path)
+    (split / "questions.jsonl").write_text(json.dumps(
+        {"id": 12345, "business_id": "shop_a", "question": "doanh thu", "as_of_date": "2026-01-01"}), encoding="utf-8")
+    run(split, tmp_path / "out")
+    assert [l["id"] for l in lines(tmp_path / "out")] == ["12345"]
+
+
+def test_business_folder_found_whatever_the_case_or_spaces(tmp_path):
+    split = fake_split(tmp_path)
+    assert pipeline.business_dir(split, " SHOP_A ") == (split / "data" / "shop_a").resolve()
+    assert pipeline.business_dir(split, "shop_a") == (split / "data" / "shop_a").resolve()
+    with pytest.raises(ValueError):
+        pipeline.business_dir(split, "../shop_a")
+
+
+def test_resume_keeps_answers_and_fills_the_rest(tmp_path):
+    split = fake_split(tmp_path)
+    out = tmp_path / "out"
+    out.mkdir()
+    keep = {"id": "q1", "type": "unanswerable", "reason": "đã trả lời"}
+    (out / "submission.jsonl").write_text(
+        json.dumps(keep, ensure_ascii=False) + "\n" + json.dumps({"id": "q2", "type": "abstain"}) + "\nnot json\n",
+        encoding="utf-8")
+    run(split, out, RunConfig(resume=True))
+    got = {l["id"]: l for l in lines(out)}
+    assert sorted(got) == ["q1", "q2", "q3"] and got["q1"] == keep and len(lines(out)) == 3
+    ids = [json.loads(l)["id"] for l in (out / "logs" / "questions.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert sorted(ids) == ["q2", "q3"]  # q1 keeps its earlier record, the abstain q2 is logged once again
+    run(split, out)  # a fresh run: logs restart, one record per id
+    ids = [json.loads(l)["id"] for l in (out / "logs" / "questions.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert sorted(ids) == ["q1", "q2", "q3"]

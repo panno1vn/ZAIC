@@ -37,6 +37,22 @@ SAME_TABLE = 0.8  # raw tables of two layouts are stacked as one table when thei
 DATABASES = (".sqlite", ".db", ".sqlite3")  # one file, many tables (loader.READERS)
 
 
+class LLMUnavailable(Exception):
+    """The model did not answer a mapping question twice (timeout, server busy): not "no column matches" (N164b)."""
+
+
+def _generate(llm: LLMClient, messages: list[dict], schema: dict, what: str) -> dict:
+    """One mapping question, asked again once when the call fails (N164b, 10/11: a busy shared server timing out
+    blanked whole shops, reported as "thiếu bảng đơn hoặc dòng hàng"); a second failure raises LLMUnavailable."""
+    for attempt in (1, 2):
+        try:
+            return llm.generate_json(messages, schema)
+        except Exception as ex:
+            if attempt == 2:
+                raise LLMUnavailable(f"{what}: {type(ex).__name__}") from ex
+    raise AssertionError("unreachable")
+
+
 @dataclass(frozen=True)
 class Example:
     name: str  # file stem, for the notes
@@ -467,7 +483,11 @@ def map_by_transfer(raw: RawBusiness, pool: list[Example] | None = None, llm: LL
         if (ok := _passes(m, raw, tried)) is not None:
             return ok, tried
     for e in sibling_files(raw, pool)[:by_meaning] if llm is not None else []:
-        m = transfer_by_meaning(e, raw, llm)
+        try:
+            m = transfer_by_meaning(e, raw, llm)
+        except LLMUnavailable as ex:
+            tried.append(f"ghép theo nghĩa với mapping mẫu {e.name}: LLM không trả lời ({ex})")
+            continue
         if m is None:
             tried.append(f"ghép theo nghĩa với mapping mẫu {e.name}: thiếu bảng đơn hoặc dòng hàng")
         elif (ok := _passes(m, raw, tried)) is not None:
@@ -479,8 +499,15 @@ def map_by_transfer(raw: RawBusiness, pool: list[Example] | None = None, llm: LL
     elif (ok := _passes(m, raw, tried)) is not None:
         return ok, tried
     # N27: no file name, README meaning or column name pairs the tables: the LLM pairs them by role, then the columns
-    for e, pairs in by_role(raw, pool, llm)[:by_meaning] if llm is not None else []:
-        m = transfer_by_meaning(e, raw, llm, pairs)
+    ranked, failed = by_role(raw, pool, llm) if llm is not None else ([], [])
+    if failed:
+        tried.append(f"ghép bảng theo vai trò: LLM không trả lời cho {len(failed)} mapping mẫu")
+    for e, pairs in ranked[:by_meaning]:
+        try:
+            m = transfer_by_meaning(e, raw, llm, pairs)
+        except LLMUnavailable as ex:
+            tried.append(f"ghép bảng theo vai trò với mapping mẫu {e.name}: LLM không trả lời ({ex})")
+            continue
         if m is None:
             tried.append(f"ghép bảng theo vai trò với mapping mẫu {e.name}: thiếu bảng đơn hoặc dòng hàng")
         elif (ok := _passes(m, raw, tried)) is not None:
@@ -647,7 +674,7 @@ def _meaning(e: Example, table_id: str, column: str) -> str:
 
 
 def _ask(e: Example, example_id: str, columns: list[str], raw: RawBusiness, ids: list[str], llm: LLMClient,
-         taken: frozenset[str] = frozenset()) -> dict[str, str] | None:
+         taken: frozenset[str] = frozenset()) -> dict[str, str | None]:
     """example column -> new column (None: not recorded), for one pair of tables; `taken`: new columns already
     matched, not offered."""
     frames = [t.frame for t in raw.tables if t.table_id in ids]
@@ -662,11 +689,8 @@ def _ask(e: Example, example_id: str, columns: list[str], raw: RawBusiness, ids:
     user = "Cột của cửa hàng mới:\n" + "\n".join(lines) + "\n\nCột của cửa hàng mẫu cần ghép:\n" + "\n".join(asked)
     schema = {"type": "object", "additionalProperties": False, "required": [f"c{i}" for i in range(1, len(columns) + 1)],
               "properties": {f"c{i}": {"enum": new_cols + [""]} for i in range(1, len(columns) + 1)}}
-    try:
-        answer = llm.generate_json([{"role": "system", "content": ASSIGN_GUIDE}, {"role": "user", "content": user}],
-                                   schema)
-    except Exception:
-        return None
+    answer = _generate(llm, [{"role": "system", "content": ASSIGN_GUIDE}, {"role": "user", "content": user}],
+                       schema, example_id)
     picked = {c: (answer.get(f"c{i}") or None) if answer.get(f"c{i}") in new_cols else None
               for i, c in enumerate(columns, 1)}
     return _one_meaning_each(e, example_id, picked)
@@ -676,13 +700,74 @@ def _ask_required_again(e: Example, example_id: str, columns: list[str], raw: Ra
                         llm: LLMClient) -> dict[str, str | None]:
     """_ask, then once more for the required columns it left unmatched, among the new columns not taken (N27, 05/11:
     a shop whose lines had "Số lượng sản phẩm" lost its quantity in a question of 8 columns, and the whole mapping).
-    The checks of meaning (amount = quantity × price…) stop a wrong second pick."""
-    got = _ask(e, example_id, columns, raw, ids, llm) or {}
-    missing = [c for c in columns if got and got.get(c) is None and _is_required(e, example_id, c)]
+    The checks of meaning (amount = quantity × price…) stop a wrong second pick. N164 (10/11): the same shop with
+    its columns reversed had its customers' names matched to a 3-value column; a pick that cannot hold its meaning
+    (`_implausible`) is refused and asked once more. N164c: a refused constant pick comes back when the second
+    answer gives nothing better (a shop whose customers are all "Cá nhân" has one group, not a wrong one)."""
+    got = _ask(e, example_id, columns, raw, ids, llm)
+    missing = [c for c in columns if got.get(c) is None and _is_required(e, example_id, c)]
     if missing:
-        again = _ask(e, example_id, missing, raw, ids, llm, frozenset(v for v in got.values() if v)) or {}
+        again = _ask(e, example_id, missing, raw, ids, llm, frozenset(v for v in got.values() if v))
         got.update({c: v for c, v in again.items() if v is not None})
+    bad = _implausible(e, example_id, got, raw, ids)
+    if bad:
+        # a column refused as a name stays offered (it may be the group); one holding a single value means nothing
+        frames = [t.frame for t in raw.tables if t.table_id in ids]
+        constant = {got[c] for c in bad if _distinct(frames, got[c])[0] <= 1}
+        first = {c: got[c] for c in bad}
+        for c in bad:
+            got[c] = None
+        taken = frozenset(v for v in got.values() if v) | constant
+        again = _ask(e, example_id, bad, raw, ids, llm, taken)
+        again = {c: v for c, v in again.items() if v is not None}
+        ok = set(again) - set(_implausible(e, example_id, {**got, **again}, raw, ids))
+        got.update({c: again[c] for c in ok})
+        for c in bad:
+            if first[c] in constant and c not in ok:
+                got[c] = first[c]
     return got
+
+
+def _targets(e: Example, table_id: str, column: str) -> set[str]:
+    """The canonical columns the example column is read as directly in a table of the example's raw table."""
+    return {c.target for tm in e.mapping.tables if table_id in source_ids(tm, list(e.tables)) for c in tm.columns
+            if column in _reads(c) and c.transform is None}
+
+
+def _distinct(frames: list[pd.DataFrame], column: str) -> tuple[int, int]:
+    """(distinct non-blank values, non-blank rows) of the column over the frames."""
+    values = pd.concat([f[column] for f in frames if column in f.columns], ignore_index=True) if any(
+        column in f.columns for f in frames) else pd.Series([], dtype=object)
+    text = values.dropna().astype(str).str.strip()
+    text = text[text != ""]
+    return int(text.nunique()), int(len(text))
+
+
+def _implausible(e: Example, example_id: str, got: dict[str, str | None], raw: RawBusiness, ids: list[str]
+                 ) -> list[str]:
+    """Example columns whose new column cannot hold their meaning (N164, 10/11: the same shop with its columns in
+    reverse order had its customers' names matched to "LoaiKhachHang" — 3 values for 300 customers, rankings named
+    "sỉ", "lẻ" — and its product group to a column holding one value). A name must tell most of its keys apart; a
+    group must hold more than one value."""
+    frames = [t.frame for t in raw.tables if t.table_id in ids]
+    keys = {t: new for c, new in got.items() if new for t in _targets(e, example_id, c) if t.endswith("_key")}
+    bad = []
+    for c, new in got.items():
+        if not new:
+            continue
+        for t in _targets(e, example_id, c):
+            if t.endswith("_name") and keys.get(t[:-5] + "_key") not in (None, new):
+                n_key, _ = _distinct(frames, keys[t[:-5] + "_key"])
+                n_name, _ = _distinct(frames, new)
+                if n_key >= 20 and n_name < 0.5 * n_key:
+                    bad.append(c)
+                    break
+            if t.endswith("_group"):
+                n, rows = _distinct(frames, new)
+                if n <= 1 and rows >= 20:
+                    bad.append(c)
+                    break
+    return bad
 
 
 def _one_meaning_each(e: Example, example_id: str, picked: dict[str, str | None]) -> dict[str, str | None]:
@@ -966,7 +1051,8 @@ def _read_columns(e: Example, table_id: str) -> list[str]:
 
 def pair_tables_by_llm(e: Example, raw: RawBusiness, llm: LLMClient) -> dict[str, list[str]]:
     """Example table id -> the new shop's tables playing its part, picked by the LLM; nothing when the example's
-    orders and lines would fall on one table (a different record grain: no guess)."""
+    orders and lines would fall on one table (a different record grain: no guess). Raises LLMUnavailable when the
+    model does not answer (twice)."""
     groups = layout_groups(raw)
     used = sorted(_used_tables(e))
     if not groups or not used:
@@ -1003,11 +1089,8 @@ def pair_tables_by_llm(e: Example, raw: RawBusiness, llm: LLMClient) -> dict[str
         return out or labels
     schema = {"type": "object", "additionalProperties": False, "required": keys,
               "properties": {k: {"enum": offered(t) + [""]} for k, t in zip(keys, used)}}
-    try:
-        answer = llm.generate_json([{"role": "system", "content": TABLE_GUIDE}, {"role": "user", "content": user}],
-                                   schema)
-    except Exception:
-        return {}
+    answer = _generate(llm, [{"role": "system", "content": TABLE_GUIDE}, {"role": "user", "content": user}],
+                       schema, e.name)
     pairs = {t: groups[labels.index(answer[k])] for k, t in zip(keys, used) if answer.get(k) in labels}
     core = {r: {i for tm in e.mapping.tables if tm.target == r for i in source_ids(tm, list(e.tables))}
             for r in REQUIRED}
@@ -1020,15 +1103,21 @@ def pair_tables_by_llm(e: Example, raw: RawBusiness, llm: LLMClient) -> dict[str
     return pairs
 
 
-def by_role(raw: RawBusiness, pool: list[Example] | None, llm: LLMClient) -> list[tuple[Example, dict[str, list[str]]]]:
+def by_role(raw: RawBusiness, pool: list[Example] | None, llm: LLMClient
+            ) -> tuple[list[tuple[Example, dict[str, list[str]]]], list[str]]:
     """Examples whose orders and lines found a table, with their tables paired by the LLM: those reading the most of
     the shop's tables first, then those pairing the largest share of their own (05/11: ranked by share alone, a
-    one-sheet ledger, all of its one table paired, came before the exports of many tables for a shop of 13 tables)."""
-    ranked = []
+    one-sheet ledger, all of its one table paired, came before the exports of many tables for a shop of 13 tables).
+    Also the examples the LLM did not answer for (N164b), so a dead call is not read as "no table fits"."""
+    ranked, failed = [], []
     for e in examples() if pool is None else pool:
-        pairs = pair_tables_by_llm(e, raw, llm)
+        try:
+            pairs = pair_tables_by_llm(e, raw, llm)
+        except LLMUnavailable:
+            failed.append(e.name)
+            continue
         core = {i for tm in e.mapping.tables if tm.target in REQUIRED for i in source_ids(tm, list(e.tables))}
         if core and core <= set(pairs):
             read = len({tuple(ids) for ids in pairs.values()})
             ranked.append((read, len(pairs) / len(_used_tables(e)), e.name, e, pairs))
-    return [(e, pairs) for *_, e, pairs in sorted(ranked, key=lambda r: (-r[0], -r[1], r[2]))]
+    return [(e, pairs) for *_, e, pairs in sorted(ranked, key=lambda r: (-r[0], -r[1], r[2]))], failed

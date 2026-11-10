@@ -6,6 +6,7 @@ questions abstain. Near the time budget the run stops computing and writes absta
 from __future__ import annotations
 
 import json
+import re
 import time
 import traceback
 from collections import Counter
@@ -21,7 +22,7 @@ from datamate.llm import LLMClient
 from datamate.nlu import twins
 from datamate.nlu.grounding import customer_trait_not_recorded
 from datamate.verify import NOT_RECORDED_REASON
-from datamate.output import SubmissionWriter, TimeGuard, append_log, write_log
+from datamate.output import SubmissionWriter, TimeGuard, append_log, keep_logged, reset_questions_log, write_log
 
 
 MapFn = Callable[[RawBusiness, BusinessProfile, str, "LLMClient | None"], Mapping]
@@ -39,6 +40,7 @@ class RunConfig:
     # development hooks, never set by predict: hand-made mappings, a subset of questions (datamate/eval/oracle.py)
     map_fn: MapFn | None = None
     question_filter: Callable[[dict], bool] | None = None
+    resume: bool = False  # N165: a second process keeps the answers already written and answers only what is missing
 
 
 @dataclass
@@ -60,31 +62,87 @@ class BusinessContext:
     error: str | None = None
 
 
+QUESTION_FILES = ("questions.jsonl", "questions.json")
+
+
+def questions_file(folder: Path) -> Path | None:
+    """The questions file of a folder, whatever its case (N165)."""
+    try:
+        names = {p.name.lower(): p for p in folder.iterdir() if p.is_file()}
+    except OSError:
+        return None
+    return next((names[n] for n in QUESTION_FILES if n in names), None)
+
+
 def find_split_dir(data: Path) -> Path:
-    """`data` itself when it holds questions.jsonl, else its only subfolder that does (/data may be either)."""
-    if (data / "questions.jsonl").exists():
+    """`data` itself when it holds the questions file, else the shallowest folder under it that does (N165: /data may
+    be the split, its parent, or hold it deeper; two splits: the shallowest, then the first by name, never a crash)."""
+    if questions_file(data) is not None:
         return data
-    found = [d for d in sorted(data.iterdir()) if d.is_dir() and (d / "questions.jsonl").exists()]
-    if len(found) != 1:
-        raise FileNotFoundError(f"không tìm thấy đúng một questions.jsonl trong {data} (thấy {len(found)})")
+    found = sorted((p for p in data.rglob("*") if p.is_dir() and "logs" not in p.relative_to(data).parts
+                    and questions_file(p) is not None), key=lambda d: (len(d.relative_to(data).parts), str(d)))
+    if not found:
+        raise FileNotFoundError(f"không tìm thấy questions.jsonl trong {data}")
     return found[0]
 
 
+def _find(split_dir: Path, name: str) -> Path | None:
+    """A file of the split by name, whatever its case."""
+    if not split_dir.is_dir():
+        return None
+    return next((p for p in split_dir.iterdir() if p.is_file() and p.name.lower() == name), None)
+
+
 def load_questions(split_dir: Path) -> list[dict]:
-    """Questions with an id; unreadable lines are skipped (they have no id to answer anyway). BOM tolerated."""
-    questions = []
-    with open(split_dir / "questions.jsonl", encoding="utf-8-sig") as fh:
-        for line in fh:
+    """Questions with an id (a string, or a whole number: written "12345"); unreadable lines are skipped (they have
+    no id to answer anyway). BOM, UTF-16 and a JSON array in one file are tolerated (N165)."""
+    path = questions_file(split_dir)
+    if path is None:
+        return []
+    text = loader._decode(path.read_bytes())[0].lstrip("\ufeff")
+    items = None
+    if path.suffix.lower() == ".json" or text.lstrip().startswith("["):
+        try:
+            items = json.loads(text)
+        except json.JSONDecodeError:
+            items = None
+    if not isinstance(items, list):
+        items = []
+        for line in text.splitlines():
             try:
-                q = json.loads(line) if line.strip() else None
+                items.append(json.loads(line) if line.strip() else None)
             except json.JSONDecodeError:
                 continue
-            if isinstance(q, dict) and isinstance(q.get("id"), str):
-                q.setdefault("business_id", "")
-                q.setdefault("question", "")
-                q.setdefault("as_of_date", "")
-                questions.append(q)
+    questions = []
+    for q in items:
+        if not isinstance(q, dict):
+            continue
+        qid = q.get("id")
+        if isinstance(qid, int) and not isinstance(qid, bool):
+            q["id"] = qid = str(qid)
+        if isinstance(qid, str):
+            q["business_id"] = str(q.get("business_id") or "")
+            q["question"] = str(q.get("question") or "")
+            q["as_of_date"] = iso_day(q.get("as_of_date"))
+            questions.append(q)
     return questions
+
+
+def iso_day(value) -> str:
+    """N160: as_of_date as YYYY-MM-DD. The task writes it so; a time after it ("2026-08-27T00:00:00", "2026-08-27
+    00:00") or a Vietnamese day-first date ("27/08/2026") would otherwise make every question of the split fail to
+    parse and abstain. Anything else is left as it is (the question abstains, as before)."""
+    s = str(value or "").strip()
+    if m := re.match(r"^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:$|[T\s])", s):
+        y, mo, d = m.groups()
+    elif m := re.match(r"^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?:$|[T\s])", s):
+        d, mo, y = m.groups()
+    else:
+        return s
+    try:
+        return date(int(y), int(mo), int(d)).isoformat()
+    except ValueError:
+        return s
 
 
 def group_by_business(questions: list[dict]) -> dict[str, list[dict]]:
@@ -101,6 +159,10 @@ def business_dir(split_dir: Path, business_id: str) -> Path:
     path = (root / business_id).resolve()
     if root not in path.parents:
         raise ValueError(f"business_id không hợp lệ: {business_id!r}")
+    if not path.is_dir() and root.is_dir():  # N165: " DEV_x " finds dev_x on a case-sensitive disk; one match only
+        same = [d for d in root.iterdir() if d.is_dir() and d.name.strip().casefold() == business_id.strip().casefold()]
+        if len(same) == 1:
+            return same[0].resolve()
     return path
 
 
@@ -120,7 +182,8 @@ def prepare_business(root: Path, rulebook: str, llm: LLMClient | None, map_fn: M
 def rule_ids() -> tuple[str, ...]:
     """Every rulebook row the run relies on, checked by [R]: the metric functions' and the decisions' (§7)."""
     return tuple(sorted({r for spec in metrics.REGISTRY.values() for r in spec.rules} | set(verify.R_OUTSIDE)
-                        | set(metrics.sales.CONDITIONAL_RULES)))
+                        | set(metrics.sales.CONDITIONAL_RULES) | {r for rs in metrics.PERIOD_RULES.values() for r in rs}
+                        | set(metrics.YEARLESS)))
 
 
 def twin_check(question: str, plan: QueryPlan, ctx: BusinessContext, threshold: float | None, log: dict,
@@ -214,14 +277,26 @@ def run(data_dir: Path, out_dir: Path, config: RunConfig | None = None, llm: LLM
     """Answer every question of the split. Whatever fails, every question ends with exactly one line."""
     config = config or RunConfig()
     guard = TimeGuard(config.time_budget_s, config.reserve_s, start=config.started_at)
-    split_dir = find_split_dir(data_dir)
-    questions = load_questions(split_dir)
-    if config.question_filter is not None:
-        questions = [q for q in questions if config.question_filter(q)]
-    rulebook_path = split_dir / "rulebook.md"
-    rulebook = rulebook_path.read_text(encoding="utf-8-sig") if rulebook_path.exists() else ""
-    rule_status = rules.check_rules(rulebook, rule_ids())
+    out_dir.mkdir(parents=True, exist_ok=True)
     log_dir = out_dir / "logs"
+    try:  # N165: whatever is odd about the data folder, the file is opened below and holds a line per question found
+        split_dir = find_split_dir(data_dir)
+        questions = load_questions(split_dir)
+        if config.question_filter is not None:
+            questions = [q for q in questions if config.question_filter(q)]
+        rulebook_path = _find(split_dir, "rulebook.md")
+        rulebook = loader._decode(rulebook_path.read_bytes())[0].lstrip("\ufeff") if rulebook_path else ""
+        rule_status = rules.check_rules(rulebook, rule_ids())
+        calendar = _find(split_dir, "calendar.csv") or split_dir / "calendar.csv"
+    except Exception:
+        split_dir, questions, rulebook, rule_status, calendar = data_dir, [], "", {}, data_dir / "calendar.csv"
+        if config.write_logs:
+            try:
+                write_log(log_dir, "_run_error", {"error": traceback.format_exc()})
+            except Exception:
+                pass
+    if config.write_logs and not config.resume:
+        reset_questions_log(log_dir)
     summary = RunSummary(n_questions=len(questions))
 
     def log(name: str, record: dict) -> None:
@@ -233,7 +308,12 @@ def run(data_dir: Path, out_dir: Path, config: RunConfig | None = None, llm: LLM
             except Exception:  # a log that cannot be written must never cost an answer
                 pass
 
-    with SubmissionWriter(out_dir / "submission.jsonl") as writer:
+    with SubmissionWriter(out_dir / "submission.jsonl", resume=config.resume) as writer:
+        if config.write_logs and config.resume:
+            try:
+                keep_logged(log_dir, writer.written)
+            except Exception:
+                pass
         try:
             for business_id, qs in group_by_business(questions).items():
                 if guard.expired():
@@ -250,9 +330,11 @@ def run(data_dir: Path, out_dir: Path, config: RunConfig | None = None, llm: LLM
                 for i, q in enumerate(qs):
                     if guard.expired():
                         break
+                    if q["id"] in writer.written:  # resumed run: its line and log stay as they are
+                        continue
                     t1 = time.perf_counter()
                     excluded = config.exclude_examples(q) if config.exclude_examples else frozenset()
-                    line, record = answer_question(q, ctx, split_dir / "calendar.csv", rule_status, rulebook, llm,
+                    line, record = answer_question(q, ctx, calendar, rule_status, rulebook, llm,
                                                    config.twin_threshold, excluded)
                     # guideline §3.3 "including data reads": the shop's files are read and mapped once, before its
                     # first question, so that question's time includes them (business_prep_ms says how much)
