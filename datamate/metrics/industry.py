@@ -42,7 +42,7 @@ metric("value", "delivery_count", requires=("deliveries.delivery_time",), rules=
 
 
 def delivered_qty(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
-    """N130. "Các đơn đặt tháng 3/2026, tới hôm nay đã chở đi bao nhiêu thùng Sơn Dulux …" (public, a building-materials
+    """N130. A question asking how many units of one product were delivered so far for a month's orders (public, a building-materials
     shop): of the orders placed in the period (§1 "đơn thuộc kỳ theo ngày đặt"), the base quantity of one product the
     delivery book records delivered by the end of today (§6 "giao nhiều đợt: tính đến hết hôm nay … đợt đã chở vẫn tính
     dù đơn sau đó trả hàng"). Only in the product's base unit (the README's "số lượng giao" is in base units, no
@@ -83,7 +83,7 @@ R_PHONE_WARRANTY = ("§6.cua_hang_dien_thoai.bao_hanh", "§6.p_luat_rieng_cua_tu
 
 
 def phones_warrantied(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
-    """N136. "Máy bán ra tháng 8/2025, tới hnay có bao nhiêu máy đã mang lại bảo hành rồi?" (public phone shop): the
+    """N136. A question asking how many phones sold in a month have since come back for warranty (public phone shop): the
     phones of the orders placed in the period (§1, not cancelled) that the warranty book received at least once by the
     end of today, each phone once by its IMEI (README "máy nhận theo IMEI; một máy có thể tới nhiều lần"); the book's
     visits carry their sale order (mapping.side_books, by the IMEI the sales book writes)."""
