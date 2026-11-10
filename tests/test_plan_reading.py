@@ -92,7 +92,10 @@ def test_a_name_of_the_shop_the_plan_leaves_out_stops_the_question():
         return ResolvedPlan(plan=QueryPlan.model_validate({"period": {"kind": "this_month"}, **raw}),
                             as_of=date(2026, 7, 31))
     total = {"intent": "value", "measures": [{"metric": "debt_added"}]}
-    q = "e thang 7/2026 khach cao thu hanh ghi no them bao nhieu"
+    # N173: written right after "khách", the name becomes the filter; written elsewhere, N36 still stops the question
+    added = link_entities(resolved(total), db, "e thang 7/2026 khach cao thu hanh ghi no them bao nhieu")
+    assert added.omitted == [] and [f.value for f in added.plan.measures[0].filters] == ["cao thu hanh"]
+    q = "e thang 7/2026 cao thu hanh ghi no them bao nhieu"
     assert link_entities(resolved(total), db, q).omitted == ["customer=cao thu hanh"]
     one = {"intent": "value", "measures": [{"metric": "debt_added", "filters": [
         {"field": "customer", "value": "cao thu hanh"}]}]}

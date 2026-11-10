@@ -54,6 +54,21 @@ def _fix_compare_filter(raw: dict) -> bool:
     return True
 
 
+def _fix_compare_two_measures(raw: dict) -> bool:
+    """N187. "Tuần trước số đơn ca chiều chênh ca sáng bao nhiêu phần trăm?" written as compare kind period with no
+    period and the two shifts as two measures (train 1; 5 verified plans of the template: one measure, the base in
+    compare.filters): two measures equal but for their filters are a comparison by filter."""
+    c = raw.get("compare")
+    if not isinstance(c, dict) or c.get("kind") != "period" or c.get("period"):
+        return False
+    c["kind"], c["filters"] = "filter", None
+    c.pop("n", None)
+    if _fix_compare_filter(raw):
+        return True
+    c["kind"] = "period"
+    return False
+
+
 _NUMBER_OF = {"quarter": (re.compile(r"\b(?:quy|q)\s*([1-4])\b"), 4), "month": (re.compile(r"\b(?:thang|th|t)\s*(\d{1,2})\b"), 12)}
 
 
@@ -78,8 +93,18 @@ _SEVERAL = re.compile(r"\b(?:lan luot|moi (?:loai|ben|thu|nhom)|hai so|ca hai|tu
 def _fix_series_months(raw: dict, question: str) -> bool:
     """A series written over one month ("Dthu th7, th8, th9/2025 lần lượt", run10 06/11: 8 such outputs): the months
     the question names, in its order, in the plan's year; consecutive and rising only. The grounding gates still check
-    that the question writes that year."""
+    that the question writes that year. N188: a series or trend written as a range of months ("Từ tháng 8/2025 đến
+    tháng 10/2025, doanh thu tháng sau có luôn cao hơn tháng trước không?" as range 2025-08 … 2025-10, train 1; the
+    verified plans of the template list the months): every month from the start to the end."""
     p = raw.get("period")
+    if raw.get("intent") in ("series", "trend") and isinstance(p, dict) and p.get("kind") == "range":
+        n = _months_between(p.get("start"), p.get("end"))
+        if n is None or n < 2:
+            return False
+        y, m = int(p["start"][:4]), int(p["start"][5:7])
+        raw["period"] = {"kind": "months", "months": [f"{y + (m - 1 + i) // 12:04d}-{(m - 1 + i) % 12 + 1:02d}"
+                                                      for i in range(n)]}
+        return True
     if raw.get("intent") not in ("series", "trend") or not isinstance(p, dict) or p.get("kind") != "month" \
             or not isinstance(p.get("year"), int):
         return False
@@ -161,6 +186,8 @@ def repair(raw: dict, question: str, error: str) -> dict | None:
         fixed |= _fix_months((out.get("compare") or {}).get("period") or {})
     if "compare filter cần trường filters" in error:
         fixed |= _fix_compare_filter(out)
+    if "compare period cần trường period" in error:
+        fixed |= _fix_compare_two_measures(out)
     if "thiếu ['quarter']" in error or "thiếu ['month']" in error:
         fixed |= _fill_number(out.get("period") or {}, question)
     if "cần period kind months" in error:

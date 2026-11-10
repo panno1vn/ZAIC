@@ -11,13 +11,13 @@ import re
 import unicodedata
 from datetime import date
 
-from datamate.contracts import STOCK_METRICS, CanonicalDB, DataCard, QueryPlan, ResolvedPlan
+from datamate.contracts import STOCK_METRICS, CanonicalDB, DataCard, Filter, QueryPlan, ResolvedPlan
 from datamate.llm import LLMClient
 
 from datamate.verify import LINKED_FIELDS, SUBJECTIVE_REASON, filter_keys
 
 from . import baseline, jobs, linking, prompt, repair
-from .grounding import (average_not_asked, compared_measure_restated, debt_added_named, month_note_dropped, nearest_expiry_of_one, quantity_not_money, quarter_written, orders_counted, warranty_not_asked, debtors_ranked,
+from .grounding import (average_not_asked, compared_measure_restated, split_only_quantities, debt_age_added, unit_particle_restated, money_not_asked, split_not_asked, one_period_back, same_month_last_year, rise_day_written, months_listed_as_run, days_before_tet, weekday_not_written, debt_added_named, month_note_dropped, nearest_expiry_of_one, quantity_not_money, quarter_written, orders_counted, warranty_not_asked, debtors_ranked,
                         gross_profit_named, anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
                         due_per_order, month_written_as_t, phones_as_whole, trade_in_share, values_together,
                         warranty_over_sold, order_amount_named, particle_not_unit, today_not_this_month,
@@ -173,7 +173,7 @@ def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> 
     plan = stray_numeric_filters(question, series_months_as_filters(question, plan))
     # whole_not_part first: a share_of written as the part itself hides the whole written as a second measure (a full
     # public run 08/11: "bỉm size NB … % tổng số bịch bỉm" read so on one run, without the share_of on the other)
-    plan = k_not_the_month(question, whole_as_share_of(whole_not_part(debt_age_from_question(question, plan))))
+    plan = k_not_the_month(question, whole_as_share_of(whole_not_part(debt_age_added(question, debt_age_from_question(question, plan)))))
     plan = weekday_as_stated(question, share_as_value(question, count_not_list(question, plan)))
     plan = widen_each_table(question, one_name_no_values(question, plan))
     plan = scale_money(question, count_as_value(month_of_short_year(question, plan)))
@@ -184,11 +184,16 @@ def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> 
     plan = order_amount_named(question, today_not_this_month(question, particle_not_unit(plan)))
     plan = average_not_asked(question, quantity_not_money(question, plan))  # N120, N165
     plan = nearest_expiry_of_one(debt_added_named(question, month_note_dropped(plan)))  # N166-N168
-    plan = compared_measure_restated(plan)  # N169
+    plan = split_only_quantities(compared_measure_restated(plan))  # N169, N171
+    plan = split_not_asked(question, money_not_asked(question, unit_particle_restated(plan)))  # N177, N178, N180
+    plan = one_period_back(same_month_last_year(question, plan))  # N181, N182
+    plan = days_before_tet(question, months_listed_as_run(question, plan))  # N185, N186
+    plan = weekday_not_written(question, plan)  # N189
     plan = debtors_ranked(question, gross_profit_named(question, warranty_not_asked(question, plan)))  # N139, N141, N142
     plan = orders_counted(question, quarter_written(question, plan))  # N137, N140
     plan = stocked_in_as_purchase(question, order_amount_no_item(question, plan))
     plan = whole_not_part(split_debt_ages(drop_month_as_weekday(question, anchor_by_price(question, plan, as_of))))
+    plan = rise_day_written(question, plan)  # N183: after anchor_by_price, which anchors a wrongly written day
     plan = written_last_year(plan)
     plan = drop_ungrounded_years(question, plan, as_of)
     plan = drop_restated_metric(drop_restated_status(question, drop_implied_filters(plan)))
@@ -254,6 +259,7 @@ def link_entities(plan: ResolvedPlan, db: CanonicalDB, question: str = "") -> Re
     plan = attribute_in_its_field(product_as_attribute(unit_or_all_as_product(plan, db), db), db)
     plan = phone_kinds(plan, db)
     plan = unit_from_question(drop_generic_filters(plan, db), db, question)
+    plan = named_customer_added(plan, db, question)
     p = plan.plan
     measures = list(p.measures) + ([p.share_of] if p.share_of else [])
     filters = [f for m in measures for f in m.filters] + list((p.compare.filters or []) if p.compare else [])
@@ -277,6 +283,31 @@ def link_entities(plan: ResolvedPlan, db: CanonicalDB, question: str = "") -> Re
                 linked[key] = got.value
     omitted = (omitted_names(filters, db, question) + unit_not_recorded(plan, db, question)) if question else []
     return plan.model_copy(update={"linked": linked, "link_scores": scores, "omitted": omitted})
+
+
+# measures one customer's orders or payments answer (§4 công nợ theo khách, §1 doanh thu của một khách)
+_PER_CUSTOMER = frozenset({"debt_total", "debt_amount", "debt_added", "debt_paid", "revenue", "order_count",
+                           "quantity"})
+
+
+def named_customer_added(plan: ResolvedPlan, db: CanonicalDB, question: str) -> ResolvedPlan:
+    """N173. "khach cao thu hanh ghi no them bao nhieu va tra no dc bao nhieu" read with no customer (train 1; N36 then
+    abstains, the shop's total being no answer): one customer of the shop the question writes right after "khách",
+    while no measure has a customer filter and every measure is one a customer's orders answer, becomes the filter of
+    every measure. Not with a ranking, a comparison or a share: there the customer may be what is compared."""
+    p = plan.plan
+    if not question or not p.measures or p.rank is not None or p.compare is not None or p.share_of is not None:
+        return plan
+    if any(m.metric not in _PER_CUSTOMER or any(f.field in PEOPLE_FIELDS for f in m.filters) for m in p.measures):
+        return plan
+    text = f" {linking.norm(question)} "
+    named = [n for n in linking.candidates("customer", db)
+             if len(n.split()) >= 2 and re.search(rf" khach(?: hang)? {re.escape(n)} ", text)]
+    if len(named) != 1:
+        return plan
+    measures = [m.model_copy(update={"filters": [*m.filters, Filter(field="customer", value=named[0])]})
+                for m in p.measures]
+    return plan.model_copy(update={"plan": p.model_copy(update={"measures": measures})})
 
 
 ATTRIBUTE_FIELDS = ("category", "product_line", "brand", "product_group")
@@ -339,13 +370,21 @@ GENERIC_VALUES = frozenset({"quan", "wan", "shop", "sop", "tiem", "cua hang", "c
                             # N119: function words typed with telex left on, read as a value (train: "bữa qua cuwar
                             # hàng có bao nhiêu bill" with channel = cuwar, "hqua doanh thu dduwowcj" with payment =
                             # dduwowcj); linking.norm undoes the telex, so they arrive folded as "cua", "duoc"
-                            "cua", "duoc", "roi", "nhe", "nha", "a", "ha"})  # not "dt": "đt" is a phone
+                            "cua", "duoc", "roi", "nhe", "nha", "a", "ha",
+                            # N170: "nợ" itself ("khách hàng còn nowj cửa hàng tổng cộng bao nhiêu": customer = nowj)
+                            "no",
+                            # N176: the stock itself ("tính theo giá vốn, tiền hàng nằm trong kho …": category = hàng
+                            # tồn kho; train 1, §5 "giá trị hàng tồn kho" is every product in stock)
+                            "hang ton kho", "hang trong kho", "ton kho"})  # not "dt": "đt" is a phone
 # N145 (train 10/11, each a filter no value of the shop has): "lời gộp tháng 9 nawm 2025" (product = năm), "sản phẩm
 # bán nhiều nhất là chi" (là gì), "giá vốn đó" (category = đó), "hqua có tổng cộng nhiêu ddown" (payment = đơn), "xe
 # ddax giao mấy đợt" (xe đã). Not on people: "Đỗ", "Nam" are names too.
 THING_WORDS = frozenset({"nam", "chi", "gi", "do", "don", "da", "xe"})
 PEOPLE_FIELDS = frozenset({"customer", "customer_group", "employee"})
 _MONTH_VALUE = re.compile(r"^(?:t|th|thang)\s?\d{1,2}(?:\s\d{2,4})?$")
+# N179: every item counted in a unit ("cộng mọi món tính theo ly": product = mon tinh theo ly; train 1, the verified
+# plans of the template have no product filter)
+_EVERY_ITEM_VALUE = re.compile(r"^(?:cong\s)?(?:moi\s|tat ca\s|cac\s)?(?:mon|mat hang|san pham)\s(?:tinh\s)?theo\s\w+$")
 _DATE_VALUE = re.compile(r"^\d{1,2}(?: \d{1,2})?(?: \d{2,4})?$")  # N145: "4/2026" written as a product
 GENERIC_FIELDS = ("product", "product_group", "category", "product_line", "brand", "customer", "customer_group",
                   "payment_method", "channel", "vehicle_model")
@@ -359,7 +398,7 @@ def _generic_value(value: str, field: str = "") -> bool:
     v = linking.norm(value)
     words = GENERIC_VALUES if field in PEOPLE_FIELDS else GENERIC_VALUES | THING_WORDS
     return (v in words or bool(v.split()) and all(w in words for w in v.split())
-            or bool(_MONTH_VALUE.match(v)) or bool(_DATE_VALUE.match(v)))
+            or bool(_MONTH_VALUE.match(v)) or bool(_DATE_VALUE.match(v)) or bool(_EVERY_ITEM_VALUE.match(v)))
 
 
 def _without_generic(plan: QueryPlan) -> QueryPlan:

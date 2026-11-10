@@ -227,6 +227,25 @@ def inventory(shop: _Shop, conv: dict) -> TableMap | None:
                                                                                     parse="qty")])
 
 
+def price_history(shop: _Shop, conv: dict) -> TableMap | None:
+    """N184. The price list the README's "Giá bán" convention names: "<giá> (theo đơn vị cơ bản) áp dụng từ <ngày> đến
+    trước lần đổi giá sau của cùng mặt hàng" (§5 "hiệu ứng tăng giá … theo bảng giá"; train: 4 shops write it, a POS
+    `lich_su_gia.GiaBanLe` / `NgayApDung` its hand mapping reads, which a mapping moved from an example left out, so
+    "kể từ khi X lên giá 44.000 đồng, 14 ngày đầu…" found no day). Keyed as the lines' products."""
+    price, day = _ref(conv, "gia ban", "(theo don vi co ban) ap dung tu"), _ref(conv, "gia ban", "den truoc lan doi gia")
+    if price is None or day is None or price[0] != day[0]:
+        return None
+    ids = _holders(shop.raw, price[1], price[0], shop.used)
+    if not ids or any(day[1] not in map(str, f.columns) for f in shop.frames(ids)):
+        return None
+    key = product_key(shop, ids, {price[1], day[1]})
+    if key is None:
+        return None
+    return TableMap(target="price_history", sources=ids, columns=[
+        key, ColumnMap(target="effective_date", source=day[1], parse="date"),
+        ColumnMap(target="price", source=price[1], parse="money")])
+
+
 def expenses(shop: _Shop, conv: dict) -> TableMap | None:
     """The expense book: its amount the column the README names, its day its one date column, its category the one
     text column every row fills with few values."""
@@ -654,7 +673,8 @@ def with_named_sides(mapping: Mapping, raw: RawBusiness) -> Mapping:
         shop.used -= set(old.sources)
         have.discard("purchases")
     builds = (("inventory", lambda: inventory(shop, conv)), ("expenses", lambda: expenses(shop, conv)),
-              ("purchases", lambda: purchases(shop, conv)), ("unit_conversions", lambda: conversions(shop)))
+              ("purchases", lambda: purchases(shop, conv)), ("unit_conversions", lambda: conversions(shop)),
+              ("price_history", lambda: price_history(shop, conv)))  # N184
     found: list[TableMap] = []
     for target, build in builds:
         if target not in have:

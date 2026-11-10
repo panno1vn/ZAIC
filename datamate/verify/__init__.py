@@ -165,7 +165,11 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
         return "khách hàng"
     # N160: "ghi sổ" (on credit), not "ghi số lượng" (train: a README "hàng trả ghi số lượng âm" with no debt at all
     # read as a debt record, so "3 khách nợ nhiều nhất" stayed blank instead of unanswerable)
-    if asked & _DEBT_METRICS and not re.search(r"\bno\b|\bghi so\b(?! luong)|\bchiu\b", text) \
+    # N172: nor a debt written only as a term of credit ("Hạn nợ (ngày)": số ngày được nợ; "công nợ theo hạn"), which
+    # records when an order must be paid, not what was paid (train: such a README, "3 khách còn nợ nhiều nhất"
+    # unanswerable; every train shop that answers debts has payment rows or a "còn nợ" column)
+    owed = re.sub(r"\b(?:han|duoc|cong) no\b|\bban no co han\b", " ", text)
+    if asked & _DEBT_METRICS and not re.search(r"\bno\b|\bghi so\b(?! luong)|\bchiu\b", owed) \
             and not db.has("payments"):
         return "công nợ"
     # N161. A sales channel, a payment method, a customer group the shop does not record (§7: train, plans with such

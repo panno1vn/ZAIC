@@ -5,6 +5,7 @@ when the question has one of its trigger words; a plan with an ungrounded filter
 """
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from datetime import date, timedelta
@@ -1180,6 +1181,26 @@ def debt_age_from_question(question: str, plan: QueryPlan) -> QueryPlan:
     return QueryPlan.model_validate(raw)
 
 
+def debt_age_added(question: str, plan: QueryPlan) -> QueryPlan:
+    """N174. "những đơn đặt cách đó hơn 15 ngày mà chưa trả hết còn nợ tổng cộng bn", "các đơn đặt đã hơn 15 ngày mà
+    khách chưa trả hết còn nợ bao nhiêu" read as the whole debt with an order status ("completed") or a payment method
+    ("credit") for "chưa trả hết", no age (train 2, both refused: asks=debt_age). One debt measure, the question stating
+    exactly one age of orders: the debt of the orders older than that (§4 tuổi nợ; the verified plans of the template
+    have that age filter and no other); "chưa trả hết" restates the debt, its status and payment filters go."""
+    t = " ".join(tokens(denoised(question)))
+    ages = set(re.findall(r"\b(?:qua|tren|hon|lau hon)\s+(\d+)\s*ngay\b", t))
+    if plan.intent != "value" or len(plan.measures) != 1 or len(ages) != 1 or not re.search(r"\bdon\b", t):
+        return plan
+    m = plan.measures[0]
+    if m.metric not in ("debt_total", "debt_amount") or any(f.field == "debt_age_days" for f in m.filters):
+        return plan
+    kept = [f.model_dump(mode="json", exclude_none=True) for f in m.filters
+            if f.field not in ("order_status", "payment_method")]
+    age = {"field": "debt_age_days", "op": "gt", "value": float(next(iter(ages)))}
+    measure = {**m.model_dump(mode="json", exclude_none=True), "filters": kept + [age], "unit_split": False}
+    return _rebuilt(plan, measures=[measure])
+
+
 def split_debt_ages(plan: QueryPlan) -> QueryPlan:
     """"Nợ còn lại chia theo tuổi nợ 0–7, 8–15 và trên 15 ngày" (train 5 questions, answered as a list; public 06/11
     6 more), written as one debt measure with a word filter per group, or a measure per group: one debt_total per
@@ -1667,3 +1688,174 @@ def compared_measure_restated(plan: QueryPlan) -> QueryPlan:
     if first.metric != second.metric or key(second.filters) != key(c.filters) or key(first.filters) == key(c.filters):
         return plan
     return _rebuilt(plan, measures=[first.model_dump(mode="json", exclude_none=True)])
+
+
+# the measures counted in units of a product: only these have a whole larger unit and base units left (stock.stock_qty)
+_SPLIT_METRICS = frozenset({"stock_qty", "quantity", "purchase_minus_sales"})
+
+
+def split_only_quantities(plan: QueryPlan) -> QueryPlan:
+    """N171. "tổng số tiền khách còn nợ ở các đơn đã đặt quá 15 ngày" read with unit_split on debt_total (train 1): an
+    amount of money has no whole and odd units, the answer is one number. unit_split goes from a measure not counted in
+    units of a product."""
+    if not any(m.unit_split and m.metric not in _SPLIT_METRICS for m in plan.measures):
+        return plan
+    measures = [m.model_dump(mode="json", exclude_none=True) for m in plan.measures]
+    for m in measures:
+        if m.get("unit_split") and m["metric"] not in _SPLIT_METRICS:
+            m["unit_split"] = False
+    return _rebuilt(plan, measures=measures)
+
+
+def unit_particle_restated(plan: QueryPlan) -> QueryPlan:
+    """N177. "so ly ban dc bua qua la bao nhieu, cong moi mat hang tinh theo ly ta" read as two measures, quantity in
+    "ly" and in "ly ta" (train 1; the template's verified plans have one, quantity in ly): a unit ending in a
+    sentence particle (N103) is the unit without it, and a measure equal to another once so read goes."""
+    def bare(unit):
+        if not isinstance(unit, str):
+            return unit
+        words = fold(unit).split()
+        while len(words) > 1 and words[-1] in _PARTICLES:
+            words.pop()
+        return " ".join(words) if len(words) < len(fold(unit).split()) else unit
+    out, seen = [], []
+    for m in plan.measures:
+        raw = m.model_dump(mode="json", exclude_none=True)
+        raw["unit"] = bare(m.unit)
+        if raw.get("unit") is None:
+            raw.pop("unit", None)
+        key = json.dumps({k: v for k, v in raw.items() if k != "note"}, sort_keys=True, ensure_ascii=False)
+        if key in seen:
+            continue
+        seen.append(key)
+        out.append(raw)
+    changed = len(out) < len(plan.measures) or any(m.unit != o.get("unit") for m, o in zip(plan.measures, out))
+    return _rebuilt(plan, measures=out) if changed else plan
+
+
+def money_not_asked(question: str, plan: QueryPlan) -> QueryPlan:
+    """N178. "quan ban duoc bn ly size l trong thang 4/2025, cong moi mon nhi" read as the quantity in ly and the
+    revenue of size L (train 2, refused as metric=revenue): a value plan with a quantity measure beside revenue ones,
+    the question writing no money word, is the quantity alone (the template's verified plans)."""
+    t = " ".join(tokens(denoised(question)))
+    ms = list(plan.measures)
+    if plan.intent != "value" or re.search(_MONEY, t) or not any(m.metric == "quantity" for m in ms)             or not any(m.metric == "revenue" for m in ms):
+        return plan
+    kept = [m.model_dump(mode="json", exclude_none=True) for m in ms if m.metric != "revenue"]
+    return _rebuilt(plan, measures=kept)
+
+
+def split_not_asked(question: str, plan: QueryPlan) -> QueryPlan:
+    """N180. "trong tháng 4 năm 2026 cửa hàng bán đc mấy ly sinh tố xoài (m)" read with unit_split (train 1): the whole
+    larger units and the base units left are asked as "chẵn" and "lẻ" (§5 tồn theo đơn vị lớn; every train question
+    answered as such a pair writes them). Without either word, unit_split goes."""
+    if not any(m.unit_split for m in plan.measures):
+        return plan
+    if re.search(r"\b(?:chan|le)\b", " ".join(tokens(denoised(question)))):
+        return plan
+    measures = [{**m.model_dump(mode="json", exclude_none=True), "unit_split": False} for m in plan.measures]
+    return _rebuilt(plan, measures=measures)
+
+
+def one_period_back(plan: QueryPlan) -> QueryPlan:
+    """N181. "doanh thu tết năm nay so vs tết năm trước", "tháng 6 năm 2026 … so vs tháng 6 năm 2025" read with
+    compare n = 1, one period back (train 2, the only compare plans with n = 1; every answered one has none): n is the
+    length in days the question states ("17 ngày trước Tết", checked against the rule's window), so a 1 beside a kind
+    that steps whole periods goes."""
+    c = plan.compare
+    if c is None or c.n != 1 or c.kind not in ("previous", "same_period_last_year"):
+        return plan
+    return _rebuilt(plan, compare={**c.model_dump(mode="json", exclude_none=True), "n": None})
+
+
+_MONTH_YEAR = re.compile(r"\b(\d{1,2})\s+(?:nam\s+)?(\d{4})\b")
+
+
+def same_month_last_year(question: str, plan: QueryPlan) -> QueryPlan:
+    """N182. "dthu thang 6 nam 2026 tang truong bnhiu % so vs thang 6 nam 2025" read as compared with the month before
+    (train 1; 25 answered plans of the template compare with same_period_last_year): a month compared with the
+    previous one while the question writes that month of the year before is the same period last year."""
+    c, p = plan.compare, plan.period
+    if plan.intent != "compare" or c is None or c.kind != "previous" or p is None or p.kind != "month" \
+            or p.month is None or p.year is None:
+        return plan
+    named = {(int(m), int(y)) for m, y in _MONTH_YEAR.findall(" ".join(tokens(denoised(question))))}
+    if (p.month, p.year - 1) not in named or (p.month - 1 if p.month > 1 else 12,
+                                              p.year if p.month > 1 else p.year - 1) in named:
+        return plan
+    return _rebuilt(plan, compare={**c.model_dump(mode="json", exclude_none=True), "kind": "same_period_last_year"})
+
+
+_FULL_DATE = re.compile(r"\b(\d{1,2})/(\d{1,2})/(\d{4})\b")
+
+
+def rise_day_written(question: str, plan: QueryPlan) -> QueryPlan:
+    """N183. "pharmaton essential hộp 30 viên lên giá 231.500đ từ ngày 20/05/2025; so 30 ngày kể từ ngày tăng giá…"
+    planned with the price as the anchor and no day (train 1): the shop keeps no price list, so no day was found,
+    while the question writes it. A days_from period anchored by a price, the question writing exactly one full date,
+    starts that day (§5 "hiệu ứng tăng giá": the hand plans of questions that write the day have it)."""
+    p = plan.period
+    if p is None or p.kind != "days_from" or p.date is not None or p.anchor_price is None:
+        return plan
+    days = set(_FULL_DATE.findall(question))
+    if len(days) != 1:
+        return plan
+    d, m, y = (int(x) for x in days.pop())
+    try:
+        day = date(y, m, d)
+    except ValueError:
+        return plan
+    period = {**p.model_dump(mode="json", exclude_none=True), "date": day.isoformat()}
+    period.pop("anchor_price", None)
+    return _rebuilt(plan, period=period)
+
+
+def months_listed_as_run(question: str, plan: QueryPlan) -> QueryPlan:
+    """N185. "dthu 3 tháng liền nhau kết thúc ở tháng 6/2025 là bao nhiêu mỗi tháng" read as the list 2025-04, 2025-05,
+    2025-06 (train 1, refused: the question writes no April; 5 verified plans of the template: months, end, n): a list
+    of n consecutive months whose last one the question writes, beside "n tháng", is the n months ending there."""
+    p = plan.period
+    if p is None or p.kind != "months" or not p.months or len(p.months) < 2:
+        return plan
+    idx = [int(m[:4]) * 12 + int(m[5:7]) - 1 for m in p.months]
+    if idx != list(range(idx[0], idx[0] + len(idx))):
+        return plan
+    t = " ".join(tokens(denoised(question)))
+    y, m = divmod(idx[-1], 12)
+    if not re.search(rf"\b{len(idx)} thang\b", t) or not re.search(rf"\b{m + 1} (?:nam )?{y}\b", t):
+        return plan
+    return _rebuilt(plan, period={"kind": "months", "end": p.months[-1], "n": len(idx)})
+
+
+_DAYS_BEFORE_TET = re.compile(r"\b(\d+)\s+ngay\s+(?:truoc|trc)\s+tet\b")
+
+
+def days_before_tet(question: str, plan: QueryPlan) -> QueryPlan:
+    """N186. "Dịp Tết âm lịch 2026 có doanh thu hơn hay kém 17 ngày trước Tết bao nhiêu %?" read as before_days_from
+    with a day the question does not write (train 1, refused): Tết compared with "N ngày trước Tết" is §2's before_tet,
+    N kept to cross-check the rule's window (temporal.resolve)."""
+    p, c = plan.period, plan.compare
+    if p is None or p.kind != "tet" or c is None or c.kind == "before_tet":
+        return plan
+    ns = set(_DAYS_BEFORE_TET.findall(" ".join(tokens(denoised(question)))))
+    if len(ns) != 1:
+        return plan
+    return _rebuilt(plan, compare={"kind": "before_tet", "n": int(ns.pop()), "output": c.output})
+
+
+_WEEKDAY_SHORT = re.compile(r"\bt\s?[2-7]\b(?!\s*/)|\bth\s?[2-7]\b(?!\s*/)")
+
+
+def weekday_not_written(question: str, plan: QueryPlan) -> QueryPlan:
+    """N189. "tuần nayf dthu đươc bao nhiêu" planned with weekday in [mon] (train 1, refused: weekday=mon): the week
+    read as its first day. A weekday filter the question writes no weekday for ("thứ 2", "chủ nhật", "cuối tuần", "T7"
+    not followed by a year) goes."""
+    if not any(f.field == "weekday" for m in plan.measures for f in m.filters):
+        return plan
+    t = fold(question)
+    if _WEEKDAY_WORDS.search(t) or _WEEKDAY_SHORT.search(t):
+        return plan
+    measures = [{**m.model_dump(mode="json", exclude_none=True),
+                 "filters": [f.model_dump(mode="json", exclude_none=True) for f in m.filters if f.field != "weekday"]}
+                for m in plan.measures]
+    return _rebuilt(plan, measures=measures)

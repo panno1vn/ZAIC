@@ -478,6 +478,7 @@ def enrich(mapping: Mapping, raw: RawBusiness) -> Mapping:
     Then what the README's conventions name for debts and cost (N35, `with_conventions`), and the order's hour from
     the README's "thời điểm đặt đơn" when the mapping read only its day (N73, `with_order_hour`)."""
     from .named_sides import with_named_sides  # N111: side tables the conventions name, columns read from values
+    mapping = catalogue_cost(mapping, raw)  # N175
     mapping = with_side_tables(with_order_hour(drop_amount_as_method(with_conventions(mapping, raw), raw), raw), raw)
     mapping = with_debt_snapshot(factor_not_price(with_named_sides(mapping, raw), raw), raw)
     tables = [t for t in (_Table(ids, phrases_of(raw, ids)) for ids in groups(raw)) if t.phrases]
@@ -732,6 +733,32 @@ def _catalogue_by_name(raw: RawBusiness, used: set[str]) -> TableMap | None:
         ("nhom hang", "product_group", "text"), ("don vi co ban", "base_unit", "text"), ("gia von", "unit_cost", "money"))
         if (c := cat.col(phrase)) is not None]
     return TableMap(target="products", sources=cat.ids, columns=cols)
+
+
+_COST_NAMES = frozenset({"gia von", "gia von hang", "giavon", "giavonhang", "cost", "unit cost", "cost price"})
+
+
+def catalogue_cost(mapping: Mapping, raw: RawBusiness) -> Mapping:
+    """N175. The catalogue's cost of one base unit (§5 "giá trị hàng tồn kho": "giá vốn một đơn vị cơ bản ghi trong
+    danh mục hàng") left out of a mapping moved from an example whose catalogue has none (train: two pharmacies, the
+    catalogue's "Giá vốn" described as "giá vốn" and a POS's san_pham.GiaVonHang; "hàng còn trong kho đáng bao nhiêu
+    tiền, tính theo giá vốn" abstained, the hand mappings read them). The one column of the catalogue's own files
+    whose README meaning, else whose name, is "giá vốn"; none or two, nothing added."""
+    products = next((tm for tm in mapping.tables if tm.target == "products"), None)
+    if products is None or any(c.target == "unit_cost" for c in products.columns):
+        return mapping
+    used = {s for c in products.columns for s in [c.source, *c.sources] if s}
+    phrases = phrases_of(raw, list(products.sources))
+    cols = {str(c) for f in _frames_of(raw, products) for c in f.columns} - used
+
+    def named(c: str) -> str:
+        return T._fold(re.sub(r"(?<=[a-z])(?=[A-Z])", " ", c).replace("_", " "))
+    hits = sorted(c for c in cols if phrases.get(c) == "gia von" or (c not in phrases and named(c) in _COST_NAMES))
+    if len(hits) != 1:
+        return mapping
+    cat = products.model_copy(update={"columns": list(products.columns) + [_cm("unit_cost", hits[0], "money")]})
+    return mapping.model_copy(update={"tables": [cat if tm is products else tm for tm in mapping.tables],
+                                      "notes": list(mapping.notes) + ["bổ sung giá vốn danh mục: " + hits[0]]})
 
 
 def _failed_checks(mapping: Mapping, raw: RawBusiness) -> set[str] | None:
