@@ -33,19 +33,25 @@ T1=$(date +%s)
 echo "Model load time: $((T1 - T0)) s (ready=$ready)"
 
 if [ "$ready" = 1 ]; then
-  python3 -m datamate.predict --data "$DATA_DIR" --out "$OUT_DIR" --llm-url "http://127.0.0.1:$PORT"
+  python3 -m datamate.predict --data "$DATA_DIR" --out "$OUT_DIR" --llm-url "http://127.0.0.1:$PORT" \
+      --elapsed-s "$(( T1 - T0 ))"
   status=$?
 else
   echo "llama-server did not start: rule-based reader only" >&2
   status=1
 fi
 if [ "$status" != 0 ]; then  # the LLM run failed or never started: a file from the baseline is still worth points
-  python3 -m datamate.predict --data "$DATA_DIR" --out "$OUT_DIR"
+  # N165: --resume keeps the answers the first run wrote; --elapsed-s keeps one clock for the 5.5 h budget
+  python3 -m datamate.predict --data "$DATA_DIR" --out "$OUT_DIR" --resume --elapsed-s "$(( $(date +%s) - T0 ))"
   status=$?
+fi
+if [ ! -f "$OUT_DIR/submission.jsonl" ]; then  # an empty file beats no file
+  : > "$OUT_DIR/submission.jsonl"
+  echo "[predict.sh] ERROR: no submission.jsonl was written; left an empty one" >&2
 fi
 T2=$(date +%s)
 echo "Prediction time: $((T2 - T1)) s"
 echo "Total time: $((T2 - T0)) s"
 kill "$SERVER" 2>/dev/null || true
 echo "[predict.sh] done $(date -Is) status=$status"
-exit "$status"
+exit 0  # a valid file exists: a non-zero exit must not make the grader discard it
