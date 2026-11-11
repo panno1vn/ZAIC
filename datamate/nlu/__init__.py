@@ -17,7 +17,7 @@ from datamate.llm import LLMClient
 from datamate.verify import LINKED_FIELDS, SUBJECTIVE_REASON, filter_keys
 
 from . import baseline, jobs, linking, prompt, repair
-from .grounding import (average_not_asked, compared_measure_restated, split_only_quantities, debt_age_added, unit_particle_restated, money_not_asked, split_not_asked, one_period_back, same_month_last_year, rise_day_written, months_listed_as_run, days_before_tet, weekday_not_written, debt_added_named, month_note_dropped, nearest_expiry_of_one, quantity_not_money, quarter_written, orders_counted, warranty_not_asked, debtors_ranked,
+from .grounding import (average_not_asked, compared_measure_restated, split_only_quantities, debt_age_added, unit_particle_restated, money_not_asked, split_not_asked, split_asked, one_period_back, same_month_last_year, rise_day_written, months_listed_as_run, days_before_tet, weekday_not_written, debt_added_named, month_note_dropped, nearest_expiry_of_one, quantity_not_money, quarter_written, orders_counted, warranty_not_asked, debtors_ranked,
                         gross_profit_named, anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
                         due_per_order, month_written_as_t, phones_as_whole, trade_in_share, values_together,
                         warranty_over_sold, order_amount_named, particle_not_unit, today_not_this_month,
@@ -186,6 +186,7 @@ def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> 
     plan = nearest_expiry_of_one(debt_added_named(question, month_note_dropped(plan)))  # N166-N168
     plan = split_only_quantities(compared_measure_restated(plan))  # N169, N171
     plan = split_not_asked(question, money_not_asked(question, unit_particle_restated(plan)))  # N177, N178, N180
+    plan = split_asked(question, plan)  # N191
     plan = one_period_back(same_month_last_year(question, plan))  # N181, N182
     plan = days_before_tet(question, months_listed_as_run(question, plan))  # N185, N186
     plan = weekday_not_written(question, plan)  # N189

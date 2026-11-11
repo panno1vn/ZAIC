@@ -1757,6 +1757,28 @@ def split_not_asked(question: str, plan: QueryPlan) -> QueryPlan:
     return _rebuilt(plan, measures=measures)
 
 
+_SPLIT_ASKED = re.compile(r"\b(?:may|bao nhieu|bnhiu|bn|duoc|dc)\s+((?:\w+\s+){0,2}?\w+)\s+chan\b.*\ble\b")
+
+
+def split_asked(question: str, plan: QueryPlan) -> QueryPlan:
+    """N191. "còn mấy hộp chẵn, mấy viên lẻ" read as the stock in viên, one number (prod_train 11/11, 2 wrong: 82
+    for [2, 22], 70 for [8, 6]; the template's verified plans have unit = the unit written before "chẵn" and
+    unit_split). The inverse of N180: a single stock / quantity measure without unit_split, the question asking for
+    whole units ("<đơn vị> chẵn") and the rest ("lẻ"), takes that unit and unit_split."""
+    if len(plan.measures) != 1 or plan.measures[0].unit_split or plan.measures[0].metric not in _SPLIT_METRICS:
+        return plan
+    m = _SPLIT_ASKED.search(" ".join(tokens(denoised(question))))
+    if not m:
+        return plan
+    words = m.group(1).split()
+    while words and words[0] in ("may", "bao", "nhieu", "bnhiu", "bn", "duoc", "dc", "con"):
+        words.pop(0)
+    if not words:
+        return plan
+    measure = {**plan.measures[0].model_dump(mode="json", exclude_none=True), "unit": " ".join(words), "unit_split": True}
+    return _rebuilt(plan, measures=[measure])
+
+
 def one_period_back(plan: QueryPlan) -> QueryPlan:
     """N181. "doanh thu tết năm nay so vs tết năm trước", "tháng 6 năm 2026 … so vs tháng 6 năm 2025" read with
     compare n = 1, one period back (train 2, the only compare plans with n = 1; every answered one has none): n is the
