@@ -365,35 +365,3 @@ def test_a_workbook_of_several_lists_offers_each_list_to_the_llm():
     assert ["BanHang_TongHop_2025.xlsx::BanHang", "BanHang_TongHop_2026.xlsx::BanHang"] in groups
     assert ["BanHang_TongHop_2025.xlsx::BanHang_HangHoa"] in groups
     assert transfer._new_groups(shop) == {}  # by file name alone: still no guess
-
-
-# ---- N176: a README without "## Quy ước" and a mapping an LLM chose keep the core tables only
-def test_thin_readme_llm_route_keeps_core_only(monkeypatch):
-    from datamate.contracts import ColumnMap, Mapping, TableMap
-    from datamate.mapping import transfer
-
-    def cols(*names):
-        return [ColumnMap(target=n, source=n.upper()) for n in names]
-    full = Mapping(tables=[
-        TableMap(target="orders", sources=["a.csv"], columns=cols("order_id", "order_time", "status", "total_due",
-                                                                  "debt_left", "customer_key")),
-        TableMap(target="lines", sources=["a.csv"], columns=cols("order_id", "product_key", "qty", "line_amount",
-                                                                 "unit_cost")),
-        TableMap(target="payments", sources=["a.csv"], columns=cols("order_id")),
-        TableMap(target="lot_sales", sources=["a.csv"], columns=cols("order_id"))],
-        notes=["ghép bảng theo vai trò, cột theo nghĩa với mapping mẫu biz_123 (LLM chọn bảng và cột)"])
-    by_names = full.model_copy(update={"notes": ["chuyển từ mapping mẫu biz_101 (khớp theo tên cột)"]})
-    assert transfer.is_llm_route(full.notes[0]) and not transfer.is_llm_route(by_names.notes[0])
-    thin = transfer.thin_core(full)
-    assert [t.target for t in thin.tables] == ["orders", "lines"]
-    assert [c.target for c in thin.tables[0].columns] == ["order_id", "order_time", "status", "customer_key"]
-    assert "unit_cost" not in [c.target for c in thin.tables[1].columns] and thin.notes[-1] == transfer.THIN_NOTE
-
-    from datamate.contracts import RawBusiness
-    ok = lambda m, raw, tried: m  # noqa: E731
-    for readme, result, want_thin in (("# Cửa hàng", full, True), ("# X\n\n## Quy ước\n- **Nợ**: …", full, False),
-                                      ("# Cửa hàng", by_names, False)):
-        monkeypatch.setattr(transfer, "_map_by_transfer", lambda *a, r=result, **k: (r, []))
-        monkeypatch.setattr(transfer, "_passes", ok)
-        got, _ = transfer.map_by_transfer(RawBusiness(root=None, readme=readme, tables=[]))
-        assert (got.notes[-1] == transfer.THIN_NOTE) == want_thin

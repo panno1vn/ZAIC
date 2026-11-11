@@ -18,7 +18,7 @@ README = "# Dữ liệu\n\n## Cột trong `ban.csv`\n- **Mã đơn**: mã đơn\
 
 
 def db(readme: str = README, **tables) -> CanonicalDB:
-    return CanonicalDB(tables=tables, readme=readme, conventions=())
+    return CanonicalDB(tables=tables, readme=readme)
 
 
 def plan(**kw) -> QueryPlan:
@@ -88,7 +88,7 @@ def test_credit_orders_are_counted_by_their_due_day():
         "order_time": pd.to_datetime(["2026-01-02", "2026-01-03", "2026-01-04", "2026-01-10", "2026-01-03"]),
         "status": ["completed", "completed", "cancelled", "completed", "completed"],
         "due_date": [date(2026, 2, 1), date(2026, 2, 20), date(2026, 2, 5), date(2026, 2, 9), None]})
-    shop = CanonicalDB(conventions=(), tables={"orders": orders}, date_ranges={"orders": (date(2025, 1, 1), date(2026, 3, 1))})
+    shop = CanonicalDB(tables={"orders": orders}, date_ranges={"orders": (date(2025, 1, 1), date(2026, 3, 1))})
     for (q, _, _), want in zip(DUE, (2, 2, 0, 2)):  # D4 is placed after today, D3 cancelled, D5 not on credit
         r = temporal.resolve(due_date_count_plan(q, date(2026, 1, 5)), date(2026, 1, 5), CALENDAR, shop)
         assert metrics.execute(r, shop).value == want, q

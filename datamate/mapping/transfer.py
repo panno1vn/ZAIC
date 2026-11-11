@@ -474,51 +474,8 @@ def unfilled_extras(db) -> list[str]:
     return sorted(out)
 
 
-THIN_NOTE = "README không có mục Quy ước: chỉ giữ bảng đơn, dòng hàng, danh mục (N176)"
-THIN_ORDER_COLUMNS = frozenset({"order_id", "order_time", "has_time", "status", "customer_key", "customer_name",
-                                "goods_amount", "employee", "channel", "payment_method"})
-THIN_LINE_DROP = frozenset({"unit_cost"})
-
-
-def is_llm_route(note: str) -> bool:
-    """True for a mapping the LLM paired or picked the columns of ('ghép theo nghĩa…', 'ghép bảng theo vai trò…')."""
-    return note.startswith(("ghép theo nghĩa", "ghép bảng theo vai trò"))
-
-
-def thin_core(mapping: Mapping) -> Mapping:
-    """N176. A README with no '## Quy ước' section gives nothing to check an LLM's picks against: the sales file mapped
-    four times as employees, lots, payments and returns, quantity and base quantity swapped (a one-line README probe,
-    5 answers to another value), the debt columns picked by the model alone (20). Only what the data itself confirms is
-    kept: orders (their identity, time, status, customer, amount, seller, channel, payment), lines and products; the
-    side tables and the order columns only a README or a pick defines go, so those questions abstain."""
-    tables = []
-    for tm in mapping.tables:
-        if tm.target not in ("orders", "lines", "products"):
-            continue
-        if tm.target == "orders":
-            tm = tm.model_copy(update={"columns": [c for c in tm.columns if c.target in THIN_ORDER_COLUMNS]})
-        elif tm.target == "lines":
-            tm = tm.model_copy(update={"columns": [c for c in tm.columns if c.target not in THIN_LINE_DROP]})
-        tables.append(tm)
-    return mapping.model_copy(update={"tables": tables, "notes": list(mapping.notes) + [THIN_NOTE]})
-
-
 def map_by_transfer(raw: RawBusiness, pool: list[Example] | None = None, llm: LLMClient | None = None,
                     by_meaning: int = 2) -> tuple[Mapping | None, list[str]]:
-    """`_map_by_transfer`, then (N176) the core only when the README has no '## Quy ước' section and an LLM chose the
-    mapping; kept as it was when the reduced mapping fails a check."""
-    mapping, tried = _map_by_transfer(raw, pool, llm, by_meaning)
-    if mapping is None or not mapping.notes or not is_llm_route(mapping.notes[0]):
-        return mapping, tried
-    from .build import readme_conventions
-    if readme_conventions(raw.readme or "") is not None:
-        return mapping, tried
-    done = _passes(thin_core(mapping), raw, [])
-    return (mapping if done is None else done), tried
-
-
-def _map_by_transfer(raw: RawBusiness, pool: list[Example] | None = None, llm: LLMClient | None = None,
-                     by_meaning: int = 2) -> tuple[Mapping | None, list[str]]:
     """The first candidate whose canonical tables pass every check, and what each candidate tried did: examples
     matched by column names first; then, with an LLM, the `by_meaning` examples whose files the shop shares most,
     their columns matched by meaning."""

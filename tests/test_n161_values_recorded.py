@@ -20,7 +20,7 @@ def _db(groups):
     raw = RawBusiness(root=None, readme=README, tables=[RawTable(table_id="t", file="ban_hang.csv", sheet=None,
                                                                  frame=frame)])
     return CanonicalDB(tables={"lines": pd.DataFrame({"product_key": ["a"], "line_amount": [1.0]})}, readme=README,
-                       values=raw_values(raw), conventions=())
+                       values=raw_values(raw))
 
 
 def test_value_in_an_unmapped_column_is_recorded():
