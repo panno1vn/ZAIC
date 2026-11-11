@@ -239,6 +239,8 @@ def answer_question(q: dict, ctx: BusinessContext, calendar: Path, rule_status: 
         if result is not None:  # a term only this rulebook defines, which the function does not implement
             unknown = rules.unverified_terms(q["question"], rulebook, result.rule_ids,
                                              tuple(resolved.linked.values()) if resolved is not None else ())
+            # N190: a revenue answer in a shop of a business type whose §6 rows no function implements
+            unknown += rules.unknown_industry(rulebook, ctx.db.readme, resolved.plan if resolved is not None else None)
             signals.terms_known = not unknown
             log["unverified_terms"] = unknown
         if plan is not None and reader is not None:

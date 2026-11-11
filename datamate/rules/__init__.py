@@ -398,6 +398,50 @@ def unverified_terms(question: str, rulebook: str, cited: list[str] | tuple[str,
             and not any(" " + " ".join(words) + " " in v for v in values)]
 
 
+# N190: words of a §6 heading that name no business type ("Cửa hàng thú cưng" -> "thu cung")
+_GENERIC_HEAD = frozenset("cua hang tiem shop quan va nganh dich vu ban le".split())
+REVENUE_METRICS = ("revenue", "avg_order_value")
+
+
+@lru_cache(maxsize=4)
+def unknown_sections(rulebook: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """N190. §6 sub-sections (one per business type) the functions were never checked against: no reference row
+    under the heading, and no known heading's words inside it ("Cửa hàng điện thoại di động" is the phone shop),
+    whose rows speak of revenue. (slug, words naming the type). Public's rulebook added three business types to
+    train's (Mẹ và bé, Sửa xe, Điện thoại), each with its own revenue rules; a private one may add others. Synthetic
+    shops of two new types (tools/synth_shops.py, 11/11): their §6 rows change revenue (sessions paid by a prepaid
+    card are no revenue; the grooming book is), and 16 of 25 revenue answers were wrong."""
+    known = {rid.split(".")[1] for rid in load_reference() if rid.startswith("§6.")}
+    known_words = [set(_words(k.replace("_", " "))) - _GENERIC_HEAD for k in known]
+    out: list[list] = []
+    section = ""
+    for line in rulebook.splitlines():
+        s = line.strip()
+        if m := re.match(r"^##\s+(\d+)\.", s):
+            section = m.group(1)
+        elif section == "6" and (m := re.match(r"^###\s+(.+)$", s)):
+            out.append([_slug(m.group(1)), tuple(w for w in _words(m.group(1)) if w not in _GENERIC_HEAD), False])
+        elif section == "6" and out and " doanh thu " in " " + " ".join(_words(s)) + " ":
+            out[-1][2] = True
+    return tuple((slug, words) for slug, words, revenue in out
+                 if revenue and words and slug not in known and not any(k and k <= set(words) for k in known_words))
+
+
+def unknown_industry(rulebook: str, readme: str | None, plan) -> list[str]:
+    """N190. The §6 sections of unknown business types this shop belongs to (every word of the heading in its
+    README), when the plan measures revenue: the answer would follow rules no function implements, so it is left
+    blank (§7 precision first) rather than computed by the general §1 revenue."""
+    sections = unknown_sections(rulebook)
+    if not sections or plan is None:
+        return []
+    text = " " + " ".join(_words(readme or "")) + " "
+    hit = [f"§6.{slug}" for slug, words in sections if all(f" {w} " in text for w in words)]
+    if not hit:
+        return []
+    values = json.dumps(plan.model_dump(mode="json", exclude_none=True))
+    return hit if any(f'"{m}"' in values for m in REVENUE_METRICS) else []
+
+
 def diff_rulebooks(old: str, new: str) -> dict[str, list]:
     a, b = parse_rulebook(old), parse_rulebook(new)
     changed = [(rid, round(similarity(a[rid].text, b[rid].text), 3)) for rid in a.keys() & b.keys()
