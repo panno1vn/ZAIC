@@ -601,9 +601,13 @@ def _few_values(frames: list[pd.DataFrame], column: str, most: int) -> bool:
         and sum(parse_number(v) is not None for v in filled) == 0
 
 
-def _header_column(tm: TableMap, frames: list[pd.DataFrame], pattern: re.Pattern, most: int) -> str | None:
-    used = {c.source for c in tm.columns} | {s for c in tm.columns for s in c.sources}
-    hits = [c for c in _columns(frames) if c not in used and pattern.search(_compact(c)) and _few_values(frames, c, most)]
+def _header_column(tm: TableMap, frames: list[pd.DataFrame], pattern: re.Pattern, most: int,
+                   also_used=frozenset(), exact: re.Pattern | None = None, deny: re.Pattern | None = None) -> str | None:
+    used = {c.source for c in tm.columns} | {s for c in tm.columns for s in c.sources} | set(also_used)
+    hits = [c for c in _columns(frames)
+            if c not in used and (deny is None or not deny.search(_compact(c)))
+            and (pattern.search(_compact(c)) or (exact is not None and exact.match(_compact(c))))
+            and _few_values(frames, c, most)]
     return hits[0] if len(hits) == 1 else None
 
 
@@ -653,12 +657,16 @@ def order_people(shop: _Shop) -> tuple[dict[str, list[ColumnMap]], list[TableMap
     return add, tables
 
 
-_PRODUCT_GROUP = re.compile(r"nhomhang|nhomsp|nhomsanpham|nhommathang|loaihang|loaisp|loaisanpham|danhmuc|nganhhang"
-                            r"|phanloai")
+# N170: the header says the group is of goods; a bare "Danh mục" / "Phân loại" only in the catalogue; never a header that
+# names customers, channels, payments, staff or a variant ("Tên phân loại hàng": a marketplace export's "Đỏ, M")
+_PRODUCT_GROUP = re.compile(r"nhomhang|nhomsp|nhomsanpham|nhommathang|loaihang|loaisp|loaisanpham|loaimathang|nganhhang"
+                            r"|danhmuchang|danhmucsp|danhmucsanpham|phanloaihang|phanloaisp|phanloaisanpham")
+_GROUP_WORD_ONLY = re.compile(r"^(?:danhmuc|phanloai|nhom|loai)$")
+_NOT_GROUP = re.compile(r"khach|kenh|tenphanloai|bienthe|thanhtoan|nhanvien")
 GROUP_MAX = 60  # distinct product groups of one shop
 
 
-def product_groups(shop: _Shop) -> dict[str, list[ColumnMap]]:
+def product_groups(shop: _Shop, taken=frozenset()) -> dict[str, list[ColumnMap]]:
     """N162: {target table: [product_group]} for a shop whose mapping has no product group, from a column of the
     sales lines or of the catalogue whose header says group ("Nhóm hàng(3 Cấp)", "Nhom hang", "Loại hàng", "Danh
     mục"…, accents or not) and whose values are a few names. Layout test 09/11: a train POS shop with its headers
@@ -671,7 +679,8 @@ def product_groups(shop: _Shop) -> dict[str, list[ColumnMap]]:
         tm = shop.table(target)
         if tm is None or "product_key" not in {c.target for c in tm.columns}:
             continue
-        group = _header_column(tm, shop.frames(tm.sources), _PRODUCT_GROUP, GROUP_MAX)
+        group = _header_column(tm, shop.frames(tm.sources), _PRODUCT_GROUP, GROUP_MAX, taken,
+                               _GROUP_WORD_ONLY if target == "products" else None, _NOT_GROUP)
         if group is not None:
             return {target: [ColumnMap(target="product_group", source=group)]}
     return {}
@@ -728,7 +737,8 @@ def with_named_sides(mapping: Mapping, raw: RawBusiness) -> Mapping:
         extra[target] = list(extra.get(target, [])) + cols
     found += staff
     try:  # N162
-        for target, cols in product_groups(shop).items():
+        taken = {c.source for cols in people.values() for c in cols if c.source}
+        for target, cols in product_groups(shop, taken).items():
             extra[target] = list(extra.get(target, [])) + cols
     except Exception:
         pass
