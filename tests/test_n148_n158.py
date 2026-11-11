@@ -76,9 +76,9 @@ def test_payments_written_out_go_and_the_debt_age_comes_from_the_question():
 
 def test_a_customer_place_written_with_a_capital_is_an_address():
     q = "Tháng 8/2025 khách ở Trường Chinh mua nhiều tiềng hơn hay khách ở Lạc Long Quân?"
-    assert customer_trait_not_recorded(q, "# Dữ liệu\n")
+    assert customer_trait_not_recorded(q, "# Dữ liệu\n## Quy ước\n")  # N176: a README with the section
     assert not customer_trait_not_recorded(q, "- **Địa chỉ**: địa chỉ khách\n")
-    assert not customer_trait_not_recorded("khách ở lại mua bao nhiêu tiền tháng 8/2025", "# Dữ liệu\n")
+    assert not customer_trait_not_recorded("khách ở lại mua bao nhiêu tiền tháng 8/2025", "# Dữ liệu\n## Quy ước\n")
 
 
 def test_money_between_the_words_is_no_rulebook_term():
