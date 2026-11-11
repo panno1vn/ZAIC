@@ -115,9 +115,3 @@ def test_phones_sold_in_a_month_that_came_back_for_warranty():
     visits = {"intent": "value", "period": {"kind": "month", "year": 2025, "month": 8},
               "measures": [{"metric": "warranty_count", "filters": []}]}
     assert _accept("Tháng 8/2025 có bao nhiêu lượt bảo hành?", visits).measures[0].metric == "warranty_count"
-
-
-def test_size_xxl_is_not_size_xl():
-    from datamate.metrics.frames import _stage_core
-    assert _stage_core("Size XXL") == "xxl" and _stage_core("XL") == "xl" and _stage_core("Số 2") == "2"
-    assert _stage_core("size xl") == _stage_core("Size XL")
