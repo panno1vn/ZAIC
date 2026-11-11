@@ -725,8 +725,8 @@ def _keyed_by_name(tm: TableMap, raw: RawBusiness) -> TableMap | None:
 
 def _catalogue_by_name(raw: RawBusiness, used: set[str]) -> TableMap | None:
     """N107. The README's catalogue as the products, keyed by the product's name, for a mapping without one (two
-    public restaurants: "danh mục hàng kèm tồn kho" with "ĐVT: đơn vị cơ bản", "Giá vốn: giá vốn", "Tồn cuối"; "hôm
-    qua bán được mấy lon" and "hàng còn dư trong kho tính theo giá vốn" abstained). Only a list of products (a name, no
+    public restaurants: a goods section with each item's unit, cost and closing stock; a count in a unit and a stock-at-cost
+    question abstained). Only a list of products (a name, no
     order code) with their cost or stock; the caller keeps it only when nearly every name is a product the lines
     sell."""
     tables = [t for t in (_Table(ids, phrases_of(raw, ids)) for ids in groups(raw)) if not set(t.ids) & used]

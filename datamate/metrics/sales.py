@@ -590,7 +590,7 @@ def share(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
     if (p.share_of is None and m.metric == "quantity"
             and any(f.field in ("brand", "product_line") for f in m.filters)
             and _has_accessories(_lines(db, plan.period, [], {}, items_only=True))):
-        # N124: "máy Samsung chiếm bao nhiêu % tổng số máy bán ra" — a phone brand or line is a share of the phones
+        # N124: one brand's phones as a percent of all phones sold — a phone brand or line is a share of the phones
         # (§6 "dòng máy, hãng" are phones'; "số máy bán" = phones_sold), not of every item with the accessories
         total = phones_sold(db, plan.period)
     else:
@@ -610,8 +610,8 @@ def _series_values(plan: ResolvedPlan, db: CanonicalDB) -> list | None:
 
 
 def trend(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
-    """True when each month is above the one before. Every train trend question asks about a rise ("tăng liên tục",
-    "tháng sau luôn cao hơn tháng trước"); the contract has no way to ask about a fall (docs/HAN_CHE N11)."""
+    """True when each month is above the one before. Every train trend question asks about a rise ("tăng liên tục" and
+    the like); the contract has no way to ask about a fall (docs/HAN_CHE N11)."""
     values = _series_values(plan, db)
     if values is None or len(values) < 2:
         return None
