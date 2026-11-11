@@ -312,7 +312,6 @@ def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
     raw_frames = prepare_raw(raw, mapping)
     for tm in mapping.tables:
         db.tables[tm.target] = _build_table(tm, mapping, db.warnings, raw_frames, db.unparsed)
-    chained_factors(db, mapping, raw_frames)
     sane_base_units(db)
     split_toppings(db)
     unify_keys(db)
@@ -335,57 +334,6 @@ def build_canonical(raw: RawBusiness, mapping: Mapping) -> CanonicalDB:
             if len(values):
                 db.date_ranges[table] = (values.min().date(), values.max().date())
     return db
-
-
-# N114. A conversion factor written with a unit name counts in that unit (a public pharmacy README: "Tỉ lệ quy đổi: 1
-# đơn vị lớn bằng bấy nhiêu đơn vị ngay dưới nó; số kèm tên đơn vị là tính theo đơn vị đó, chỉ có số là tính theo đơn
-# vị cơ bản"): "Panadol Extra hộp 15 vỉ x 12 viên" has vỉ = 12 and hộp = "15 vỉ", i.e. 180 viên, not 15. Parsed as a
-# number the box was 15 tablets, so every box sold counted 12× too few (graded in aggregate: 3 of that shop's 5
-# quantity answers wrong). Resolved only when the named unit is another conversion of the same product.
-_FACTOR_IN_UNIT = re.compile(r"^\s*(\d+(?:[.,]\d+)?)\s*([^\d\s].*?)\s*$")
-
-
-def chained_factors(db: CanonicalDB, mapping: Mapping, raw_frames: dict[str, pd.DataFrame]) -> None:
-    conv = db.tables.get("unit_conversions")
-    tm = next((t for t in mapping.tables if t.target == "unit_conversions"), None)
-    if conv is None or tm is None or not len(conv) or not {"product_key", "unit", "factor"} <= set(conv.columns):
-        return
-    cols = {c.target: c for c in tm.columns}
-    if any(t not in cols or not cols[t].source or cols[t].transform for t in ("product_key", "unit", "factor")):
-        return  # names or units rewritten on the way: the raw rows cannot be matched to the canonical ones
-    written: dict[tuple[str, str], tuple[float, str]] = {}  # (product, unit) -> (number, unit it is counted in)
-    for sid in source_ids(tm, list(raw_frames)):
-        frame = raw_frames[sid]
-        if not {cols["product_key"].source, cols["unit"].source, cols["factor"].source} <= set(frame.columns):
-            continue
-        for p, u, f in zip(frame[cols["product_key"].source], frame[cols["unit"].source], frame[cols["factor"].source]):
-            m = _FACTOR_IN_UNIT.match(str(f)) if isinstance(f, str) else None
-            if m and not _blank(p) and not _blank(u):
-                written[(str(p).strip(), _fold(str(u)))] = (float(m.group(1).replace(",", ".")), _fold(m.group(2)))
-    if not written:
-        return
-    plain = {(str(p).strip(), _fold(str(u))): f for p, u, f in zip(conv["product_key"], conv["unit"], conv["factor"])}
-
-    def resolve(key, seen=()):
-        if key not in written:
-            return plain.get(key)
-        n, unit = written[key]
-        inner = (key[0], unit)
-        if inner in seen or inner == key:
-            return None
-        sub = resolve(inner, seen + (key,))
-        return None if sub is None or pd.isna(sub) else n * float(sub)
-    fixed = 0
-    factors = []
-    for p, u, f in zip(conv["product_key"], conv["unit"], conv["factor"]):
-        key = (str(p).strip(), _fold(str(u)))
-        new = resolve(key) if key in written else f
-        if key in written and new is not None and new != f:
-            fixed += 1
-        factors.append(new if new is not None else (None if key in written else f))
-    if fixed:
-        db.tables["unit_conversions"] = conv.assign(factor=factors)
-        db.warnings.append(f"N114: {fixed} hệ số quy đổi ghi kèm tên đơn vị, quy về đơn vị cơ bản")
 
 
 # N108. §6 Cà phê (public rulebook): "Topping ghi chung ô với món: món và topping là hai mặt hàng bán: số lượng, tiền
