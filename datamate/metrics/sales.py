@@ -295,15 +295,6 @@ def _phone_visits(db, period, filters, linked) -> pd.DataFrame | None:
     return v
 
 
-def _accessory(ln: pd.DataFrame) -> pd.Series:
-    """Lines whose catalogue kind is "phụ kiện" (§6 Cửa hàng điện thoại; README: "máy có IMEI, phụ kiện không")."""
-    return ln["category"].map(lambda c: isinstance(c, str) and linking.norm(c) == "phu kien")
-
-
-def _has_accessories(ln: pd.DataFrame | None) -> bool:
-    return ln is not None and "category" in ln.columns and bool(_accessory(ln).any())
-
-
 def phones_sold(db, period) -> int | None:
     """Phones sold in the period, cancelled and returned orders left out (§6 "số máy bán trong quý"): the quantity of
     the lines that are no accessory (the shop's kind of goods); None when a line's kind is unknown."""
@@ -586,15 +577,7 @@ def share(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
         return None
     m = p.measures[0]
     whole = p.share_of or Measure(metric=m.metric)
-    part = figure(db, m, plan.period, plan)
-    if (p.share_of is None and m.metric == "quantity"
-            and any(f.field in ("brand", "product_line") for f in m.filters)
-            and _has_accessories(_lines(db, plan.period, [], {}, items_only=True))):
-        # N124: "máy Samsung chiếm bao nhiêu % tổng số máy bán ra" — a phone brand or line is a share of the phones
-        # (§6 "dòng máy, hãng" are phones'; "số máy bán" = phones_sold), not of every item with the accessories
-        total = phones_sold(db, plan.period)
-    else:
-        total = figure(db, whole, plan.period, plan)
+    part, total = figure(db, m, plan.period, plan), figure(db, whole, plan.period, plan)
     if part is None or not total:
         return None
     rules = measure_rules(m) + measure_rules(whole)
@@ -684,10 +667,6 @@ def rank(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
         if ln is None or ln.empty:
             return None
         group = {"product": "product_key", "product_line": "product_line", "brand": "brand"}[r.entity]
-        if r.entity in ("product_line", "brand") and _has_accessories(ln):
-            ln = ln[~_accessory(ln)]  # N124: lines and brands are phones' (§6), not a case's or a screen protector's
-            if ln.empty:
-                return None
         if group not in ln.columns or ln[group].isna().any():
             return None  # §6 điện thoại "dòng máy, hãng": every line's, or no ranking
         if r.by == "gross_profit":  # §3 "hàng lời nhất": by total gross profit (§5)
