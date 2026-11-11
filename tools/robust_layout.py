@@ -9,8 +9,8 @@ answer moves is a fragility a private shop may hit.
 Each shop is mapped as production maps it (transfer, README enrichment; a train shop with its own hand mapping left
 out of the examples), from the rewritten files; each question is answered with the plan already read (train: the
 plan bank; public: the plans of a live run's logs), so only the layout differs. `identity` rewrites the files with no
-change: it checks the rewriting itself. Answers are compared with the original layout's, never with public gold;
-public variants are graded in aggregate only (tools/grade_public.py). Development only.
+change: it checks the rewriting itself. Answers are compared with the original layout's only; public variants are
+never graded (no public answer key is kept, contest Rule 6). Development only.
 """
 from __future__ import annotations
 
@@ -21,7 +21,6 @@ import json
 import re
 import shutil
 import sqlite3
-import subprocess
 import sys
 import unicodedata
 from collections import Counter
@@ -370,10 +369,7 @@ def main(argv: list[str] | None = None) -> int:
             sub = out / f"{args.split}_{variant}_submission.jsonl"
             sub.write_text("".join(json.dumps(lines_v[q["id"]], ensure_ascii=False) + "\n" for q in questions
                                    if q["id"] in lines_v), encoding="utf-8")
-            if not args.shops:
-                g = subprocess.run([sys.executable, str(ROOT / "tools" / "grade_public.py"), str(sub)],
-                                   capture_output=True, text=True, encoding="utf-8")
-                print("   " + "\n   ".join(g.stdout.splitlines()[1:2]))
+            print(f"   {sub} (so với lượt gốc bằng tools/compare_runs.py; không chấm bằng đáp án public)")
         summary[variant] = moved
     print("\ntóm tắt:", summary)
     return 0
