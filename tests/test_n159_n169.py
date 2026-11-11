@@ -14,7 +14,7 @@ ORDERS = pd.DataFrame({"order_key": ["d1"], "customer_key": ["k1"]})
 
 
 def db(readme: str = README, **tables) -> CanonicalDB:
-    return CanonicalDB(tables={"orders": ORDERS, **tables}, readme=readme)
+    return CanonicalDB(tables={"orders": ORDERS, **tables}, readme=readme, conventions=())
 
 
 def plan(**kw) -> QueryPlan:

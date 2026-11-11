@@ -184,6 +184,8 @@ def _has(db: CanonicalDB, tables: tuple[str, ...], column: str) -> bool:
 def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
     """N112: what the question needs that the shop does not record (§7), or None. Only from the README and the
     mapped data together: a column the README names, or the mapping found, is recorded."""
+    if db.conventions is None:  # N176: no "## Quy ước" section: the README says too little to prove an absence
+        return None
     readme = [_fold(line) for line in db.readme.splitlines()]
     if not readme:
         return None

@@ -19,12 +19,12 @@ STOCK = {"intent": "value", "period": {"kind": "today"}, "measures": [{"metric":
 def test_stock_in_a_shop_that_keeps_none_is_unanswerable():
     plan = QueryPlan.model_validate(STOCK)
     q = "hết hôm nay bia tiger còn mấy lon trong kho"
-    assert not_recorded(plan, q, CanonicalDB(readme=README)) == "tồn kho"
+    assert not_recorded(plan, q, CanonicalDB(conventions=(), readme=README)) == "tồn kho"
     # the README names a stock column, or lots, or the mapping found a stock table: recorded
-    assert not_recorded(plan, q, CanonicalDB(readme=README + "- **Tồn thực**: tồn kho (đơn vị cơ bản)\n")) is None
-    assert not_recorded(plan, q, CanonicalDB(readme=README + "- **Mã lô**: số lô\n")) is None
+    assert not_recorded(plan, q, CanonicalDB(conventions=(), readme=README + "- **Tồn thực**: tồn kho (đơn vị cơ bản)\n")) is None
+    assert not_recorded(plan, q, CanonicalDB(conventions=(), readme=README + "- **Mã lô**: số lô\n")) is None
     inv = pd.DataFrame({"product_key": ["Bia Tiger lon"], "as_of": ["2026-07-01"], "base_qty": [3.0]})
-    assert not_recorded(plan, q, CanonicalDB(readme=README, tables={"inventory": inv})) is None
+    assert not_recorded(plan, q, CanonicalDB(conventions=(), readme=README, tables={"inventory": inv})) is None
 
 
 SALES = {"Mã đơn hàng": "mã đơn", "Tên sản phẩm": "tên hàng", "Số lượng sản phẩm": "số lượng",
@@ -87,18 +87,18 @@ def test_customers_or_debts_in_a_shop_that_records_none_are_unanswerable():
                                       "threshold": {"entity": "customer", "metric": "order_count", "op": "gte",
                                                     "value": 11}})
     q = "Bao nhiêu khách mua ít nhất 11 đơn trong tháng 10 năm 2025?"
-    assert not_recorded(count, q, CanonicalDB(readme=README)) == "khách hàng"
+    assert not_recorded(count, q, CanonicalDB(conventions=(), readme=README)) == "khách hàng"
     named = README + "- **Khách**: tên khách (Khách lẻ nếu không lưu)\n"
-    assert not_recorded(count, q, CanonicalDB(readme=named)) is None
+    assert not_recorded(count, q, CanonicalDB(conventions=(), readme=named)) is None
     debt = QueryPlan.model_validate({"intent": "value", "period": {"kind": "this_month"},
                                      "measures": [{"metric": "debt_paid"}]})
-    assert not_recorded(debt, "Tháng này thu hồi được bao nhiêu tiền công nợ?", CanonicalDB(readme=README)) == "công nợ"
+    assert not_recorded(debt, "Tháng này thu hồi được bao nhiêu tiền công nợ?", CanonicalDB(conventions=(), readme=README)) == "công nợ"
     assert not_recorded(debt, "Tháng này thu hồi được bao nhiêu tiền công nợ?",
-                        CanonicalDB(readme=README + "- **Còn nợ**: tiền khách còn nợ\n")) is None
+                        CanonicalDB(conventions=(), readme=README + "- **Còn nợ**: tiền khách còn nợ\n")) is None
 
 
 def test_a_width_written_kho_is_no_stock_column():
     """N115b: "lưới B40 mạ kẽm khổ 1.5m" folds to "kho": stock is named by phrases, not by a single word."""
     plan = QueryPlan.model_validate(STOCK)
     widths = README + "- Lưới B40 mạ kẽm khổ 1.5m: 1 cuộn 10m\n"
-    assert not_recorded(plan, "hết hôm nay bia tiger còn mấy lon trong kho", CanonicalDB(readme=widths)) == "tồn kho"
+    assert not_recorded(plan, "hết hôm nay bia tiger còn mấy lon trong kho", CanonicalDB(conventions=(), readme=widths)) == "tồn kho"
