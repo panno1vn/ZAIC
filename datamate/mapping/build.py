@@ -11,6 +11,7 @@ import fnmatch
 import re
 import unicodedata
 from collections import Counter
+from functools import lru_cache
 from datetime import date
 
 import pandas as pd
@@ -44,6 +45,7 @@ _DATED = {"date": parse_date, "datetime": parse_datetime}
 _QTY_UNIT = re.compile(r"^\s*(-?\d[\d.,]*)\s*(.*?)\s*$")
 
 
+@lru_cache(maxsize=500_000)  # N175: the same few thousand strings are folded millions of times (every cell, every candidate)
 def _fold(s: str) -> str:
     t = unicodedata.normalize("NFD", s.lower()).replace("đ", "d")
     return " ".join("".join(c for c in t if not unicodedata.combining(c)).split())
@@ -283,6 +285,11 @@ def raw_values(raw: RawBusiness) -> frozenset[str]:
     """N161: the folded text values of every column of the shop's files with at most VALUE_COLUMN_MAX distinct
     values, whether the mapping uses the column or not ("sữa", "gạo" of a "Nhom hang(3 Cap)" column the mapping did
     not recognise). Numbers and dates are left out."""
+    # N175: every candidate mapping of a shop builds its canonical tables again, and this depends on the files only
+    key = tuple(id(t.frame) for t in raw.tables)
+    hit = getattr(raw, "_raw_values", None)
+    if hit is not None and hit[0] == key:
+        return hit[1]
     out: set[str] = set()
     for t in raw.tables:
         df = t.frame
@@ -293,7 +300,12 @@ def raw_values(raw: RawBusiness) -> frozenset[str]:
             uniq = vals[vals != ""].unique()
             if 0 < len(uniq) <= VALUE_COLUMN_MAX:
                 out.update(f for v in uniq if (f := _fold(v)) and re.search(r"[a-z]", f) and len(f) <= 60)
-    return frozenset(out)
+    values = frozenset(out)
+    try:
+        raw._raw_values = (key, values)
+    except Exception:
+        pass
+    return values
 
 
 def readme_conventions(readme: str) -> tuple[str, ...] | None:
