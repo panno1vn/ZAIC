@@ -174,6 +174,51 @@ def accepted_version(old: str, new: str) -> bool:
     return normalize(old) == normalize(new) or extends(old, new) or reworded(old, new)
 
 
+EDIT_MIN_SHARED = 3  # T016: tokens a new sentence shares with a known one before it counts as an edit of it
+EDIT_SHARE = 0.5  # …and this share of the shorter sentence
+
+
+def _contains(seq: tuple[str, ...], part: tuple[str, ...]) -> bool:
+    n = len(part)
+    return any(seq[i:i + n] == part for i in range(len(seq) - n + 1))
+
+
+def _in_order(part: tuple[str, ...], seq: tuple[str, ...]) -> bool:
+    it = iter(seq)
+    return all(w in it for w in part)
+
+
+def edited_known_sentence(text: str, versions: list[str]) -> bool:
+    """T016: a sentence of `text` that is no sentence of any accepted version, but most of whose content words are
+    those of one ("vẫn bị loại khỏi doanh thu kỳ đặt" → "vẫn tính vào doanh thu kỳ đặt"). Against the train version
+    such a sentence is a harmless added one (N167), yet the public version already says it the other way: it is an
+    edit of a known sentence, so the row is a changed rule. A sentence that only re-cuts a known one (a comma turned
+    into a semicolon: it sits inside the known text) is not an edit; a sentence with few words in common is new."""
+    if len({normalize(v) for v in versions}) < 2:
+        return False  # one version: no added sentence known yet, and a real addition may echo that version's words
+    n = normalize(text)
+    folded = _plain(n) == n.replace("đ", "d")
+    known = [_sentences(v, folded) for v in versions]
+    flats = [tuple(w for sent in ks for w in sent) for ks in known]
+    sentences = {sent for ks in known for sent in ks}
+    for sent in _sentences(text, folded):
+        if sent in sentences or any(_contains(flat, sent) for flat in flats):
+            continue
+        for k in sentences:
+            shared = len(set(sent) & set(k))
+            if shared >= EDIT_MIN_SHARED and shared >= EDIT_SHARE * min(len(sent), len(k)) and not _in_order(k, sent):
+                return True  # (a known sentence with words added, "…, chưa giao", is N159's case, not an edit)
+    return False
+
+
+def accepted_row(text: str, versions: list[str]) -> bool:
+    """`text` is one of the accepted versions: word for word, or (accepted_version) with harmless additions or other
+    function words, and no added sentence that is an edit of a known one (T016)."""
+    if any(normalize(v) == normalize(text) for v in versions):
+        return True
+    return any(extends(v, text) or reworded(v, text) for v in versions) and not edited_known_sentence(text, versions)
+
+
 # a bullet's bold label, with or without its opening marks (the parser keeps "Tên**: …" of "- **Tên**: …")
 _LABEL = re.compile(r"^(?:\*\*)?[^*:：]{1,80}\*\*\s*[:：]\s*|^\*\*[^*]{1,80}[:：]\*\*\s*")
 
@@ -195,11 +240,11 @@ def adopt_by_text(rows: dict[str, RuleRow], ref: dict[str, list[str]], wanted) -
         for fid, row in free.items():
             if fid in taken or len(normalize(_LABEL.sub("", row.text))) < ADOPT_MIN_CHARS:
                 continue
-            if any(accepted_version(v, t) for v in versions for t in (row.text, _LABEL.sub("", row.text))):
+            if any(accepted_row(t, versions) for t in (row.text, _LABEL.sub("", row.text))):
                 hits.append(fid)
         if len(hits) == 1:
             row = free[hits[0]]
-            plain = any(accepted_version(v, row.text) for v in versions)
+            plain = accepted_row(row.text, versions)
             out[rid] = RuleRow(rid, row.section, row.name, row.text if plain else _LABEL.sub("", row.text))
             taken.add(hits[0])
     return out
@@ -289,7 +334,7 @@ def check_rules(rulebook: str, rule_ids: tuple[str, ...], reference: dict[str, s
         row, versions = current.get(rid), ref.get(rid)
         if isinstance(versions, str):
             versions = [versions]
-        out[rid] = row is not None and bool(versions) and any(accepted_version(v, row.text) for v in versions)
+        out[rid] = row is not None and bool(versions) and accepted_row(row.text, versions)
     return out
 
 

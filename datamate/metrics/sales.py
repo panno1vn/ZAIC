@@ -50,8 +50,8 @@ R_METRIC = {
     "avg_order_value": R_REVENUE + ("§1.so_don", "§3.gia_tri_trung_binh_mot_don"),
     "quantity": R_VALID + ("§3.mat_hang", "§3.ban_duoc_bao_nhieu_don_vi", "§10.don_vi_co_ban_don_vi_lon"),
     "customer_count": R_VALID + ("§1.so_don", "§3.xac_dinh_khach"),
-    "gross_profit": R_REVENUE + ("§5.lai_gop", "§3.hang_loi_nhat"),
-    "net_profit": R_REVENUE + ("§5.lai_gop", "§5.lai_rong_mot_thang"),
+    "gross_profit": R_REVENUE + ("§5.lai_gop", "§5.gia_von", "§3.hang_loi_nhat"),
+    "net_profit": R_REVENUE + ("§5.lai_gop", "§5.gia_von", "§5.lai_rong_mot_thang"),
 }
 R_COMPARE = ("§1.phan_tram_thay_doi_tang_truong", "§1.chenh_lech_hon_kem_tang_giam_bao_nhieu_so_khong_",
              "§2.thang_nay", "§2.tet_nam_y_dip_tet_mua_tet", "§5.hieu_ung_tang_gia")  # every id a comparison may cite
