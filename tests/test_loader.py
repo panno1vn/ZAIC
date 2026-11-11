@@ -149,3 +149,12 @@ def test_number_with_spaced_thousands():
 def test_a_column_of_weekday_dates_and_of_words_is_typed():
     assert guess_type(["Thứ Năm, 27/08/2026 14:05", "CN 30/08/2026 09:00", "T2 31/08/2026 10:00"])[0] == "date"
     assert guess_type(["1,2 triệu", "500 nghìn", "2 triệu", "150 ngàn"])[0] == "money"
+
+
+def test_a_named_column_with_no_value_is_dropped():
+    """N174: a notes column left blank in every row tells nothing; offered to the column matching it, it took picks."""
+    t = to_table([["Ghi chú nội bộ", "Mã", "Tiền", "Ghi chú"], ["", "A1", "10.000", ""], ["", "A2", "20.000", "gấp"]])
+    assert list(t.frame.columns) == ["Mã", "Tiền", "Ghi chú"] and len(t.frame) == 2
+    assert any("bỏ cột không có giá trị" in n for n in t.notes)
+    only_header = to_table([["Mã", "Tiền"]])
+    assert list(only_header.frame.columns) == ["Mã", "Tiền"] and len(only_header.frame) == 0
