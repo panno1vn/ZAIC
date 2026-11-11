@@ -19,7 +19,7 @@ from python_calamine import CalamineWorkbook
 from datamate.contracts import BusinessProfile, ColumnProfile, RawBusiness, RawTable, TableProfile
 
 from .grid import cell_text, to_table, year_hint
-from .parse import parse_datetime, parse_money, parse_number
+from .parse import parse_datetime, parse_money, parse_number, strip_weekday
 
 BUDGET_S = 300.0  # reading one business may take this long; the rest of its files are skipped (H12)
 
@@ -108,7 +108,8 @@ def load_business(root: Path, budget_s: float = BUDGET_S) -> RawBusiness:
 
 
 _DATE_HINT = re.compile(r"\d{1,4}[/-]\d{1,2}|thg|^\d{4}-\d{2}-\d{2}", re.I)
-_MONEY_HINT = re.compile(r"\d\s*(?:đ|vnđ|vnd|k|tr)\b|\d(?:tr)\d|^-?\d{1,3}(?:[.,]\d{3})+$", re.I)
+_MONEY_HINT = re.compile(r"\d\s*(?:đ|vnđ|vnd|k|tr)\b|\d(?:tr)\d|^-?\d{1,3}(?:[.,]\d{3})+$"
+                         r"|\d\s*(?:triệu|trieu|nghìn|nghin|ngàn|ngan)\b", re.I)
 
 
 def guess_type(values: list[str], year: int | None = None) -> tuple[str, str | None, str | None]:
@@ -116,7 +117,7 @@ def guess_type(values: list[str], year: int | None = None) -> tuple[str, str | N
     if not values:
         return "empty", None, None
     n = len(values)
-    if sum(bool(_DATE_HINT.search(v)) for v in values) >= 0.8 * n:
+    if sum(bool(_DATE_HINT.search(strip_weekday(v))) for v in values) >= 0.8 * n:
         dates = [d for d in (parse_datetime(v, year) for v in values) if d is not None]
         if len(dates) >= 0.8 * n:
             return "date", str(min(dates)), str(max(dates))

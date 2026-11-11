@@ -167,3 +167,93 @@ def test_renamed_rows_of_the_public_rulebook_change_nothing():
                      ("| Đơn thuộc kỳ nào |", "| Đơn tính vào kỳ nào |")):
         if old in text:
             assert check_rules(text.replace(old, new), pipeline.rule_ids()) == base, old
+
+
+# ---- T015: a reworded row is the same rule, one changed content word is not
+def _edits():
+    import sys
+    tools = str(Path(__file__).resolve().parents[1] / "tools")
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    import robust_rulebook
+    return robust_rulebook
+
+
+# rewordings of the planner's and the fixer's list the gate must accept; the five it cannot (a content word is
+# inserted or changed: "hết ngày hôm nay", "liên tiếp", "đơn trả", "không tính từ", "Kết quả … đến") stay blank
+WONTFIX_REWORD = {"reword_11", "reword_13", "reword_14", "reword_16", "reword_18"}
+
+
+def _verdict(rb, text, name):
+    from datamate import pipeline
+    rid = rb.EDITS[name][3]
+    return check_rules(rb.apply(text, name), tuple(pipeline.rule_ids()) + (rid,))[rid]
+
+
+@pytest.mark.skipif(not (DATA / "public_test" / "rulebook.md").exists(), reason="cần data/")
+def test_reworded_rows_accepted_and_meaning_changes_refused():
+    rb = _edits()
+    text = (DATA / "public_test" / "rulebook.md").read_text(encoding="utf-8-sig")
+    rewords = [n for n in rb.EDITS if n.startswith(("reword_", "held_reword_"))]
+    means = [n for n in rb.EDITS if n.startswith(("mean_", "held_mean_"))]
+    assert len(rewords) >= 30 and len(means) >= 51
+    assert [n for n in means if _verdict(rb, text, n)] == []
+    refused = {n for n in rewords if not _verdict(rb, text, n)}
+    assert refused == WONTFIX_REWORD
+
+
+@pytest.mark.skipif(not (DATA / "public_test" / "rulebook.md").exists(), reason="cần data/")
+def test_fuzzy_hole_closed():
+    """One word of a long row changed: 0.95 similar, no listed word, so the character test accepted it."""
+    rb = _edits()
+    text = (DATA / "public_test" / "rulebook.md").read_text(encoding="utf-8-sig")
+    for name in ("mean_14", "mean_15", "mean_18", "mean_06"):  # hôm qua · Chủ nhật · một khách · đơn COD
+        assert not _verdict(rb, text, name), name
+
+
+def test_reworded_needs_four_content_words():
+    assert not rules.reworded("đếm đơn", "đếm các đơn")  # three content words at most: too weak a key
+    assert rules.reworded("chỉ tính đơn không huỷ, không trả", "chỉ tính các đơn không hủy, không trả")
+
+
+def test_unaccented_row_is_the_same_rule():
+    old = "theo **ngày đặt**, không theo ngày giao hay ngày thu tiền"
+    assert rules.reworded(old, "theo ngay dat, khong theo ngay giao hoac ngay thu tien")
+    assert not rules.reworded(old, "theo ngay giao, khong theo ngay dat hoac ngay thu tien")
+
+
+def test_added_sentence_after_rewording_keeps_n167_limits():
+    old = "theo **ngày đặt**, không theo ngày giao hay ngày thu tiền"
+    assert rules.accepted_version(old, "theo ngày đặt, không theo ngày giao hoặc ngày thu tiền. Kết quả là số nguyên")
+    assert not rules.accepted_version(old, "theo ngày đặt, không theo ngày giao hoặc ngày thu tiền. Đơn sỉ không tính")
+    assert not rules.accepted_version(old, "theo ngày đặt, không theo ngày giao hoặc ngày thu tiền. Từ 2026 là 5 đơn")
+
+
+def test_order_inside_a_sentence_is_a_fact():
+    assert not rules.reworded("theo ngày đặt, không theo ngày giao", "theo ngày giao, không theo ngày đặt")
+    assert rules.reworded("Đơn đang giao vẫn tính. Đơn huỷ không tính vào doanh thu",
+                          "Đơn huỷ không tính vào doanh thu. Đơn đang giao vẫn tính")  # whole sentences may swap
+
+
+@pytest.mark.skipif(not rules.REFERENCE.exists(), reason="cần assets/rules")
+def test_every_reference_version_accepts_itself_and_the_fuzzy_path_gave_the_same_verdict():
+    ref = rules.load_reference()
+    for rid, versions in ref.items():
+        for a in versions:
+            assert rules.accepted_version(a, a), rid
+            for b in versions:
+                before = rules.same_rule(a, b) or rules.extends(a, b)
+                if before:
+                    assert rules.accepted_version(a, b), (rid, b[:60])
+
+
+def test_edited_known_sentence_is_a_changed_rule_but_a_recut_one_is_not():
+    """T016: the sentence public added to a train row, said the other way, is a changed rule; the same sentence cut
+    at another place, or a new sentence with little in common with the known ones, is not."""
+    train = "theo ngày đặt, không theo ngày giao hay ngày thu tiền"
+    public = train + ". Đơn trả hàng sau kỳ vẫn bị loại khỏi doanh thu kỳ đặt"
+    versions = [train, public]
+    assert rules.accepted_row(public, versions)
+    assert not rules.accepted_row(train + ". Đơn trả hàng sau kỳ vẫn tính vào doanh thu kỳ đặt", versions)
+    assert rules.accepted_row(train + ". Đơn trả hàng sau kỳ; vẫn bị loại khỏi doanh thu kỳ đặt", versions)
+    assert rules.accepted_row(public + ". Kết quả là số nguyên", versions)

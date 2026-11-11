@@ -36,3 +36,19 @@ def test_customer_group_or_many_values_are_not_product_groups():
     assert product_groups(_shop(group_header="Nhom khach hang")) == {}
     assert product_groups(_shop(groups=[f"g{i}" for i in range(12)])) != {}  # 12 names: still few
     assert product_groups(_shop(groups=[str(i) for i in range(12)])) == {}  # numbers are not group names
+
+
+# ---- N170 (R003): the header must say the group is of goods
+def test_headers_that_are_not_product_groups():
+    for header in ("Ten phan loai hang", "Phan loai khach", "Phan loai kenh", "Danh muc khach hang"):
+        assert product_groups(_shop(group_header=header)) == {}, header
+    for header in ("Nhom hang(3 Cap)", "Nhom hang", "Loai hang", "Danh muc san pham"):
+        assert product_groups(_shop(group_header=header)) != {}, header
+
+
+def test_bare_danh_muc_is_not_a_group_in_the_lines_table():
+    assert product_groups(_shop(group_header="Danh muc")) == {}
+
+
+def test_column_taken_by_customer_group_is_not_the_product_group():
+    assert product_groups(_shop(), taken={"Nhom hang(3 Cap)"}) == {}

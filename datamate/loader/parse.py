@@ -12,6 +12,10 @@ _EXCEL_EPOCH = datetime(1899, 12, 30)
 _THOUSANDS = re.compile(r"^-?\d{1,3}([.,])\d{3}(\1\d{3})*$")
 _CURRENCY = re.compile(r"(?i)\s*(vnđ|vnd|đồng|dong|đ|d)\s*$")
 _LEADING_NUMBER = re.compile(r"^\s*(-?\d[\d.,]*)")
+_LEADING_CURRENCY = re.compile(r"(?i)^(vnđ|vnd|đ)\s*")
+_WORD_MILLION = re.compile(r"(?i)\s*(triệu|trieu)$")
+_WORD_THOUSAND = re.compile(r"(?i)\s*(nghìn|nghin|ngàn|ngan)$")
+_SPACED_THOUSANDS = re.compile(r"^-?\d{1,3}(?:[   ]\d{3})+(?:[.,]\d+)?$")
 _TR_SPLIT = re.compile(r"(?i)^(-?\d+)tr(\d{1,3})$")  # '1tr440' = 1.440.000, '409tr663', '1tr5' = 1.500.000
 
 
@@ -40,7 +44,14 @@ def parse_money(v) -> float | None:
         return None
     if isinstance(v, (int, float)) and not isinstance(v, bool):
         return float(v)
-    s = _CURRENCY.sub("", str(v).strip()).replace(" ", "")
+    s = str(v).strip()
+    m = re.fullmatch(r"\((.+)\)", s)  # N169: (30.000) is a negative amount
+    if m:
+        x = parse_money(m.group(1))
+        return None if x is None else -x
+    s = _CURRENCY.sub("", _LEADING_CURRENCY.sub("", s))
+    s = _WORD_THOUSAND.sub("k", _WORD_MILLION.sub("tr", s))  # N169: '1,2 triệu' = 1,2tr, '500 nghìn' = 500k
+    s = re.sub(r"[   ]", "", s)
     m = _TR_SPLIT.match(s)
     if m:
         millions, rest = int(m.group(1)), int(m.group(2).ljust(3, "0")) * 1000
@@ -65,16 +76,27 @@ def parse_number(v) -> float | None:
         return None
     if isinstance(v, (int, float)) and not isinstance(v, bool):
         return float(v)
-    m = _LEADING_NUMBER.match(str(v))
+    text = str(v)
+    if _SPACED_THOUSANDS.match(text.strip()):  # N169: '1 234 000' is 1234000, not 1
+        text = re.sub(r"[   ]", "", text.strip())
+    m = _LEADING_NUMBER.match(text)
     return _to_float(m.group(1).rstrip(".,")) if m else None
 
 
 _PATTERNS = [
-    (re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?"), "ymd"),
+    (re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$"), "ymd"),
     (re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$"), "dmy"),
     (re.compile(r"^(\d{1,2})\s*thg\s*(\d{1,2})\s*,?\s*(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$", re.I), "dmy"),
-    (re.compile(r"^(\d{1,2})-(\d{1,2})-(\d{4})$"), "dmy"),
+    (re.compile(r"^(\d{1,2})[-.](\d{1,2})[-.](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$"), "dmy"),
+    (re.compile(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?\s+(\d{1,2})/(\d{1,2})/(\d{4})$"), "hms_dmy"),
 ]
+# N169: 'Thứ Năm, 27/08/2026 14:05', 'CN 30/08/2026'
+_WEEKDAY = re.compile(r"(?i)^(?:thứ\s+(?:hai|ba|tư|năm|sáu|bảy)|thu\s+(?:hai|ba|tu|nam|sau|bay)|chủ\s+nhật|chu\s+nhat|cn|t[2-7]|th[2-7])\s*[,.-]?\s+(?=\d)")
+_AMPM = re.compile(r"(?i)\s+(am|pm|sa|ch)\.?$")
+
+
+def strip_weekday(s: str) -> str:
+    return _WEEKDAY.sub("", s.strip(), count=1)
 _DAY_MONTH = re.compile(r"^(\d{1,2})/(\d{1,2})$")
 
 
@@ -91,13 +113,27 @@ def parse_datetime(v, year_hint: int | None = None) -> datetime | None:
     s = str(v).strip()
     if re.fullmatch(r"\d{5}(\.\d+)?", s):
         return parse_datetime(float(s))
+    s = strip_weekday(" ".join(s.split()))
+    meridiem = None
+    m = _AMPM.search(s)
+    if m and ":" in s[:m.start()]:  # N169: '27/08/2026 2:05 PM' (the hour was dropped or the cell unreadable)
+        meridiem, s = m.group(1).lower(), s[:m.start()].rstrip()
     for rx, order in _PATTERNS:
         m = rx.match(s)
         if m:
             g = [int(x) if x else 0 for x in m.groups()]
-            y, mo, d = (g[0], g[1], g[2]) if order == "ymd" else (g[2], g[1], g[0])
+            if order == "hms_dmy":
+                g = [g[5], g[4], g[3], g[0], g[1], g[2]]
+                y, mo, d = g[0], g[1], g[2]
+            else:
+                y, mo, d = (g[0], g[1], g[2]) if order == "ymd" else (g[2], g[1], g[0])
+            h = g[3]
+            if meridiem:
+                if h > 12 or h == 0:
+                    return None
+                h = (0 if h == 12 else h) if meridiem in ("am", "sa") else (h if h == 12 else h + 12)
             try:
-                return datetime(y, mo, d, g[3], g[4], g[5])
+                return datetime(y, mo, d, h, g[4], g[5])
             except ValueError:
                 return None
     m = _DAY_MONTH.match(s)

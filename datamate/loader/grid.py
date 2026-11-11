@@ -17,7 +17,7 @@ import pandas as pd
 HEADER_SCAN = 10  # rows searched for the header
 WIDTH_SCAN = 40  # rows used to measure how wide the data is
 _DATA_LIKE = re.compile(
-    r"^-?[\d.,\s]+(?:đ|d|vnđ|vnd|k|tr\d*)?$"  # numbers and money: 25.000đ, 1tr440, 25k, -3
+    r"^\(?-?[\d.,\s]+\)?(?:\s*(?:đ|d|vnđ|vnd|k|tr\d*|triệu|trieu|nghìn|nghin|ngàn|ngan))?$"  # money: 25.000đ, 1tr440, 25k, 2 triệu, (30.000), -3
     r"|^\d{1,4}[/-]\d{1,2}(?:[/-]\d{1,4})?(?:\s.*)?$"  # dates: 01/02/2025, 1/1, 2025-02-01 06:00:25
     r"|^\d{1,2}\s*thg\s*\d{1,2}", re.I)
 # "Cộng", "Tổng cộng", "Tổng tháng", "Total"…; only on sparse rows, so a customer "Tống Văn An" on a full row stays
@@ -30,16 +30,26 @@ _DATED_SUMMARY = re.compile(r"^(?:cong|tong|total)(?: cong)?(?: ngay| thang)? ?\
 _SUMMARY_VN = re.compile(r"^(?:cộng|tổng)\b")
 
 
+_TOTAL_WORDS = frozenset(
+    "cong tong total grand sum subtotal doanh thu tien hang ban so luong thang ngay tuan nam quy ca ky don "
+    "chi phi nhap xuat ton no thanh toan tra khach lai gop von ket sales this week month day year of the".split())
+
+
 def _summary_cell(c: str) -> bool:
     """A total row's label. N163: folded, "Công tắc 1 chiều Panasonic…" (a product) is "cong tac…" and was taken for
     "Cộng" whenever its row had few cells filled: a train catalogue lost its last product, and every question on that
     product's group, once one more blank column made the row count as half empty (layout test 09/11). Written with
-    accents, only "Cộng" / "Tổng" are totals (not "Công", "Tống"); written without, a label of at most three words."""
+    accents, only "Cộng" / "Tổng" are totals (not "Công", "Tống"); written without, a label of total words (N170)."""
     low = " ".join(unicodedata.normalize("NFC", c.lower()).split())
     f = fold(c)
     if low != f:  # accents (or đ) written: the word itself decides
         return bool(_SUMMARY_VN.match(low)) or bool(re.match(r"^(?:total|grand total|sum|subtotal)\b", f))
-    return bool(_SUMMARY.match(f)) and len(f.split()) <= 3
+    if not _SUMMARY.match(f):
+        return False
+    # N170: a total label is made of total words, however many ("Tong doanh thu ca ngay", "Tong cong tien hang"); a
+    # product or a person is not ("Cong tac 1 chieu Panasonic", "Tong Van An"): N163's three-word limit let the long
+    # labels through, a total row became one more line of the order above it
+    return all(w in _TOTAL_WORDS for w in re.findall(r"[a-z]+", f))
 
 
 def cell_text(v) -> str:
@@ -149,6 +159,12 @@ def to_table(grid: list[list]) -> Table:
         footer.insert(0, " ".join(c for c in keep.pop() if c)[:60])
     if footer:
         notes.append(f"bỏ {len(footer)} dòng chú thích cuối sheet: " + " | ".join(footer))
+    # N174: a column with a name and no value in any row (a notes column left blank, one a program adds) tells nothing;
+    # offered to the column matching it drew picks ('Bán qua' -> 'Ghi chú nội bộ') and unmapped a whole shop
+    filled_cols = [j for j in range(len(names)) if any(r[j] for r in keep)]
+    if keep and len(filled_cols) < len(names):
+        notes.append("bỏ cột không có giá trị: " + ", ".join(n for j, n in enumerate(names) if j not in filled_cols)[:60])
+        names, keep = [names[j] for j in filled_cols], [[r[j] for j in filled_cols] for r in keep]
     frame = pd.DataFrame(keep, columns=names, dtype=str) if keep else pd.DataFrame(columns=names, dtype=str)
     return Table(frame, h + 1, notes)
 
