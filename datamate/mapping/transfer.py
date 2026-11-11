@@ -83,6 +83,7 @@ def examples(leave_out: str | None = None) -> list[Example]:
     return [e for e in _all_examples() if e.name != leave_out]
 
 
+@lru_cache(maxsize=500_000)  # N175: see build._fold
 def _fold(s: str) -> str:
     s = unicodedata.normalize("NFD", str(s).strip().lower()).replace("đ", "d")
     return " ".join("".join(c for c in s if not unicodedata.combining(c)).split())
