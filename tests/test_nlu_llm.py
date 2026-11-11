@@ -64,7 +64,7 @@ def test_llama_server_client_sends_greedy_schema_request(fake_server):
 def test_a_call_over_its_timeout_gives_no_plan(fake_server):
     fake_server["delay"] = 1.5
     t0 = time.monotonic()
-    assert llm_plan("dthu thang 6/2026", AS_OF, DataCard(), LlamaServerLLM(fake_server["url"], timeout_s=0.3)) is None
+    assert llm_plan("dthu thang 6/2026", AS_OF, DataCard(), LlamaServerLLM(fake_server["url"], timeout_s=0.3, retries=0)) is None
     assert time.monotonic() - t0 < 1.4  # the client stops waiting at its timeout (H12)
 
 

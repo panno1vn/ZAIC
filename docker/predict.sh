@@ -5,6 +5,8 @@
 # up, the run goes on with the rule-based reader alone (fewer answers, never no file). Fixed settings: model
 # /code/models/model.gguf, one GPU (the first one given), greedy decoding with a fixed seed, one slot, thinking off;
 # time budget 5.5 h counted from here (configs/default.json). Prints the model load and prediction times.
+# T008: a server that does not come up on GPU 0 is started once more on GPU 1 (when there is one); a watchdog starts it
+# again if it dies during the run, and the client (datamate/llm) waits for it and calls again.
 set -uo pipefail
 cd "$(dirname "$(readlink -f "$0")")"   # /code: the package, assets and configs are read from here
 DATA_DIR="${DATA_DIR:-/data}"
@@ -17,22 +19,47 @@ mkdir -p "$OUT_DIR/logs"
 T0=$(date +%s)
 echo "[predict.sh] start $(date -Is) data=$DATA_DIR out=$OUT_DIR model=$MODEL gpu=$CUDA_VISIBLE_DEVICES"
 
-/code/llama/llama-server -m "$MODEL" --jinja -ngl 99 -c 8192 --parallel 1 --seed 0 --host 127.0.0.1 --port "$PORT" \
-    > "$OUT_DIR/logs/llama_server.log" 2>&1 &
-SERVER=$!
+launch_server() {  # the same flags every time: one slot, greedy, seed 0
+  echo "--- start on GPU $CUDA_VISIBLE_DEVICES $(date -Is) ---" >> "$OUT_DIR/logs/llama_server.log"
+  /code/llama/llama-server -m "$MODEL" --jinja -ngl 99 -c 8192 --parallel 1 --seed 0 --host 127.0.0.1 --port "$PORT" \
+      >> "$OUT_DIR/logs/llama_server.log" 2>&1 &
+  SERVER=$!
+}
+
+start_server() {  # $1 = GPU index; 0 when the server answers /health (up to 10 minutes), else kills it and returns 1
+  export CUDA_VISIBLE_DEVICES="$1"
+  launch_server
+  for _ in $(seq 1 300); do
+    if python3 -c "import json,sys,urllib.request as u; sys.exit(0 if json.load(u.urlopen('http://127.0.0.1:$PORT/health', timeout=2)).get('status')=='ok' else 1)" 2>/dev/null; then
+      return 0
+    fi
+    if ! kill -0 "$SERVER" 2>/dev/null; then break; fi
+    sleep 2
+  done
+  kill "$SERVER" 2>/dev/null || true
+  return 1
+}
 
 ready=0
-for _ in $(seq 1 300); do  # up to 10 minutes to load the model
-  if python3 -c "import json,sys,urllib.request as u; sys.exit(0 if json.load(u.urlopen('http://127.0.0.1:$PORT/health', timeout=2)).get('status')=='ok' else 1)" 2>/dev/null; then
-    ready=1; break
-  fi
-  if ! kill -0 "$SERVER" 2>/dev/null; then break; fi
-  sleep 2
-done
+if start_server "${CUDA_VISIBLE_DEVICES_OVERRIDE:-0}"; then
+  ready=1
+elif [ "$(nvidia-smi -L 2>/dev/null | wc -l)" -ge 2 ]; then
+  echo "[predict.sh] llama-server did not start on GPU 0: trying GPU 1" >&2
+  start_server 1 && ready=1
+fi
 T1=$(date +%s)
 echo "Model load time: $((T1 - T0)) s (ready=$ready)"
 
+WATCHDOG=""
 if [ "$ready" = 1 ]; then
+  ( while sleep 10; do  # a dead server is started again; the client waits for it (datamate/llm, T008)
+      kill -0 "$(cat "$OUT_DIR/logs/.server_pid")" 2>/dev/null && continue
+      echo "[predict.sh] llama-server died, starting it again $(date -Is)" >&2
+      launch_server
+      echo "$SERVER" > "$OUT_DIR/logs/.server_pid"
+    done ) &
+  WATCHDOG=$!
+  echo "$SERVER" > "$OUT_DIR/logs/.server_pid"
   python3 -m datamate.predict --data "$DATA_DIR" --out "$OUT_DIR" --llm-url "http://127.0.0.1:$PORT" \
       --elapsed-s "$(( T1 - T0 ))"
   status=$?
@@ -52,6 +79,8 @@ fi
 T2=$(date +%s)
 echo "Prediction time: $((T2 - T1)) s"
 echo "Total time: $((T2 - T0)) s"
+[ -n "$WATCHDOG" ] && kill "$WATCHDOG" 2>/dev/null
+kill "$(cat "$OUT_DIR/logs/.server_pid" 2>/dev/null || echo "$SERVER")" 2>/dev/null || true
 kill "$SERVER" 2>/dev/null || true
 echo "[predict.sh] done $(date -Is) status=$status"
 exit 0  # a valid file exists: a non-zero exit must not make the grader discard it
