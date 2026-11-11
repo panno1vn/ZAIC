@@ -17,8 +17,7 @@ from datamate.llm import LLMClient
 from datamate.verify import LINKED_FIELDS, SUBJECTIVE_REASON, filter_keys
 
 from . import baseline, jobs, linking, prompt, repair
-from .grounding import (bought_in_count, employee_named, every_employee_listed, channel_not_self, sold_out_count,
-                        bought_in_as_purchase, payments_listed, quantity_not_money, quarter_written, orders_counted, warranty_not_asked, debtors_ranked,
+from .grounding import (quantity_not_money, quarter_written, orders_counted, warranty_not_asked, debtors_ranked,
                         gross_profit_named, anchor_by_price, count_as_value, count_not_list, drop_month_as_weekday, drop_restated_metric,
                         due_per_order, month_written_as_t, phones_as_whole, trade_in_share, values_together,
                         warranty_over_sold, order_amount_named, particle_not_unit, today_not_this_month,
@@ -168,9 +167,6 @@ RETRY_GROUND = ("Plan vừa viết có phần câu hỏi không nói tới, ho�
 def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> tuple[QueryPlan, list[str]]:
     """The plan after the drops (years the question does not state, restated filters) and what in it has no ground
     in the question: filters, days, measures (grounding.py)."""
-    plan = bought_in_count(question, plan)  # N157
-    plan = channel_not_self(question, sold_out_count(question, bought_in_as_purchase(question, plan)))  # N150-N152
-    plan = payments_listed(question, every_employee_listed(question, employee_named(question, plan)))  # N148, N149, N153
     plan = which_time_as_rank(question, rulebook_rank_terms(question, in_minus_out(question, plan)))
     plan = rank_months_as_listed(question, plan)
     plan = lots_expiring_count(question, threshold_as_value(question, orders_with_group(question, plan)), as_of)
@@ -236,11 +232,7 @@ def parse_question(question: str, as_of: date, card: DataCard, llm: LLMClient | 
         trace["subjective"] = True
         return QueryPlan(intent="out_of_scope", out_of_scope_reason=SUBJECTIVE_REASON)
     if plan is None:
-        # the LLM failed or its plan had no ground: the baseline's reading, if it has one; else N158's few shapes
-        if base is None and (fb := baseline.fallback(question)) is not None:
-            trace["fallback"] = True
-            return fb
-        return base
+        return base  # the LLM failed or its plan had no ground: the baseline's reading, if it has one
     if plan.intent == "rank" and subjective_quality(question):
         # N112: the LLM ranks by a quality no file records ("ai là thợ nhiệt tình nhất": the rulebook defines only
         # "chăm chỉ"); train: the 5 questions subjective_quality reads are all unanswerable, whatever their plan

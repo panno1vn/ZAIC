@@ -426,10 +426,7 @@ def customer_trait_not_recorded(question: str, readme: str) -> bool:
     t = " ".join(tokens(question))
     gender = bool(re.search(r"\bkhách(?: hàng)? (?:nữ|nam)\b(?!\s*(?:\d|nay|ngoái|trước))", q)
                   or re.search(r"\bkhach(?: hang)? nu\b|\bgioi tinh\b", t))
-    street = bool(re.search(r"\bkhach(?: hang)?(?: nha)?(?: o)? duong\b|\bnha o duong\b|\bdia chi\b", t)
-                  # N154: "khách ở Trường Chinh … hay khách ở Lạc Long Quân" (public): a place written with a capital
-                  or any(m.group(1)[:1].isupper() for m in re.finditer(
-                      r"\b[Kk]hách(?: hàng)?(?: nhà)? ở\s+(\w+)", unicodedata.normalize("NFC", question))))
+    street = bool(re.search(r"\bkhach(?: hang)?(?: nha)?(?: o)? duong\b|\bnha o duong\b|\bdia chi\b", t))
     if not gender and not street:
         return False
     lines = [unicodedata.normalize("NFC", l.lower()) for l in readme.splitlines()]
@@ -1159,9 +1156,7 @@ def warranty_not_asked(question: str, plan: QueryPlan) -> QueryPlan:
         return plan
 
     def fix(m):
-        # a repair shop's tickets: "phiếu sửa xe" may well mean not warranty, refused; debts and amounts due have no
-        # warranty side (N141b, public: "khách còn chưa đóng bao nhiêu tiền thuộc các kỳ góp đã quá hạn")
-        if m.metric not in _SALES | {"amount_due_total", "debt_total", "debt_amount", "overdue_amount"}:
+        if m.metric not in _SALES:  # a repair shop's tickets: "phiếu sửa xe" may well mean not warranty, refused
             return m
         kept = [f for f in m.filters if f.field != "is_warranty"]
         return m.model_copy(update={"filters": kept}) if len(kept) < len(m.filters) else m
@@ -1325,20 +1320,6 @@ def debt_age_from_question(question: str, plan: QueryPlan) -> QueryPlan:
     """N87. "khách còn nợ ở các đơn đã đặt quá 7 ngày" planned with debt_age_days "gt" whose value is a word ("gt", the
     N in a note or nowhere; public run11 5 questions, train 1): the age the question states, when it states exactly
     one ("quá / hơn / trên N ngày": older than N days, §4 "tuổi nợ: số ngày tính từ ngày đặt")."""
-    t = " ".join(tokens(denoised(question)))
-    ages_in_q = set(re.findall(r"\b(?:qua|tren|hon)\s+(\d+)\s*ngay\b", t))
-    if (len(ages_in_q) == 1 and len(plan.measures) == 1 and plan.measures[0].metric in ("debt_total", "debt_amount")
-            and plan.intent == "value" and not any(f.field == "debt_age_days" for f in plan.measures[0].filters)
-            and re.search(r"\bdon\b(?: \w+){0,2} dat\b", t)):
-        # N155: "tiền khách còn nợ ở những đơn đặt hơn 7 ngày chưa trả hết" planned without the age at all (public,
-        # the retry too; refused asks=debt_age): the age the question states, on the debt, other filters but the
-        # status kept (§4 "tuổi nợ")
-        raw = plan.model_dump(mode="json", exclude_none=True)
-        kept = [x for x in raw["measures"][0].get("filters", []) if x["field"] != "order_status"]
-        raw["measures"] = [{"metric": plan.measures[0].metric,
-                            "filters": kept + [{"field": "debt_age_days", "op": "gt", "value": float(ages_in_q.pop())}]}]
-        raw.pop("answer_type", None)
-        return QueryPlan.model_validate(raw)
     bad = [(m, f) for m in plan.measures for f in m.filters
            if f.field == "debt_age_days" and not (isinstance(f.value, (int, float)) and not isinstance(f.value, bool))]
     if not bad or len(bad) != sum(f.field == "debt_age_days" for m in plan.measures for f in m.filters):
@@ -1757,129 +1738,3 @@ def stocked_in_as_purchase(question: str, plan: QueryPlan) -> QueryPlan:
     measures = [m.model_copy(update={"metric": "purchase_amount", "unit": None, "unit_split": False})
                 if m.metric in ("stock_value", "stock_qty") else m for m in plan.measures]
     return plan.model_copy(update={"measures": measures})
-
-
-# N148–N153 (09/11, toward 0,99): public blanks the gates refuse, each an LLM reading that adds or changes what the
-# question says. Rewritten, not refused, only where the question's own words settle it; the plan meets every gate after.
-_STAFF_WORD = re.compile(r"(?i)\b(?:nv|nhân viên|nhan vien|thợ|tho)\b")
-
-
-def _name_after_staff_word(question: str) -> str | None:
-    """The one name written after "nv / nhân viên / thợ": 2 to 4 words each starting with a capital ("nv Từ Hùng
-    Hằng bán …"); None when none, or two."""
-    found = []
-    for m in _STAFF_WORD.finditer(unicodedata.normalize("NFC", question)):
-        words = []
-        for w in question[m.end():].split():
-            w = w.strip(",.?!:;()")
-            if not w or not w[0].isupper() or not w.replace("-", "").isalpha():
-                break
-            words.append(w)
-        if 2 <= len(words) <= 4:
-            found.append(" ".join(words))
-    return found[0] if len(set(found)) == 1 else None
-
-
-def employee_named(question: str, plan: QueryPlan) -> QueryPlan:
-    """N148. "tổng tiền hàng các đơn nv Từ Hùng Hằng bán tháng 4" read with an employee code the question never writes
-    ("NV003", from the examples; public, the retry too): the employee filter takes the name the question writes after
-    "nv / nhân viên / thợ" (train writes 17 questions so, every one by name). Only one employee filter, and only when
-    its value is not in the question."""
-    fs = [f for m in plan.measures for f in m.filters if f.field == "employee"]
-    if len(fs) != 1 or not isinstance(fs[0].value, str) or fold(fs[0].value) in fold(question):
-        return plan
-    name = _name_after_staff_word(question)
-    if name is None:
-        return plan
-
-    def fix(m):
-        return m.model_copy(update={"filters": [f.model_copy(update={"value": name}) if f.field == "employee" else f
-                                                for f in m.filters]})
-    return plan.model_copy(update={"measures": [fix(m) for m in plan.measures]})
-
-
-def every_employee_listed(question: str, plan: QueryPlan) -> QueryPlan:
-    """N149. "bảng tiền hoa hồng của mọi thợ tháng 11, xếp từ cao xuống thấp" read as a ranking with every employee
-    written out as a filter (public, the retry too): the question names none of them, it asks all of them. The
-    employee filters go, the ranking shows the figures (widen_each_table then takes every employee)."""
-    r = plan.rank
-    names = [f for m in plan.measures for f in m.filters if f.field == "employee"]
-    if r is None or r.entity != "employee" or len(names) < 2 or not re.search(_EVERY_OBJECT, fold(question)):
-        return plan
-    if any(fold(str(f.value)) in fold(question) for f in names):
-        return plan
-    return _rebuilt(plan, measures=[], rank={**r.model_dump(mode="json", exclude_none=True), "with_values": True})
-
-
-_SELF = r"\b(?:tiem|shop|sop|cua hang|quan) (?:minh|mik|mjk|tui|toi)\b"
-_CHANNEL_WORDS = r"\b(?:tai (?:tiem|cho|quay|cua hang|quan)|online|zalo|giao|ship|mang ve|grab|shopee|kenh|dien thoai)\b"
-
-
-def channel_not_self(question: str, plan: QueryPlan) -> QueryPlan:
-    """N150. "doanh thu tiệm mình tháng 8" read with the channel "Tại tiệm" (public, the retry too): "tiệm mình" is the
-    shop asking about itself, no channel. A channel filter naming the shop goes when the question's only word for it is
-    that, and it writes no channel."""
-    t = " ".join(tokens(denoised(question)))
-    if not re.search(_SELF, t) or re.search(_CHANNEL_WORDS, re.sub(_SELF, " ", t)):
-        return plan
-
-    def selfish(f) -> bool:
-        return f.field == "channel" and isinstance(f.value, str) and bool(
-            re.search(r"\b(?:tiem|cua hang|quan|shop)\b", fold(f.value)))
-    measures = [m.model_copy(update={"filters": [f for f in m.filters if not selfish(f)]}) for m in plan.measures]
-    return plan.model_copy(update={"measures": measures}) if measures != list(plan.measures) else plan
-
-
-_SOLD_OUT = r"\b(?:may|bao nhieu|bn|bnhiu|bnhieu|dem) (?:mat hang|mon|san pham|sp|hang)\b(?: \w+){0,2} (?:chay|het|dut) hang\b"
-
-
-def sold_out_count(question: str, plan: QueryPlan) -> QueryPlan:
-    """N151. "cuối ngày hôm nay có mấy mặt hàng đang cháy hàng" read as a top-1 by quantity (public, the retry too):
-    "cháy hàng" is "hết hàng" (§5 "mặt hàng hết hàng cuối ngày"), the plan the same question gets with "hết / đứt
-    hàng": the count of goods out of stock at the end of the day."""
-    t = " ".join(tokens(denoised(question)))
-    if not re.search(_SOLD_OUT, t) or plan.list_spec is not None or plan.intent not in ("rank", "value"):
-        return plan
-    return _rebuilt(plan, intent="list_items", measures=[], rank=None, compare=None, threshold=None,
-                    list_spec={"entity": "product", "condition": "out_of_stock_end_of_day", "count": True})
-
-
-_SALE_WORDS = r"\b(?:ban|doanh thu|dthu|dt|thu ve|khach)\b"
-
-
-def bought_in_as_purchase(question: str, plan: QueryPlan) -> QueryPlan:
-    """N152. "tháng 6 tiệm cất hàng hết tổng cộng bao nhiêu tiền" read as revenue (public, the retry too; refused
-    asks=purchase): a money question with a buying-in word (N127 _PURCHASE: "nhập", "cất / đánh hàng") and no selling
-    word asks the money spent on purchases (§5)."""
-    t = " ".join(tokens(denoised(question)))
-    if plan.intent != "value" or len(plan.measures) != 1 or plan.measures[0].metric != "revenue" \
-            or not re.search(_PURCHASE, t) or not re.search(_MONEY, t) or re.search(_SALE_WORDS, t):
-        return plan
-    m = plan.measures[0]
-    kept = [f for f in m.filters if f.field not in ("order_status",)]
-    return plan.model_copy(update={"measures": [m.model_copy(update={"metric": "purchase_amount", "filters": kept})]})
-
-
-def payments_listed(question: str, plan: QueryPlan) -> QueryPlan:
-    """N153. "tiền khách còn nợ ở những đơn đặt hơn 7 ngày" read with every payment method written out as filters
-    (public, the retry too): three or more payment methods on one measure, none of them in the question, is no filter."""
-    def fix(m):
-        pays = [f for f in m.filters if f.field == "payment_method"]
-        if len(pays) < 3 or any(_coded_grounded("payment_method", str(f.value), fold(question)) for f in pays):
-            return m
-        return m.model_copy(update={"filters": [f for f in m.filters if f.field != "payment_method"]})
-    measures = [fix(m) for m in plan.measures]
-    return plan.model_copy(update={"measures": measures}) if measures != list(plan.measures) else plan
-
-
-def bought_in_count(question: str, plan: QueryPlan) -> QueryPlan:
-    """N157. "tháng 6 nhập về bao nhiêu viên Tiffy Dey" read as the money bought, in viên (public, the retry too;
-    refused metric=purchase_amount, no money word): a count of what was bought in, in the unit the plan names
-    (purchased_qty, as purchase_minus_sales counts the bought side, §5)."""
-    t = " ".join(tokens(denoised(question)))
-    if plan.intent != "value" or len(plan.measures) != 1 or plan.measures[0].metric != "purchase_amount" \
-            or not plan.measures[0].unit or re.search(_MONEY, t) or not re.search(_PURCHASE, t) \
-            or not re.search(_COUNTING, t):
-        return plan
-    return _rebuilt(plan, measures=[{**plan.measures[0].model_dump(mode="json", exclude_none=True),
-                                     "metric": "purchased_qty"}])

@@ -16,6 +16,6 @@
     "ewallet": ["ví điện tử"],
     "cod": ["thu hộ", "xi ô đi", "si ô đi"],
     "debt": ["ghi nợ"],
-    "installment": ["trả góp", "góp"]
+    "installment": ["trả góp"]
   }
 }
