@@ -35,7 +35,7 @@ def _plan(filters):
 
 def test_a_channel_the_shop_does_not_record_is_unanswerable_and_a_misread_value_is_not():
     db = CanonicalDB(tables={"orders": pd.DataFrame({"order_id": ["1"], "customer_key": ["A"]})},
-                     readme="# Dữ liệu\n- **Mã đơn**: mã đơn\n- **Khách**: tên khách\n")
+                     readme="# Dữ liệu\n- **Mã đơn**: mã đơn\n- **Khách**: tên khách\n", conventions=())
     assert not_recorded(_plan([{"field": "channel", "value": "tại quầy"}]), "doanh thu bán tại quầy", db) == "kênh bán"
     # "ddown" (telex for "đơn") read as a payment method: a misread, not a question about payments (train)
     assert not_recorded(_plan([{"field": "payment_method", "value": "dDown"}]), "hqua cos nhiêu ddown", db) is None

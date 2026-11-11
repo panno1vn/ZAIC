@@ -422,6 +422,8 @@ def customer_trait_not_recorded(question: str, readme: str) -> bool:
     Trần Não") in a shop whose README names no such column, or names it empty ("Giới tính: cột trống"): the shop does
     not record it (§7). Train: the 10 such questions of 3000 are all unanswerable, every one in a shop whose README
     names neither. Gender read with accents: "khách năm 2025" folds as "khách nam" does."""
+    if not re.search(r"(?m)^##\s*Quy ước\s*$", readme):  # N176: a README without that section proves no absence
+        return False
     q = unicodedata.normalize("NFC", question.lower())
     t = " ".join(tokens(question))
     gender = bool(re.search(r"\bkhách(?: hàng)? (?:nữ|nam)\b(?!\s*(?:\d|nay|ngoái|trước))", q)
