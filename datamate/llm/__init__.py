@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Protocol
@@ -32,6 +34,9 @@ class MockLLM:
         return self.responses.pop(0)
 
 
+TRANSPORT = (urllib.error.URLError, TimeoutError, ConnectionError, OSError)
+
+
 class LlamaServerLLM:
     """llama.cpp `llama-server` (OpenAI-compatible chat endpoint). Start it with --jinja so Qwen3's thinking can be
     switched off; the JSON schema is turned into a grammar, so the output is always parseable JSON of that shape.
@@ -40,13 +45,58 @@ class LlamaServerLLM:
     """
 
     def __init__(self, base_url: str = "http://127.0.0.1:8080", timeout_s: float = 60.0, seed: int = 0,
-                 max_tokens: int = 1024):
+                 max_tokens: int = 1024, retries: int = 1, wait_ready_s: float = 90.0, down_after: int = 5,
+                 probe_every: int = 20):
         self.base_url = base_url.rstrip("/")
         self.timeout_s = timeout_s
         self.seed = seed
         self.max_tokens = max_tokens
+        self.retries, self.wait_ready_s, self.down_after, self.probe_every = retries, wait_ready_s, down_after, probe_every
+        self._fails = 0  # transport failures in a row
+        self._skipped = 0  # calls refused while the server was judged down
+        self.stats = {"retried": 0, "failed": 0, "fast_failed": 0}
 
     def generate_json(self, messages: list[dict], schema: dict) -> dict:
+        """T008 (C003): a transport error (refused, reset, timeout, HTTP 5xx) is retried once after waiting for the
+        server to answer /health; a server that fails `down_after` calls in a row is judged down and refused at once,
+        so a dead server costs microseconds a call, not 60 s, and is probed again every `probe_every` calls. A cut
+        output (JSONDecodeError) and an HTTP 4xx are the caller's: nlu retries the first (N110), the second does not
+        get better. Greedy decoding with a fixed seed: a retried call gives the answer the first would have."""
+        if self._fails >= self.down_after:
+            self._skipped += 1
+            if self._skipped % self.probe_every or not self.healthy():
+                self.stats["fast_failed"] += 1
+                raise ConnectionError("llama-server không trả lời (đã ngừng gọi, sẽ thử lại sau)")
+            self._fails = 0  # it is back
+        for attempt in range(self.retries + 1):
+            try:
+                out = self._call(messages, schema)
+                self._fails = 0
+                return out
+            except json.JSONDecodeError:
+                raise
+            except urllib.error.HTTPError as e:
+                if e.code < 500:
+                    raise
+                failure = e
+            except TRANSPORT as e:
+                failure = e
+            self._fails += 1
+            if attempt == self.retries:
+                self.stats["failed"] += 1
+                raise failure
+            self.stats["retried"] += 1
+            self._wait_ready()
+        raise AssertionError("unreachable")
+
+    def _wait_ready(self) -> None:
+        deadline = time.monotonic() + self.wait_ready_s
+        while time.monotonic() < deadline:
+            if self.healthy():
+                return
+            time.sleep(3)
+
+    def _call(self, messages: list[dict], schema: dict) -> dict:
         body = {
             "messages": messages, "temperature": 0.0, "top_k": 1, "seed": self.seed, "max_tokens": self.max_tokens,
             "response_format": {"type": "json_schema", "json_schema": {"name": "answer", "schema": schema}},

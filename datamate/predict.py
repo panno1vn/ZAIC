@@ -69,6 +69,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.llm_url and llm is None:
         return 1
     summary = run(Path(args.data), Path(args.out), config, llm)
+    stats = getattr(llm, "stats", None)  # T008: how often the server had to be called again, or was judged down
+    if stats is not None:
+        print(f"LLM: gọi lại {stats['retried']}, hỏng {stats['failed']}, bỏ qua vì server ngừng {stats['fast_failed']}")
+        try:
+            logs = Path(args.out) / "logs"
+            logs.mkdir(parents=True, exist_ok=True)
+            (logs / "_llm_stats.json").write_text(json.dumps(stats), encoding="utf-8")
+        except OSError:
+            pass
     types = ", ".join(f"{t}={n}" for t, n in summary.types.most_common())
     print(f"{summary.n_questions} câu · {types} · lỗi {summary.errors} · hết giờ {summary.timed_out} · "
           f"{summary.elapsed_s:.1f}s → {Path(args.out) / 'submission.jsonl'}")
