@@ -164,14 +164,14 @@ MEAN = [
     ("§4.tuoi_no", "tuổi nợ **0** ngày", "tuổi nợ **1** ngày"),
     ("§2.tuan", "tuần liền trước, thứ Hai", "tuần liền sau, thứ Hai"),
     ("§2.tuan", "từ thứ Hai của tuần chứa hôm nay", "từ Chủ nhật của tuần chứa hôm nay"),
+    # T016: a sentence a public rulebook added to the train row, edited. Against the train version it looks like an
+    # added sentence; the public version already says it the other way.
+    ("§1.don_thuoc_ky_nao", "vẫn bị loại khỏi doanh thu kỳ đặt", "vẫn tính vào doanh thu kỳ đặt"),
+    ("§1.don_thuoc_ky_nao", "vẫn bị loại khỏi doanh thu kỳ đặt", "vẫn được giữ trong doanh thu kỳ đặt"),
+    ("§1.don_thuoc_ky_nao", "Đơn trả hàng sau kỳ, kể cả trả sau hôm nay", "Đơn trả hàng trong kỳ, kể cả trả sau hôm nay"),
+    ("§2.den_het_ngay_x_tinh_den_hom_nay", "còn hàng, chưa giao…", "còn hàng, đã giao…"),
+    ("§6.vat_lieu_xay_dung.giao_nhieu_dot", "Đợt đã chở vẫn tính dù đơn sau đó trả hàng", "Đợt đã chở vẫn tính dù đơn sau đó huỷ"),
 ]
-# meaning changes the gate still accepts: the changed words sit in a whole sentence the row has beyond its train
-# version, with no narrowing word or number (N167 accepts such a sentence as a clarification). Open, reported.
-KNOWN_HOLES = {
-    "hole_added_sentence_reversed": ("meaning", "vẫn bị loại khỏi doanh thu kỳ đặt", "vẫn tính vào doanh thu kỳ đặt",
-                                     "§1.don_thuoc_ky_nao"),
-}
-EDITS.update(KNOWN_HOLES)
 for _i, (_rid, _old, _new) in enumerate(REWORD, 1):
     EDITS[f"reword_{_i:02d}"] = ("wording", _old, _new, _rid)
 for _i, (_rid, _old, _new) in enumerate(MEAN, 1):
