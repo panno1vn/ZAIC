@@ -366,8 +366,8 @@ def ungrounded_measures(question: str, plan: QueryPlan) -> list[str]:
         bad.append("asks=phones_sold")  # "máy bán tháng 8 đã mang lại bảo hành": phones, not visits of the month
     if "avg_order_value" in metrics and re.search(r"\bphai tra\b", t):
         bad.append("asks=amount_due")  # §6: "khách phải trả" is after discount and trade-in, not the revenue
-    if set(metrics) != {"installments_due"} and (re.search(_PERIODS, t) or ("overdue_installment_count" in metrics and any(
-            f.field == "customer" for m in plan.measures for f in m.filters))):  # N135: installments_due counts them
+    if re.search(_PERIODS, t) or ("overdue_installment_count" in metrics and any(
+            f.field == "customer" for m in plan.measures for f in m.filters)):
         # "khách X góp tới hạn mấy kỳ": a number of instalments, which no metric counts (overdue_installment_count
         # counts customers); N79 public 08/11: read as the customer's debt in money
         bad.append("asks=periods")
@@ -584,81 +584,6 @@ def this_month_written_short(question: str, plan: QueryPlan) -> QueryPlan:
     if not _THIS_MONTH_SHORT.search(t) or _WEEK_OR_TODAY.search(t):
         return plan
     return plan.model_copy(update={"period": p.model_copy(update={"kind": "this_month"})})
-
-
-_PERIODS_DUE = re.compile(r"\btoi han (?:may|bao nhieu|bao nhiu|bn|bnhiu|bnhieu) ky\b")
-_TODAY_WORDS = re.compile(r"\b(?:hom nay|hnay|bua ni|bua nay|ngay hom nay)\b")
-
-
-def installment_periods_due(question: str, plan: QueryPlan, as_of: date | None = None) -> QueryPlan:
-    """N135. "Hết hnay, khách Tạ Dũng Long góp tới hạn mấy kỳ rồi, tính luôn kỳ hạn hôm nay?", "Tới bữa ni khách Triệu
-    Thu Trang tới hạn mấy kỳ góp rồi" (public, a phone shop): the number of installment periods due by today, read as
-    the money due (refused: "asks=periods"). One measure filtered by one customer (and the installment method), on a
-    question that writes "tới hạn mấy kỳ": the internal metric installments_due at the end of today ("bữa ni" is
-    "hôm nay"; the reader wrote today's date, which the date gate does not take as written)."""
-    t = " ".join(tokens(question))
-    if not _PERIODS_DUE.search(t) or len(plan.measures) != 1 or as_of is None:
-        return plan
-    m = plan.measures[0]
-    customers = [f for f in m.filters if f.field == "customer"]
-    if len(customers) != 1 or any(f.field not in ("customer", "payment_method") for f in m.filters):
-        return plan
-    raw = plan.model_dump(mode="json", exclude_none=True)
-    raw["intent"] = "value"
-    raw["measures"] = [{"metric": "installments_due", "filters": [customers[0].model_dump(mode="json", exclude_none=True)]}]
-    if _TODAY_WORDS.search(t):
-        raw["period"] = {"kind": "today"}
-    raw.pop("answer_type", None)
-    return QueryPlan.model_validate(raw)
-
-
-_SOLD_THEN_WARRANTY = re.compile(r"\b(?:may ban(?: ra)?|ban ra)\b")
-
-
-def phones_sold_then_warrantied(question: str, plan: QueryPlan) -> QueryPlan:
-    """N136. "Máy bán ra tháng 8/2025, tới hnay có bao nhiêu máy đã mang lại bảo hành rồi?", "bao nhiêu máy bán tháng
-    7/2026 đã được mang tới bảo hành ít nhất một lần" (public phone shop, refused "asks=phones_sold"): phones sold in the
-    month that came back, read as the month's warranty visits. One warranty_count measure with no filter but the
-    reader's empty ones (weekday "all", an order status, "phones"), on a question about phones SOLD that writes "bảo
-    hành" and the one month they were sold: the internal metric phones_warrantied for that month."""
-    t = " ".join(tokens(question))
-    if not (_SOLD_THEN_WARRANTY.search(t) and re.search(r"\bbao hanh\b", t)) or len(plan.measures) != 1:
-        return plan
-    m = plan.measures[0]
-    empty = lambda f: (f.field == "order_status" or (f.field == "weekday" and str(f.value) == "all")  # noqa: E731
-                       or (f.field == "product_line" and fold(str(f.value)) in ("phones", "phone", "may", "dien thoai"))
-                       or (f.field == "weekday" and not _WEEKDAY_WORDS.search(t)))
-    if m.metric != "warranty_count" or not all(empty(f) for f in m.filters):
-        return plan
-    months = stated_months(question)
-    if len(set(months)) != 1:
-        return plan
-    month, year = months[0]
-    raw = plan.model_dump(mode="json", exclude_none=True)
-    raw["intent"] = "value"
-    raw["measures"] = [{"metric": "phones_warrantied", "filters": []}]
-    raw["period"] = {"kind": "month", "year": year, "month": month}
-    raw.pop("answer_type", None)
-    return QueryPlan.model_validate(raw)
-
-
-_PER_WEEKDAY = re.compile(r"\btrung binh moi (?:ngay )?(?:thu (?:2|3|4|5|6|7|hai|ba|tu|nam|sau|bay)|chu nhat|cn)\b")
-
-
-def average_per_weekday(question: str, plan: QueryPlan) -> QueryPlan:
-    """N134. "Th3/2026 trung bình mỗi thứ Tư tiệm xửa mấy nượt xe?" read as the month's total of Wednesday tickets
-    (public, the N79 second call after N127 refused the money reading): §3 "trung bình mỗi ngày thứ X của kỳ: chia cho
-    số ngày thứ X trong kỳ, kể cả ngày không có đơn, phiếu". A total with a weekday filter on a question that writes
-    "trung bình mỗi (ngày) thứ X" is avg_per_weekday. (Train never writes it: public evidence only.)"""
-    t = " ".join(tokens(question))
-    if not _PER_WEEKDAY.search(t):
-        return plan
-    def fix(m):
-        if m.aggregate == "total" and any(f.field == "weekday" for f in m.filters):
-            return m.model_copy(update={"aggregate": "avg_per_weekday"})
-        return m
-    measures = [fix(m) for m in plan.measures]
-    return plan if measures == list(plan.measures) else plan.model_copy(update={"measures": measures})
 
 
 def written_month_over_relative(question: str, plan: QueryPlan, as_of: date | None = None) -> QueryPlan:

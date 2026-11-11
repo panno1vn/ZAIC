@@ -79,35 +79,6 @@ def delivered_qty(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
                                 "deliveries.base_qty"])
 
 
-R_PHONE_WARRANTY = ("§6.cua_hang_dien_thoai.bao_hanh", "§6.p_luat_rieng_cua_tung_nganh_dung", "§0.p_hom_nay_cua_moi_cau_la")
-
-
-def phones_warrantied(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
-    """N136. "Máy bán ra tháng 8/2025, tới hnay có bao nhiêu máy đã mang lại bảo hành rồi?" (public phone shop): the
-    phones of the orders placed in the period (§1, not cancelled) that the warranty book received at least once by the
-    end of today, each phone once by its IMEI (README "máy nhận theo IMEI; một máy có thể tới nhiều lần"); the book's
-    visits carry their sale order (mapping.side_books, by the IMEI the sales book writes)."""
-    from datamate.metrics import frames as F
-    ms = plan.plan.measures
-    if plan.period is None or len(ms) != 1 or ms[0].filters:
-        return None
-    v, o = db.table("warranty_visits"), F.orders(db)
-    if v is None or o is None or not {"order_id", "imei"} <= set(v.columns) or v["visit_time"].isna().any():
-        return None
-    placed = o[(o["day"] >= plan.period.start) & (o["day"] <= plan.period.end) & o["status"].ne("cancelled")]
-    ids = set(placed["order_id"].astype(str))
-    seen = v[v["order_id"].astype(str).isin(ids) & (v["visit_time"].dt.date <= plan.as_of)]
-    if seen["imei"].isna().any():
-        return None
-    return ExecResult(value=int(seen["imei"].astype(str).nunique()), answer_type="number", source="D1",
-                      function="industry.phones_warrantied", rule_ids=sorted(R_PHONE_WARRANTY),
-                      requires=["warranty_visits.visit_time", "warranty_visits.imei", "warranty_visits.order_id"])
-
-
-metric("value", "phones_warrantied", requires=("warranty_visits.imei", "warranty_visits.order_id"),
-       rules=tuple(sorted(R_PHONE_WARRANTY)))(phones_warrantied)
-
-
 metric("value", "delivered_qty", requires=("deliveries.product_key", "deliveries.base_qty"),
        rules=tuple(sorted(R_DELIVERIES)), filters=("product",))(delivered_qty)
 

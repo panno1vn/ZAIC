@@ -42,19 +42,17 @@ Metric = Literal[
     "commission",  # hoa hồng nhân viên, thợ theo phần trăm của danh sách nhân viên (README)
     "other",
     # chỉ do luật viết lại (grounding), không có trong schema gửi LLM (INTERNAL_METRICS)
-    "avg_amount_due", "trade_in_order_count", "due_order_count", "delivered_qty", "installments_due",
-    "phones_warrantied",
+    "avg_amount_due", "trade_in_order_count", "due_order_count", "delivered_qty",
 ]
 # metrics only the grounding rewrites write: nlu.prompt.generation_schema leaves them out, so the reader's grammar
 # (and its cached answers) stay as they are
-INTERNAL_METRICS = frozenset({"avg_amount_due", "trade_in_order_count", "due_order_count", "delivered_qty",
-                              "installments_due", "phones_warrantied"})
+INTERNAL_METRICS = frozenset({"avg_amount_due", "trade_in_order_count", "due_order_count", "delivered_qty"})
 PERCENT_METRICS = frozenset({"cancel_rate", "warranty_rate"})
 DATE_METRICS = frozenset({"nearest_expiry"})
 # measured as the state at the end of a day (§2 "Đến hết ngày X"): [C2] resolves their period in mode stock, from the
 # start of the data, whatever kind the plan has ("tồn cuối ngày hôm nay" may come as kind today)
 STOCK_METRICS = frozenset({"debt_total", "debtor_count", "debt_amount", "stock_qty", "stock_value", "nearest_expiry",
-                           "expiring_value", "overdue_installment_count", "overdue_amount", "installments_due"})
+                           "expiring_value", "overdue_installment_count", "overdue_amount"})
 
 FilterField = Literal[
     "product", "product_group", "category", "product_line", "brand", "size", "stage", "unit",

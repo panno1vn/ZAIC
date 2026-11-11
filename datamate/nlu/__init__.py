@@ -23,7 +23,7 @@ from .grounding import (quantity_not_money, quarter_written, orders_counted, war
                         warranty_over_sold, order_amount_named, particle_not_unit, today_not_this_month,
                         order_amount_no_item, stocked_in_as_purchase,
                         debt_age_from_question, in_minus_out, k_not_the_month, rulebook_rank_terms, share_as_value,
-                        average_per_weekday, delivered_from_words, installment_periods_due, phones_sold_then_warrantied, this_month_written_short, written_month_over_relative, weekday_as_stated, which_time_as_rank, whole_as_share_of,
+                        delivered_from_words, this_month_written_short, written_month_over_relative, weekday_as_stated, which_time_as_rank, whole_as_share_of,
                         drop_restated_status, drop_ungrounded_years, month_of_short_year, one_name_no_values,
                         lots_expiring_count, orders_with_group, series_months_as_filters, stray_numeric_filters,
                         threshold_as_value,
@@ -175,8 +175,7 @@ def plan_problems(question: str, plan: QueryPlan, as_of: date | None = None) -> 
     # public run 08/11: "bỉm size NB … % tổng số bịch bỉm" read so on one run, without the share_of on the other)
     plan = k_not_the_month(question, whole_as_share_of(whole_not_part(debt_age_from_question(question, plan))))
     plan = delivered_from_words(question, this_month_written_short(question, plan))  # N128, N130
-    plan = average_per_weekday(question, written_month_over_relative(question, plan, as_of))  # N133, N134
-    plan = phones_sold_then_warrantied(question, installment_periods_due(question, plan, as_of))  # N135, N136
+    plan = written_month_over_relative(question, plan, as_of)  # N133
     plan = weekday_as_stated(question, share_as_value(question, count_not_list(question, plan)))
     plan = widen_each_table(question, one_name_no_values(question, plan))
     plan = scale_money(question, count_as_value(month_of_short_year(question, plan)))
