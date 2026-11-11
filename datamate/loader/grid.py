@@ -30,16 +30,26 @@ _DATED_SUMMARY = re.compile(r"^(?:cong|tong|total)(?: cong)?(?: ngay| thang)? ?\
 _SUMMARY_VN = re.compile(r"^(?:cộng|tổng)\b")
 
 
+_TOTAL_WORDS = frozenset(
+    "cong tong total grand sum subtotal doanh thu tien hang ban so luong thang ngay tuan nam quy ca ky don "
+    "chi phi nhap xuat ton no thanh toan tra khach lai gop von ket sales this week month day year of the".split())
+
+
 def _summary_cell(c: str) -> bool:
     """A total row's label. N163: folded, "Công tắc 1 chiều Panasonic…" (a product) is "cong tac…" and was taken for
     "Cộng" whenever its row had few cells filled: a train catalogue lost its last product, and every question on that
     product's group, once one more blank column made the row count as half empty (layout test 09/11). Written with
-    accents, only "Cộng" / "Tổng" are totals (not "Công", "Tống"); written without, a label of at most three words."""
+    accents, only "Cộng" / "Tổng" are totals (not "Công", "Tống"); written without, a label of total words (N170)."""
     low = " ".join(unicodedata.normalize("NFC", c.lower()).split())
     f = fold(c)
     if low != f:  # accents (or đ) written: the word itself decides
         return bool(_SUMMARY_VN.match(low)) or bool(re.match(r"^(?:total|grand total|sum|subtotal)\b", f))
-    return bool(_SUMMARY.match(f)) and len(f.split()) <= 3
+    if not _SUMMARY.match(f):
+        return False
+    # N170: a total label is made of total words, however many ("Tong doanh thu ca ngay", "Tong cong tien hang"); a
+    # product or a person is not ("Cong tac 1 chieu Panasonic", "Tong Van An"): N163's three-word limit let the long
+    # labels through, a total row became one more line of the order above it
+    return all(w in _TOTAL_WORDS for w in re.findall(r"[a-z]+", f))
 
 
 def cell_text(v) -> str:

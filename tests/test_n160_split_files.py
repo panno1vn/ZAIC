@@ -63,3 +63,24 @@ def test_n163_product_named_cong_tac_kept_in_a_sparse_catalogue(tmp_path):
     (tmp_path / "danh_muc.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
     raw = loader.load_business(tmp_path)
     assert len(raw.tables[0].frame) == 6
+
+
+# ---- N170 (R001): a total label written without accents is made of total words, however many
+def test_n170_unaccented_total_labels_are_totals():
+    from datamate.loader.grid import _summary_cell
+    for label in ("Tong doanh thu ca ngay", "Tong cong tien hang", "Tong tien ban hang ca ngay", "Total sales this week",
+                  "Cong", "Tong cong", "cong thang 3"):
+        assert _summary_cell(label), label
+    for label in ("Cong tac 1 chieu Panasonic", "Tong Van An", "Tong do cat toc", "Cong ty ABC"):
+        assert not _summary_cell(label), label
+
+
+def test_n170_a_long_unaccented_total_row_is_dropped_from_the_grid():
+    from datamate.loader.grid import to_table
+    g = [["Ma don", "Ngay", "Hang", "SL", "Don gia", "Thanh tien"], ["D1", "01/02/2025", "Bia", "2", "10000", "20000"],
+         ["", "", "Mi", "1", "8000", "8000"], ["D2", "02/02/2025", "Bia", "1", "10000", "10000"],
+         ["D3", "02/02/2025", "Cong tac 1 chieu Panasonic", "1", "45000", "45000"],
+         ["Tong doanh thu ca ngay", "", "", "", "", "83000"]]
+    t = to_table(g)
+    assert len(t.frame) == 4 and "Tong doanh thu ca ngay" not in set(t.frame["Ma don"])
+    assert "Cong tac 1 chieu Panasonic" in set(t.frame["Hang"])
