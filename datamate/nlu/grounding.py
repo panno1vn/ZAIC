@@ -87,8 +87,8 @@ _VEHICLE_WORDS = re.compile(r"^xe(?: (?:cho|cho hang|giao|giao hang|hang))?$")
 _WARRANTY_RESTATED = {("avg_ticket_value", False), ("warranty_count", True), ("warranty_rate", True)}
 
 
-# N101. §6 Điện thoại "khách phải trả là tiền của đơn sau bớt và sau trừ máy cũ": "đơn bán 02/2026, trừ tiền bớt với
-# tiền máy cũ thu lại rồi, khách phải trả bao nhiêu" read with category = "trừ tiền bớt với tiền máy cũ thu lại", or
+# N101. §6 Điện thoại "khách phải trả là tiền của đơn sau bớt và sau trừ máy cũ": a question asking what customers paid
+# after the discount and the trade-in, read with a category made of those deduction words, or
 # "trade_in" (public run11, 2 questions, the retry the same): the words of the metric's own deductions
 _DUE_METRICS = {"amount_due_total", "avg_amount_due", "trade_in_amount"}
 _DEDUCTION_WORDS = re.compile(r"\b(?:tru|bot|thu lai|giam gia)\b|trade.?in")
@@ -347,7 +347,7 @@ def ungrounded_measures(question: str, plan: QueryPlan) -> list[str]:
         bad.append(f"k={plan.rank.k}")  # "3 khách nào nợ nhiều nhất" with k left at its default 1
     # §6 Cửa hàng điện thoại, misread on a public phone shop (06/11) once its figures had hints
     if "amount_due_total" in metrics and re.search(r"\b(?:gop|tra gop|no|chua tra)\b", t):
-        bad.append("metric=amount_due_total")  # "hợp đồng trả góp còn lại bao nhiêu tiền chưa góp": a debt
+        bad.append("metric=amount_due_total")  # the money still unpaid on instalment contracts: a debt
     if plan.intent == "value" and asks_percent and set(metrics) & {"trade_in_amount", "amount_due_total"}:
         bad.append("asks=percent")  # "bao nhiêu % đơn có thu máy cũ" read as the trade-in total
     if "warranty_count" in metrics and re.search(r"\b(?:may ban|ban ra)\b", t):
@@ -361,7 +361,7 @@ def ungrounded_measures(question: str, plan: QueryPlan) -> list[str]:
         bad.append("asks=periods")
     if "overdue_installment_count" in metrics and (re.search(r"\btien\b", t) or not re.search(
             r"\b(?:khach|nguoi|ngui)\b", t)):
-        bad.append("asks=overdue_amount")  # "tiền góp quá hạn khách chưa trả là bao nhiêu": money, not customers
+        bad.append("asks=overdue_amount")  # the overdue instalment money customers still owe: money, not customers
     if plan.intent == "share" and (plan.share_of is None or not plan.share_of.filters) and re.search(
             r"\b(?:tien ban may|dthu may|doanh thu may)\b", t):
         # "% tiền bán máy": the phones' revenue, not the shop's with accessories (a whole with no filter is the shop's
@@ -390,7 +390,7 @@ def ungrounded_measures(question: str, plan: QueryPlan) -> list[str]:
     # example); train 4 such plans refused here
     if plan.intent in ("series", "value") and re.search(_WHICH_TIME, t) and re.search(r"\bnhat\b", t) \
             and not (metrics and set(metrics) <= DATE_METRICS):
-        bad.append("asks=which_time")  # N78: "doanh thu cao nhất rơi vào tháng nào trong 3 tháng" read as the series
+        bad.append("asks=which_time")  # N78: which of three months had the highest revenue, read as the series
     return bad
 
 
@@ -424,7 +424,7 @@ def customer_trait_not_recorded(question: str, readme: str) -> bool:
     return (gender and not recorded("giới tính")) or (street and not recorded("địa chỉ"))
 
 
-# N112: a product's quality ("mặt hàng có chất lượng tốt nhất", "sản phẩm nào ngon nhất"), which no file records (§7)
+# N112: a product's quality ("chất lượng tốt nhất", "ngon nhất"), which no file records (§7)
 _PRODUCT_QUALITY = r"\b(?:ngon nhat|chat luong(?: tot| cao)? nhat|chat luong tot)\b"
 
 
@@ -443,7 +443,7 @@ _AFTER_TODAY = re.compile(r"\b(?:muon hon|sau|tre hon)\s+(?:hom nay|hnay|bua nay
 
 
 def due_date_count_plan(question: str, as_of: date) -> QueryPlan | None:
-    """N113. "Tính tới hôm nay, có mấy đơn bán chịu ghi ngày phải trả trong <tháng> / muộn hơn hôm nay?": the
+    """N113. How many credit orders, by today, have a due day in a given month or after today: the
     credit orders placed by today whose due day (the README's "Ngày phải trả") is in that month, or after today
     (internal metric due_order_count). The month is usually after today, so it is no period of the plan: the plan's
     period is "until today" (orders placed by then). The LLM reads none of the 6 public questions (4 no plan, 2 an
@@ -535,7 +535,7 @@ _ASKS_FIGURE = re.compile(r"\b(?:bang|tung|moi|kem|lan luot|la bao nhieu|bao nhi
 
 
 def one_name_no_values(question: str, plan: QueryPlan) -> QueryPlan:
-    """N80. "Trong nhóm bánh, mặt hàng nào bán được nhiều tiền nhất?" read as a one-row table (rank k = 1 with values;
+    """N80. The best-selling item by money within one product group, read as a one-row table (rank k = 1 with values;
     public run11, 6 questions, which the rankings refuse): a question that asks which one ("… nào … nhất") and no
     figure (no "bao nhiêu", "mấy", "bảng", "từng", "mỗi", "kèm") asks the name only. No train question asks a table of
     one row (every with_values in the verified bank has k 3 or 5 and "từng người")."""
@@ -558,7 +558,7 @@ def one_name_no_values(question: str, plan: QueryPlan) -> QueryPlan:
 
 
 def k_not_the_month(question: str, plan: QueryPlan) -> QueryPlan:
-    """N91. "<tháng> khách nào mua nhiều đơn nhất" ranked with k = 5 (public run11 twice, the month written before its
+    """N91. The customer with the most orders in a month, ranked with k = 5 (public run11 twice, the month written before its
     year read as a top 5): a k the question states nowhere but as the month of a "M-YYYY" / "M/YYYY" date is 1."""
     r = plan.rank
     if r is None or not r.k or r.k <= 1 or stated_k(question) is not None:
@@ -589,7 +589,7 @@ def listed_months(question: str) -> list[str]:
 
 
 def rank_months_as_listed(question: str, plan: QueryPlan) -> QueryPlan:
-    """N97. "<tháng>, <tháng>, <tháng> tháng nào tiệm bán được nhiều tiền nhất" ranked over the month of February alone (the
+    """N97. Which of three listed months had the most revenue, ranked over the month of February alone (the
     LLM kept the one month written with its year): the months the question lists. A ranking of months over a single
     month is otherwise refused (asks=months): it can only answer that month."""
     r = plan.rank
@@ -607,8 +607,8 @@ _SELF_COUNTS = {("customer", "new_customer_count"), ("customer", "customer_count
 
 
 def threshold_as_value(question: str, plan: QueryPlan) -> QueryPlan:
-    """N98. A count over a bound every object passes, read for a figure ("Xiaomi Redmi Note 14 tháng này bán được bnhiu
-    chiếc" as the products with quantity ≥ 0; "số khách thành viên đăng ký mới" as the customers with new members
+    """N98. A count over a bound every object passes, read for a figure (units of one phone model sold this
+    month read as the products with quantity ≥ 0; new member sign-ups read as the customers with new members
     ≥ 1, a metric that counts customers itself): the figure. Only when the question counts no objects for the first."""
     t = plan.threshold
     if plan.intent != "count_where" or t is None or t.as_share:
@@ -628,7 +628,7 @@ _GROUP_NAMED = re.compile(r"\bnhom\s+([a-z0-9 ]+?)\s*(?:\?|\.|,|$|trong |thang |
 
 
 def orders_with_group(question: str, plan: QueryPlan) -> QueryPlan:
-    """N98. "bao nhiêu đơn có ít nhất một mặt hàng nhóm dùng ngoài" read as orders with at least one item, the group
+    """N98. Orders with at least one item of a product group, read as orders with at least one item, the group
     lost (public run11, 2 questions): the number of orders with an item of the group the question names (§1 "cả khi
     đếm số đơn có một mặt hàng"); the linking step checks the group is the shop's."""
     t = plan.threshold
@@ -743,7 +743,7 @@ def whole_not_part(plan: QueryPlan) -> QueryPlan:
 
 
 def count_as_value(plan: QueryPlan) -> QueryPlan:
-    """"Đếm phiếu sửa xe được mấy phiếu" written as the orders with at least one order (or ticket) in them: every
+    """A count of repair tickets written as the orders with at least one order (or ticket) in them: every
     order, so the count of orders itself (public 06/11). Only that bound: ≥ 1 / > 0 on an order's own count."""
     t = plan.threshold
     if plan.intent != "count_where" or t is None or t.entity != "order" or t.as_share \
@@ -787,7 +787,7 @@ _ORDER_WORDS = r"\b(?:dh|don|don hang|hoa don|bill|bil|order|o do)\b"
 
 
 def orders_not_money(question: str, plan: QueryPlan) -> QueryPlan:
-    """N76. "30 ngày gần nhất được bnhiu đh", "Hnay tổng bnhiu đh" read as revenue (run11 07/11, refused by the
+    """N76. Order counts asked in shorthand ("bnhiu đh") read as revenue (run11 07/11, refused by the
     measure gate): a question that counts orders ("đh", "đơn") and writes no money word asks the number of orders.
     One revenue measure, a value or a comparison, no unit."""
     t = " ".join(tokens(question))
@@ -805,8 +805,8 @@ _UNPAID = r"\b(?:chua gop|chua tra|con no|con thieu)\b"
 
 
 def unpaid_as_debt(question: str, plan: QueryPlan) -> QueryPlan:
-    """N80. §6 Điện thoại "phần góp chưa trả là tiền khách còn nợ": "các hợp đồng trả góp còn lại bao nhiêu tiền chưa
-    góp" read as amount_due_total, what customers had to pay (public run11 and its retry, refused by the measure gate)
+    """N80. §6 Điện thoại "phần góp chưa trả là tiền khách còn nợ": the money still unpaid on
+    instalment contracts read as amount_due_total, what customers had to pay (public run11 and its retry, refused by the measure gate)
     asks the debt still owed, filters kept (the installment orders, one customer). Not when the question asks what the
     customer has to pay ("khách phải trả, gồm cả phần còn nợ" is amount_due_total, §6 Thu máy cũ). A value only."""
     if plan.intent != "value" or not any(m.metric == "amount_due_total" for m in plan.measures):
@@ -831,7 +831,7 @@ _COUNTS_PEOPLE = r"\b(?:bao nhieu|bao nhiu|bnhiu|bnhieu|bn|may|mi|dem)\s+(?:khac
 
 
 def overdue_customers(question: str, plan: QueryPlan) -> QueryPlan:
-    """N96. "có bnhiu khách quá hạn góp" read as a debt in money (one full public run 08/11, the run before had read
+    """N96. How many customers are late on instalments, read as a debt in money (one full public run 08/11, the run before had read
     it right): a question that counts customers and asks about overdue instalments, with no money word, asks the
     customers with an overdue instalment (§6 Điện thoại: "kỳ góp có hạn trước ngày hỏi mà chưa góp đủ là quá hạn").
     One debt measure, filters kept."""
@@ -859,7 +859,7 @@ def _rebuilt(plan: QueryPlan, **changes) -> QueryPlan:
 
 
 def count_not_list(question: str, plan: QueryPlan) -> QueryPlan:
-    """N85. "7 ngày gần nhất có mấy mặt hàng ế, không bán được cái nào?" read as the list (the count gate refused it,
+    """N85. How many items sold nothing in the last N days, read as the list (the count gate refused it,
     public run11 2 questions, both retries too): a question that counts and does not list asks how many."""
     ls = plan.list_spec
     if ls is None or ls.count:
@@ -871,7 +871,7 @@ def count_not_list(question: str, plan: QueryPlan) -> QueryPlan:
 
 
 def whole_as_share_of(plan: QueryPlan) -> QueryPlan:
-    """N85. "bỉm size NB được mấy % tổng số bịch bỉm" written as a share of two measures, the part then its whole (the
+    """N85. One diaper size as a percent of all diaper packs, written as a share of two measures, the part then its whole (the
     second's filters a strict part of the first's, same metric and unit), with no share_of (public run11; the share
     takes one measure): the second is the whole."""
     if plan.intent != "share" or plan.share_of is not None or len(plan.measures) != 2:
@@ -898,7 +898,7 @@ _TIME_ENTITY = {"thang": "month", "ngay": "day"}
 
 
 def which_time_as_rank(question: str, plan: QueryPlan) -> QueryPlan:
-    """N85. "Doanh thu cao nhất rơi vào tháng nào trong 3 tháng từ <tháng> đến <tháng>?" read as the series of the
+    """N85. Which month of a three-month span had the highest revenue, read as the series of the
     months (refused, asks=which_time): the month (day) ranked first by that figure over the period. Highest only: the
     rankings refuse ascending order."""
     if plan.intent not in ("series", "value") or len(plan.measures) != 1 or plan.period is None:
@@ -929,8 +929,8 @@ def rulebook_rank_terms(question: str, plan: QueryPlan) -> QueryPlan:
             and not any(m.filters for m in plan.measures):
         return _rebuilt(plan, rank={"entity": "customer", "by": "avg_order_value", "k": r.k, "min_orders": 3},
                         measures=[])
-    # N109. §3 "Ngày đắt khách nhất: ngày có nhiều đơn nhất trong kỳ" ("Tháng 8/2025 ngày nào cửa hàng đắt khách
-    # nhất?" ranked by customers, which no day ranking counts: public run11, no figure)
+    # N109. §3 "Ngày đắt khách nhất: ngày có nhiều đơn nhất trong kỳ" (the busiest day of a
+    # month, ranked by customers, which no day ranking counts: public run11, no figure)
     if r is not None and r.entity == "day" and re.search(r"\bdat khach (?:nhat|nhut)\b", t) and r.by != "order_count" \
             and not any(m.filters for m in plan.measures):
         return _rebuilt(plan, rank={"entity": "day", "by": "order_count", "k": r.k, "order": r.order}, measures=[])
@@ -1067,7 +1067,7 @@ _COUNTED_UNITS = frozenset({"lon", "chai", "ly", "coc", "thung", "goi", "hop", "
 
 
 def in_minus_out(question: str, plan: QueryPlan) -> QueryPlan:
-    """N86. §5 "nhập trừ bán, chênh nhập và bán" ("số viên nhập trừ số viên bán ra", "lấy số nhập trừ số bán") read
+    """N86. §5 "nhập trừ bán, chênh nhập và bán" (units bought in minus units sold) read
     as the stock, the money bought or two figures (public run11 4 questions, train 2; refused by the measure gates):
     the one figure purchase_minus_sales of the product the plan names, in the unit it names."""
     if plan.intent != "value" or not plan.measures:
@@ -1082,7 +1082,7 @@ def in_minus_out(question: str, plan: QueryPlan) -> QueryPlan:
         return plan
     unit = next((m.unit for m in plan.measures if m.unit), None)
     if unit is None:  # "… là bao nhiêu viên": the unit after the counting word (compared folded, stock._same_unit)
-        t = " ".join(tokens(denoised(question)))  # also "tổng gói nhập trừ tổng gói bán", "số viên nhập"
+        t = " ".join(tokens(denoised(question)))  # also packs or tablets bought in minus sold
         unit = next((w for w in re.findall(r"\b(?:bao nhieu|bao nhiu|bn|bnhiu|bnhieu|may|tong|so|dem) (\w+)", t)
                      if w in _COUNTED_UNITS), None)
     measure = {"metric": "purchase_minus_sales",
@@ -1202,7 +1202,7 @@ def debt_age_added(question: str, plan: QueryPlan) -> QueryPlan:
 
 
 def split_debt_ages(plan: QueryPlan) -> QueryPlan:
-    """"Nợ còn lại chia theo tuổi nợ 0–7, 8–15 và trên 15 ngày" (train 5 questions, answered as a list; public 06/11
+    """Debt left split into age bands of days (train 5 questions, answered as a list; public 06/11
     6 more), written as one debt measure with a word filter per group, or a measure per group: one debt_total per
     group in the question's order, each with the group's numeric bounds (§4 "tuổi nợ")."""
     debt = {"debt_total", "debt_amount"}
@@ -1317,7 +1317,7 @@ _DUE_READINGS = {"avg_order_value", "amount_due_total", "trade_in_amount"}
 
 
 def due_per_order(question: str, plan: QueryPlan) -> QueryPlan:
-    """N101. §6 Điện thoại: "<tháng> trung bình mỗi đơn khách phải trả bao nhiêu (đã trừ bớt và máy cũ thu lại)" read
+    """N101. §6 Điện thoại: the average a customer pays per order after discount and trade-in, read
     as avg_order_value (the revenue: refused, §6 "khách phải trả" is after the discount and the trade-in), or as the
     amount due beside the trade-in and the average (public run11, 3 questions, every retry refused): the amount due
     over the period's orders, per order (internal metric avg_amount_due). The filters the question grounds and every
@@ -1344,7 +1344,7 @@ _NAME_FIELDS = ("category", "product_group", "product", "product_line", "brand",
 
 
 def values_together(question: str, plan: QueryPlan) -> QueryPlan:
-    """N101. "<tháng> tiệm bán được mấy chiếc điện thoại, gộp cả máy mới với máy cũ" read as two values of one field on
+    """N101. Phones sold in a month counting new and used together, read as two values of one field on
     one measure (both at once: no line is both, 0), or as one measure per value (two numbers; public run11, 2
     questions): a question that puts the values together ("gộp cả", "tính cả X lẫn Y", "tất cả") and does not ask
     them apart ("lần lượt", "từng", "riêng") asks one figure over any of them (op "in"). Values the question writes."""
@@ -1392,7 +1392,7 @@ _TRADE_IN = r"\bthu(?: lai)? may cu\b"
 
 
 def trade_in_share(question: str, plan: QueryPlan) -> QueryPlan:
-    """N101. §6 Điện thoại: "đơn có thu lại máy cũ <tháng> chiếm mấy % tổng đơn", "th này bnhiu % đh có thu máy cũ"
+    """N101. §6 Điện thoại: the percent of a month's orders that took a used phone in
     read as the trade-in total (refused: a percent), or as a share of warranty orders, of a category "trade_in" (public
     run11, 2 questions, every retry refused): the orders with a trade-in over every order of the period, both neither
     cancelled nor returned (§1, §6 "chỉ tính đơn không huỷ, không trả"); internal metric trade_in_order_count."""
@@ -1412,8 +1412,8 @@ _PHONES_MONEY = r"\b(?:tien ban may|dthu may|doanh thu may|doanh so may)\b"
 
 
 def phones_as_whole(question: str, plan: QueryPlan) -> QueryPlan:
-    """N102. §6 Điện thoại: "Th4/2026 máy mới chiếm mấy % tiền bán máy?", "bỏ phụ kiện ra thì dthu máy mới chiếm
-    bnhiu % tổng dthu máy" read with the shop's whole revenue as the whole, or with the part and accessories as a
+    """N102. §6 Điện thoại: new phones as a percent of phone revenue (accessories
+    left out) read with the shop's whole revenue as the whole, or with the part and accessories as a
     second measure (public run11, 2 questions refused by the share_of=phones gate, every retry too): the whole is the
     part's metric over the phones (category "máy": the linking reads it as every kind that is no accessory, N102)."""
     if plan.intent != "share" or not plan.measures or (plan.share_of is not None and plan.share_of.filters):
@@ -1429,7 +1429,7 @@ def phones_as_whole(question: str, plan: QueryPlan) -> QueryPlan:
 
 def warranty_over_sold(question: str, plan: QueryPlan) -> QueryPlan:
     """N102. §6 Điện thoại "Tỉ lệ bảo hành của một quý bằng số lượt bảo hành có ngày nhận trong quý, chia cho số máy
-    bán trong quý": "<quý> lượt bảo hành so với số máy bán đc chiếm bnhiu %?" read as the two figures, each
+    bán trong quý": a quarter's warranty visits as a percent of phones sold, read as the two figures, each
     with order_status = completed (public run11, both readings): the rate."""
     if plan.intent != "value" or len(plan.measures) != 2 \
             or {m.metric for m in plan.measures} != {"warranty_count", "quantity"} \
@@ -1493,8 +1493,8 @@ def today_not_this_month(question: str, plan: QueryPlan) -> QueryPlan:
     return _rebuilt(plan, period={"kind": "today"})
 
 
-# N103. §6 Mẹ và bé "phí giao", "trừ điểm": "<tháng> tiem thu phi ship duoc bao nhieu tien" read as the revenue of the
-# orders paid "Ship", "<tháng> khach dung diem tru duoc bao nhieu tien" as the revenue of a customer "dùng điểm"
+# N103. §6 Mẹ và bé "phí giao", "trừ điểm": a month's shipping fees (typed without accents) read as the revenue of the
+# orders paid "Ship", the points customers used as the revenue of a customer "dùng điểm"
 # (public run11, 2 questions, no value linked): the order amount the words name, the restating filter dropped
 _ORDER_AMOUNT_WORDS = (("shipping_fee_total", r"\b(?:phi|tien) (?:ship|giao hang|giao|van chuyen)\b", r"ship|giao"),
                        ("points_discount", r"\b(?:dung|tru|doi) diem\b|\bdiem tich luy\b", r"diem"),
@@ -1531,7 +1531,7 @@ def quantity_not_money(question: str, plan: QueryPlan) -> QueryPlan:
 def order_amount_named(question: str, plan: QueryPlan) -> QueryPlan:
     """N103 / N110. The order amount the question names (fee, points, voucher) read as revenue under a filter: the
     amount, the filter that restates it dropped. N110: also when no filter restates the words but every filter has no
-    ground in the question ("vâu chơ giảm cho khách tổng bao nhiêu" read as revenue with is_warranty = true)."""
+    ground in the question (a voucher discount total typed with typos, read as revenue with is_warranty = true)."""
     if plan.intent != "value" or len(plan.measures) != 1 or plan.measures[0].metric != "revenue":
         return plan
     m = plan.measures[0]
@@ -1552,8 +1552,8 @@ def order_amount_named(question: str, plan: QueryPlan) -> QueryPlan:
 
 
 # N110. Amounts of a whole order (what the customer pays, the trade-in, a voucher, points, the shipping fee) are not
-# split by item: an item filter on them that the question does not write is no reading of it ("đơn bán 02/2026, trừ
-# tiền bớt với tiền máy cũ thu lại rồi, khách phải trả bao nhiêu" read with category = "trả góp", the retry "mua
+# split by item: an item filter on them that the question does not write is no reading of it (what customers paid
+# after the discount and the trade-in, read with category = "trả góp", the retry "mua
 # chịu": a full public run 08/11, no figure). Dropped instead of refusing the plan, only when the value is a way of
 # paying or selling (a payment / channel code of synonyms.json, "mua chịu", "nợ"), never an item: an item the question
 # writes short ("ip 15") may fail the ground test, and the shop's total would then be a wrong answer, not a blank.
@@ -1609,8 +1609,8 @@ _AVERAGE_WORDS = re.compile(r"\b(?:trung binh|tb|binh quan|moi ngay|mot ngay|1 n
 
 
 def average_not_asked(question: str, plan: QueryPlan) -> QueryPlan:
-    """N165. An average per day the question never asks for ("So số ly Latte (L) bán ra trong 30 ngày kể từ ngày tăng
-    giá … với 30 ngày ngay trước", "lượng bán tính theo đĩa tăng hay giảm bn %" read with aggregate avg_per_day; train
+    """N165. An average per day the question never asks for (cups of one drink in the 30 days
+    after a price rise against the 30 days before, the change in plates sold in percent) read with aggregate avg_per_day; train
     2 questions, refused for a rule the train rulebook does not have): the totals the question asks. Only on a
     comparison of two windows of the same length, where the two readings give the same percentage."""
     if plan.compare is None or plan.compare.kind != "before_days_from" or plan.period is None \

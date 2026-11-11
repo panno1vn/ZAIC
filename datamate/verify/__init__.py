@@ -100,9 +100,9 @@ def _fold(text: str) -> str:
 # N112. §7 "Thông tin file không ghi thì không suy ra từ cột khác … shop không ghi loại thông tin câu hỏi cần thì không
 # trả lời được": a question by product group, by a sale's profit or by the reason an order was returned or cancelled,
 # in a shop whose README names no such column and whose mapping found none. Train: "lãi gộp <tháng>" in a pharmacy
-# whose README names no cost, "đơn bị huỷ vì giao trễ", "trả hàng vì lỗi và vì mua nhầm" in shops naming no reason:
-# all three unanswerable. Public (s65): 7 questions by "nhóm trà / nhóm sơn / nhóm điện" in two shops with no group
-# column, 3 by a return or cancel reason, 1 "mặt hàng nào lời nhiều nhất" without cost.
+# whose README names no cost, orders cancelled or returned for a reason, in shops naming no reason:
+# all three unanswerable. Public (s65): 7 questions by a product group in two shops with no group
+# column, 3 by a return or cancel reason, 1 on the most profitable item without cost.
 _REASON_ASKED = re.compile(r"\b(?:huy|tra)\b(?:\s+\S+){0,4}?\s+vi\s+(?!dien\b)\S")  # "bị huỷ vì giao trễ", "trả lại vì"
 _NOT_REASON = re.compile(r"\bbang vi\b|\bvi (?:dien tu|momo|zalo|shopee|tien)\b")  # "trả bằng ví điện tử"
 # a column the README names for the group: "- **Nhóm**: nhóm hàng", "loại hàng", "danh mục" (folded lines)

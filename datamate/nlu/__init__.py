@@ -238,7 +238,7 @@ def parse_question(question: str, as_of: date, card: DataCard, llm: LLMClient | 
     if plan is None:
         return base  # the LLM failed or its plan had no ground: the baseline's reading, if it has one
     if plan.intent == "rank" and subjective_quality(question):
-        # N112: the LLM ranks by a quality no file records ("ai là thợ nhiệt tình nhất": the rulebook defines only
+        # N112: the LLM ranks by a quality no file records (which worker is the most zealous: the rulebook defines only
         # "chăm chỉ"); train: the 5 questions subjective_quality reads are all unanswerable, whatever their plan
         trace["subjective"] = True
         return QueryPlan(intent="out_of_scope", out_of_scope_reason=SUBJECTIVE_REASON)
@@ -496,7 +496,7 @@ _PHONE_FIELDS = ("category", "product", "product_group", "product_line")
 
 def phone_kinds(plan: ResolvedPlan, db: CanonicalDB) -> ResolvedPlan:
     """N102. §6 Cửa hàng điện thoại, a shop whose kinds of goods are phones ("máy mới", "máy cũ") and "phụ kiện":
-    "bán được bao nhiêu máy, không tính phụ kiện" with category = "máy", "điện thoại cũ <tháng> bán ra mấy máy" with
+    phones sold leaving accessories out read with category = "máy", used phones sold in a month read with
     category = "điện thoại cũ" (public run11, 3 questions, no value linked): "máy", "điện thoại" name every kind that is
     no accessory (the phones §6 Bảo hành counts, metrics.sales.phones_sold), "điện thoại cũ" the kind "máy cũ". Only a
     name that links to nothing in its own field."""

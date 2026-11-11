@@ -139,7 +139,7 @@ def _fix_cancel_share(raw: dict) -> bool:
 
 
 def _fix_warranty_share(raw: dict) -> bool:
-    """N102. §6 Điện thoại "lượt bảo hành so với số máy bán chiếm bnhiu %" written as [warranty_count, quantity] typed
+    """N102. §6 Điện thoại: warranty visits as a percent of phones sold, written as [warranty_count, quantity] typed
     percent (public run11, both readings): the warranty rate, the only percent those measures make (§6 "Tỉ lệ bảo
     hành = số lượt bảo hành trong quý / số máy bán trong quý")."""
     ms = raw.get("measures")
@@ -155,7 +155,7 @@ def _fix_warranty_share(raw: dict) -> bool:
 
 
 def _fix_threshold_count(raw: dict, question: str) -> bool:
-    """N104. "Khách có mua <tháng>, mấy % mua từ 4 đơn trở lên?" written with the customers counted as a measure
+    """N104. The percent of a month's buying customers with N orders or more, written with the customers counted as a measure
     (customer_count, filter order_status completed) beside a threshold on their orders (public run11, both readings;
     the contract wants the threshold's own metric or none): the customers passing the bound, as a share of every
     customer when the question asks a percent (as the train plans of this template). Customers and their orders or

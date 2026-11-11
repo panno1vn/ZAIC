@@ -42,7 +42,7 @@ metric("value", "delivery_count", requires=("deliveries.delivery_time",), rules=
 
 
 def orders_by_batches(plan: ResolvedPlan, db: CanonicalDB) -> ExecResult | None:
-    """"Đơn đặt <tháng>, tới hôm nay có mấy đơn đã giao từ 2 đợt trở lên" (public 06/11, 3 questions): the orders
+    """How many orders of a month were delivered in N batches or more by today (public 06/11, 3 questions): the orders
     placed in the period (by order day, §1) with at least / more than N batches delivered by the end of today (§6
     "giao nhiều đợt: tính đến hết hôm nay"); a batch of an order later returned counts ("đợt đã chở vẫn tính"). An
     order of the period with no status, or a cancelled one with a batch: no rule, None."""

@@ -73,7 +73,7 @@ PHRASE_ALIASES = (
 FLAT_ORDER_COLUMNS = (  # the order's cells in a flat ledger (lines and orders one table)
     ("kenh ban", "channel", "text"),
     ("tien bot cho ca don", "order_discount", "money"),  # a public phone ledger's "Bớt" (N44)
-    ("tien thu may cu", "trade_in_amount", "money"),  # "tiền thu máy cũ của khách, trừ vào tiền đơn"
+    ("tien thu may cu", "trade_in_amount", "money"),  # a README line naming the trade-in money taken off the order
     ("so tien khach tra cho ca don", "total_due", "money"),  # "số tiền khách trả cho cả đơn, đã trừ bớt…"
 )
 GOODS = ("tien hang cua don", "tong tien hang cua don")  # §1 revenue of an order, in a shop without lines
@@ -713,8 +713,8 @@ def _keyed_by_name(tm: TableMap, raw: RawBusiness) -> TableMap | None:
 
 def _catalogue_by_name(raw: RawBusiness, used: set[str]) -> TableMap | None:
     """N107. The README's catalogue as the products, keyed by the product's name, for a mapping without one (two
-    public restaurants: "danh mục hàng kèm tồn kho" with "ĐVT: đơn vị cơ bản", "Giá vốn: giá vốn", "Tồn cuối"; "hôm
-    qua bán được mấy lon" and "hàng còn dư trong kho tính theo giá vốn" abstained). Only a list of products (a name, no
+    public restaurants: "danh mục hàng kèm tồn kho" with "ĐVT: đơn vị cơ bản", "Giá vốn: giá vốn", "Tồn cuối"; a question on
+    cans sold yesterday and one on the leftover stock at cost abstained). Only a list of products (a name, no
     order code) with their cost or stock; the caller keeps it only when nearly every name is a product the lines
     sell."""
     tables = [t for t in (_Table(ids, phrases_of(raw, ids)) for ids in groups(raw)) if not set(t.ids) & used]
