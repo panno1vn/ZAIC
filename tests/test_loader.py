@@ -158,3 +158,30 @@ def test_a_named_column_with_no_value_is_dropped():
     assert any("bỏ cột không có giá trị" in n for n in t.notes)
     only_header = to_table([["Mã", "Tiền"]])
     assert list(only_header.frame.columns) == ["Mã", "Tiền"] and len(only_header.frame) == 0
+
+
+@pytest.mark.parametrize("text, delim", [
+    ('Ma,Ten,Tien\nK1,Cafe,"25,000"\n', ","),
+    ("Ma;Ten;Tien\nK1;Cafe;25,000\n", ";"),  # the first line decides, as before
+    ("Ma\tTen\tTien\nK1\tCafe\t25,000\n", "\t"),
+    ("SỔ BÁN HÀNG\nMa;Ten;Tien\nK1;Cafe;25,000\n", ";"),  # N195: a title above the header holds no delimiter
+    ("\nSỔ BÁN HÀNG\n\nMa\tTen\tTien\nK1\tCafe\t25,000\n", "\t"),
+    ("SỔ BÁN HÀNG\nMa,Ten,Tien\nK1,Cafe,25000\n", ","),
+    ("Ma|Ten|Tien\nK1|Cafe|25,000\n", "|"),
+    ("Ma,Ten|Loai,Tien\nK1,Cafe,25000\n", ","),  # a '|' inside a name of a comma file is no delimiter
+    ("Ten\nCafe\nTra\n", ","),  # one column
+    ("", ","),
+])
+def test_csv_delimiter(text, delim):
+    from datamate.loader import _delimiter
+    assert _delimiter(text) == delim
+
+
+def test_a_csv_under_a_title_line_is_read_by_its_own_delimiter(tmp_path):
+    """N195: read by its first line alone, a ';' file under a title was cut at the commas of its amounts."""
+    rows = "Mã đơn;Ngày;Tên hàng;SL;Thành tiền\nD1;01/06/2026;Cà phê sữa;2;50,000\nD2;02/06/2026;Bạc xỉu;1;29,000\n"
+    (tmp_path / "a.csv").write_text(rows, encoding="utf-8")
+    (tmp_path / "b.csv").write_text("SỔ BÁN HÀNG\n" + rows, encoding="utf-8")
+    a, b = load_business(tmp_path).tables
+    assert list(b.frame.columns) == ["Mã đơn", "Ngày", "Tên hàng", "SL", "Thành tiền"] and b.frame.equals(a.frame)
+    assert b.frame["Thành tiền"].tolist() == ["50,000", "29,000"] and b.header_rows == 2

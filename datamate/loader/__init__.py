@@ -44,10 +44,27 @@ def _decode(data: bytes) -> tuple[str, str | None]:
     return data.decode("utf-8", errors="replace"), "lỗi bảng mã, ký tự hỏng đã thay bằng �"
 
 
+DELIMITER_SCAN = 10  # lines read for the delimiter: the header is looked for in the first rows too (grid.HEADER_SCAN)
+
+
+def _delimiter(text: str) -> str:
+    """The delimiter of a csv: the most frequent of ',', ';' and tab on its first line. N195: a first line holding
+    none of them is a title above the header ("SỔ BÁN HÀNG") or blank, and the first of the next lines holding one
+    decides: read by its first line alone, such a file written with ';' or tabs was cut at its commas (a train ledger
+    rewritten so: 5 columns for 10, no mapping, every question of the shop blank). A line with none of the three and
+    a '|' is cut at '|'. A file with no delimiter in its first lines has one column: ','."""
+    for line in text.split("\n", DELIMITER_SCAN)[:DELIMITER_SCAN]:
+        best = max([",", ";", "\t"], key=line.count)
+        if line.count(best):
+            return best
+        if "|" in line:
+            return "|"
+    return ","
+
+
 def _read_csv(f: Path) -> list[RawTable]:
     text, note = _decode(f.read_bytes())
-    first = text.split("\n", 1)[0]
-    delim = max([",", ";", "\t"], key=first.count)
+    delim = _delimiter(text)
     t = to_table(list(csv.reader(io.StringIO(text), delimiter=delim)))
     notes = t.notes + ([note] if note else []) + ([f"dấu phân cách {delim!r}"] if delim != "," else [])
     return [RawTable(table_id=f.name, file=f.name, sheet=None, frame=t.frame, header_rows=t.header_rows,
