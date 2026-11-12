@@ -7,7 +7,7 @@
 set -euo pipefail
 : "${TEAM:?Đặt tên đội trước: TEAM=<ten_doi> TAG=<tag> bash vm_build.sh}"
 : "${TAG:?Đặt tag git: TAG=docker-v2}"
-REF="${REF:-outputs/replay/run11_s71/submission.jsonl}"
+REF="${REF:-outputs/replay/p17_h16/submission.jsonl}"
 [[ "$TEAM" =~ ^[a-z0-9_.-]+$ ]] || { echo "TEAM chỉ gồm chữ thường, số, _ . -"; exit 1; }
 IMG="zaic2026_datamate_${TEAM}:final"
 EXPECT_SHA=d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785   # Qwen3-8B-Q4_K_M dùng cho mọi phép đo
