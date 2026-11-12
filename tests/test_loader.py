@@ -20,6 +20,16 @@ def test_cell_text(value, text):
     assert cell_text(value) == text
 
 
+@pytest.mark.parametrize("value", [1.125, 0.375, -0.125, 12.345, 999.999, 2.5, 0.25, 1234.567, 1001.0, 3.14159])
+def test_a_number_cell_is_read_back_as_its_value(value):
+    """N198: 1.125 written "1.125" was read as 1125 (the shape of a text amount with a thousands dot)."""
+    assert parse_number(cell_text(value)) == value and parse_money(cell_text(value)) == value
+
+
+def test_a_text_amount_with_a_thousands_dot_is_still_grouped():
+    assert cell_text("1.125") == "1.125" and parse_money("1.125") == 1125 and parse_number("25.000") == 25000
+
+
 def test_title_rows_above_the_header_are_skipped():
     t = to_table([["SỔ CHI TIẾT BÁN HÀNG"], ["Kỳ báo cáo: toàn bộ", "Kênh bán: Tất cả"], [], HEADER, ROW])
     assert list(t.frame.columns) == HEADER and t.frame.iloc[0].tolist() == ROW and t.header_rows == 3
