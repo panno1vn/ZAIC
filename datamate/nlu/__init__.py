@@ -159,6 +159,9 @@ def llm_plan(question: str, as_of: date, card: DataCard, llm: LLMClient,
 # N79: one retry when the grounding gates refuse a plan. ON since 08/11: train as run (prod_train, 1500 questions)
 # 16 more right, 0 wrong; public s41r − s41 = +0.020, the 20 answers it opened all right
 GROUND_RETRY = True
+# One retry only. A second one (S1, tried 12/11) opened 1 of 18 public questions still refused after the first, and read
+# it as another question that passes the gates ("how many products" answered with a quantity): a further retry searches
+# for a plan the gates let through, not for the question's reading.
 RETRY_GROUND = ("Plan vừa viết có phần câu hỏi không nói tới, hoặc đọc sai loại câu: {parts}.\nĐọc lại câu hỏi và viết "
                 "lại plan chỉ theo đúng điều câu hỏi hỏi: đúng chỉ số (tiền, số đơn, số lượng, số khách…), đúng loại câu "
                 "(một số, so sánh, xếp hạng, danh sách…), không thêm bộ lọc hay kỳ mà câu không nêu.")

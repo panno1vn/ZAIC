@@ -4,9 +4,26 @@ Every parser returns None for a value it cannot read, never raises, so one odd c
 """
 from __future__ import annotations
 
+import functools
 import math
 import re
 from datetime import date, datetime, timedelta
+
+
+def text_memo(fn):
+    """`fn` with its value for each text remembered. Only for pure functions of a cell (same text, same value; the
+    value immutable): a shop's sheets repeat their texts (dates, prices, names) and the mapping reads every cell once
+    per candidate mapping it tries (12/11: a public shop of 21 MB of xlsx took 149 s of mapping on the RTX 5090, mostly
+    the same cells parsed again). Other values go to `fn` as they are."""
+    memo = functools.lru_cache(maxsize=1 << 18)(fn)
+
+    @functools.wraps(fn)
+    def read(v, *args, **kwargs):
+        return memo(v, *args, **kwargs) if isinstance(v, str) else fn(v, *args, **kwargs)
+
+    read.cache_clear = memo.cache_clear
+    return read
+
 
 _EXCEL_EPOCH = datetime(1899, 12, 30)
 _THOUSANDS = re.compile(r"^-?\d{1,3}([.,])\d{3}(\1\d{3})*$")
@@ -38,6 +55,7 @@ def _to_float(s: str) -> float | None:
         return None
 
 
+@text_memo
 def parse_money(v) -> float | None:
     """'560,000' · '30.500đ' · '-30.500đ' · '25k' · '1,5tr' · '1tr440' · '45,000.0000' · 560000 → amount in đồng."""
     if _blank(v):
@@ -70,6 +88,7 @@ def parse_money(v) -> float | None:
     return None if x is None else x * mult
 
 
+@text_memo
 def parse_number(v) -> float | None:
     """'3' · '2.5' · '1,5' · '1.500' · '5 chai' (leading number) · 3 → number. Separators read as in parse_money."""
     if _blank(v):
@@ -100,6 +119,7 @@ def strip_weekday(s: str) -> str:
 _DAY_MONTH = re.compile(r"^(\d{1,2})/(\d{1,2})$")
 
 
+@text_memo
 def parse_datetime(v, year_hint: int | None = None) -> datetime | None:
     """Excel serial · '2026-01-01 14:58:08' · '01/06/2026' · '1 thg 12 2025' · '1/6' (+ year_hint, §8) → datetime."""
     if _blank(v):
