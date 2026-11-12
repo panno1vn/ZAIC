@@ -159,6 +159,12 @@ def to_table(grid: list[list]) -> Table:
         footer.insert(0, " ".join(c for c in keep.pop() if c)[:60])
     if footer:
         notes.append(f"bỏ {len(footer)} dòng chú thích cuối sheet: " + " | ".join(footer))
+    # N171: a column with a name and no value in any row (a notes column left blank, one a program adds) tells nothing;
+    # offered to the column matching it drew picks ('Bán qua' -> 'Ghi chú nội bộ') and unmapped a whole shop
+    filled_cols = [j for j in range(len(names)) if any(r[j] for r in keep)]
+    if keep and len(filled_cols) < len(names):
+        notes.append("bỏ cột không có giá trị: " + ", ".join(n for j, n in enumerate(names) if j not in filled_cols)[:60])
+        names, keep = [names[j] for j in filled_cols], [[r[j] for j in filled_cols] for r in keep]
     frame = pd.DataFrame(keep, columns=names, dtype=str) if keep else pd.DataFrame(columns=names, dtype=str)
     return Table(frame, h + 1, notes)
 
