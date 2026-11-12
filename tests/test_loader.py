@@ -111,6 +111,52 @@ def test_load_business_reads_xlsx_sheets_csv_and_skips_unknown_files(tmp_path):
     assert any("anh.png" in w for w in raw.warnings)
 
 
+def _pos(folder, wal: bool = False):
+    import sqlite3
+    con = sqlite3.connect(folder / "pos.sqlite")
+    if wal:
+        con.execute("pragma journal_mode=wal")
+    con.execute("create table don_hang (ma text, tien integer, ghi_chu text)")
+    con.executemany("insert into don_hang values (?, ?, ?)", [("D1", 10000, None), ("D2", 25000, "gấp")])
+    con.commit()
+    con.close()
+
+
+def test_sqlite_tables_are_read_as_text_null_blank(tmp_path):
+    _pos(tmp_path)
+    (t,) = load_business(tmp_path).tables
+    assert t.table_id == "pos.sqlite::don_hang" and list(t.frame.columns) == ["ma", "tien", "ghi_chu"]
+    assert t.frame.values.tolist() == [["D1", "10000", ""], ["D2", "25000", "gấp"]]
+
+
+def test_a_database_that_cannot_be_opened_read_only_is_read_as_immutable(tmp_path, monkeypatch):
+    """N196: a WAL database on a read-only mount (docker -v …:/data:ro) fails every read with mode=ro ("attempt to
+    write a readonly database", checked on Linux); the shop had no table. It is read again with immutable=1."""
+    import sqlite3
+
+    import datamate.loader as loader
+    _pos(tmp_path, wal=True)
+    real, opened = sqlite3.connect, []
+
+    class ReadOnlyMount:  # stands for the mount: the plain read-only open connects, then cannot read
+        def execute(self, *a, **k):
+            raise sqlite3.OperationalError("attempt to write a readonly database")
+
+        def close(self):
+            pass
+
+    def connect(database, **kw):
+        opened.append(database.split("?", 1)[1])
+        return real(database, **kw) if "immutable=1" in database else ReadOnlyMount()
+    monkeypatch.setattr(loader.sqlite3, "connect", connect)
+    raw = load_business(tmp_path)
+    assert opened == ["mode=ro", "mode=ro&immutable=1"] and not raw.warnings
+    assert raw.tables[0].frame.values.tolist() == [["D1", "10000", ""], ["D2", "25000", "gấp"]]
+    monkeypatch.setattr(loader.sqlite3, "connect", lambda database, **kw: ReadOnlyMount())  # unreadable either way
+    raw = load_business(tmp_path)
+    assert not raw.tables and any("pos.sqlite: lỗi đọc OperationalError" in w for w in raw.warnings)
+
+
 def test_reading_stops_at_the_time_budget(tmp_path):
     (tmp_path / "a.csv").write_text("x,y\n1,2\n", encoding="utf-8")
     raw = load_business(tmp_path, budget_s=-1)

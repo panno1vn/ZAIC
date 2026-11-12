@@ -65,7 +65,19 @@ def _read_xlsx(f: Path) -> list[RawTable]:
 
 
 def _read_sqlite(f: Path) -> list[RawTable]:
-    con = sqlite3.connect(f"file:{f}?mode=ro", uri=True)
+    try:
+        return _sqlite_tables(f, "mode=ro")
+    except sqlite3.OperationalError:
+        # N196: a database left in WAL mode needs a file beside it even to be read; the test data is mounted read-only
+        # (docker -v …:/data:ro), nothing can be created there, and every read fails with "attempt to write a readonly
+        # database": the shop had no table and all its questions were blank (seen only on Linux, never on a laptop's
+        # writable folder). immutable=1: the file cannot change, so no lock and no file beside it are needed. Only
+        # after the plain read-only open failed, so every database read before is read the same way.
+        return _sqlite_tables(f, "mode=ro&immutable=1")
+
+
+def _sqlite_tables(f: Path, how: str) -> list[RawTable]:
+    con = sqlite3.connect(f"file:{f}?{how}", uri=True)
     try:
         names = [r[0] for r in con.execute("select name from sqlite_master where type='table'")]
         out = []
