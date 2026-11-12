@@ -97,6 +97,16 @@ def _fold(text: str) -> str:
     return "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
 
 
+# N193 (HAN_CHE N11): metrics.sales.trend answers "each month above the one before"; the contract cannot ask about a
+# fall, so a trend question about a fall would get the rise's answer. Train: 0 of 23 trend questions ask about a fall
+# ("giảm giá" is a discount, not a direction)
+_FALL = re.compile(r"\b(?:giam|di xuong|sut|tut|thap hon|it hon|kem hon)\b")
+
+
+def asks_fall(question: str) -> bool:
+    return bool(_FALL.search(re.sub(r"\bgiam gia\b", " ", " ".join(_fold(question).split()))))
+
+
 # N112. §7 "Thông tin file không ghi thì không suy ra từ cột khác … shop không ghi loại thông tin câu hỏi cần thì không
 # trả lời được": a question by product group, by a sale's profit or by the reason an order was returned or cancelled,
 # in a shop whose README names no such column and whose mapping found none. Train: "lãi gộp <tháng>" in a pharmacy
@@ -269,6 +279,9 @@ def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: Ca
     if p.compare is not None and p.compare.kind != "filter":
         s.compare_coverage = coverage(plan.compare_period, span)
     s.sane = _sane(result)
+    if p.intent == "trend" and question and asks_fall(question):
+        s.sane = False  # N193: the trend function only answers a rise
+        s.notes.append("trend chỉ trả lời chiều tăng; câu hỏi nói chiều giảm")
     if "tie" in result.notes:  # metrics.sales.TIE: the generator leaves ties out, so ours mean a misread (N25)
         s.ranking_clear = False
     s.rules_unchanged = bool(result.rule_ids) and all(rules.get(r, False) for r in result.rule_ids)

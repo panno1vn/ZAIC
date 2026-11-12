@@ -714,18 +714,40 @@ def _ask_required_again(e: Example, example_id: str, columns: list[str], raw: Ra
         # a column refused as a name stays offered (it may be the group); one holding a single value means nothing
         frames = [t.frame for t in raw.tables if t.table_id in ids]
         constant = {got[c] for c in bad if _distinct(frames, got[c])[0] <= 1}
+        # N192: a column refused as a conversion factor (money, words) is not offered again nor given back
+        counts = {c for c in bad if "factor" in _targets(e, example_id, c)}
         first = {c: got[c] for c in bad}
         for c in bad:
             got[c] = None
-        taken = frozenset(v for v in got.values() if v) | constant
+        taken = frozenset(v for v in got.values() if v) | constant | {first[c] for c in counts}
         again = _ask(e, example_id, bad, raw, ids, llm, taken)
         again = {c: v for c, v in again.items() if v is not None}
         ok = set(again) - set(_implausible(e, example_id, {**got, **again}, raw, ids))
         got.update({c: again[c] for c in ok})
         for c in bad:
-            if first[c] in constant and c not in ok:
+            if first[c] in constant and c not in ok and c not in counts:
                 got[c] = first[c]
+        # N192, public coffee shop 12/11: the second answer left the factor unmatched though one column was left,
+        # "Bằng" (6, 6), named as the example's own: the one free column that reads as a factor is taken
+        for c in counts:
+            if got.get(c) is None:
+                used = {v for v in got.values() if v} | {first[c]}
+                free = dict.fromkeys(str(x) for f in frames for x in f.columns if str(x) not in used)
+                fit = [x for x in free if _unit_counts(frames, x) and not _row_numbers(frames, x)]
+                if len(fit) == 1:
+                    got[c] = fit[0]
     return got
+
+
+def _row_numbers(frames: list[pd.DataFrame], column: str) -> bool:
+    """The column numbers the rows 1, 2, 3… (an "STT" column): a count of rows, not of base units."""
+    from datamate.loader.parse import parse_number
+    for f in frames:
+        if column in f.columns:
+            nums = [parse_number(str(v)) for v in f[column].dropna()]
+            if len(nums) >= 2 and nums == [float(k) for k in range(1, len(nums) + 1)]:
+                return True
+    return False
 
 
 def _targets(e: Example, table_id: str, column: str) -> set[str]:
@@ -748,7 +770,7 @@ def _implausible(e: Example, example_id: str, got: dict[str, str | None], raw: R
     """Example columns whose new column cannot hold their meaning (N164, 10/11: the same shop with its columns in
     reverse order had its customers' names matched to "LoaiKhachHang" — 3 values for 300 customers, rankings named
     "sỉ", "lẻ" — and its product group to a column holding one value). A name must tell most of its keys apart; a
-    group must hold more than one value."""
+    group must hold more than one value; a conversion factor must be a count of base units, not money (N192)."""
     frames = [t.frame for t in raw.tables if t.table_id in ids]
     keys = {t: new for c, new in got.items() if new for t in _targets(e, example_id, c) if t.endswith("_key")}
     bad = []
@@ -756,6 +778,9 @@ def _implausible(e: Example, example_id: str, got: dict[str, str | None], raw: R
         if not new:
             continue
         for t in _targets(e, example_id, c):
+            if t == "factor" and not _unit_counts(frames, new):
+                bad.append(c)
+                break
             if t.endswith("_name") and keys.get(t[:-5] + "_key") not in (None, new):
                 n_key, _ = _distinct(frames, keys[t[:-5] + "_key"])
                 n_name, _ = _distinct(frames, new)
@@ -768,6 +793,20 @@ def _implausible(e: Example, example_id: str, got: dict[str, str | None], raw: R
                     bad.append(c)
                     break
     return bad
+
+
+# N192, train 12/11: every conversion factor of the ten train shops with a hand mapping is a whole number from 4 to
+# 1000 (1 tấn = 1000 kg); a public coffee shop's conversion sheet has "Bằng" (6) beside "Giá bán theo đơn vị quy đổi"
+# (210000), and five of six live runs (05–08/11) took the price for the factor: 1 hộp counted as 210000 cái
+FACTOR_MAX, FACTOR_SHARE = 1000, 0.9
+
+
+def _unit_counts(frames: list[pd.DataFrame], column: str) -> bool:
+    """The column reads as a conversion factor: nearly every value a number above 0 and at most FACTOR_MAX."""
+    from datamate.loader.parse import parse_number
+    values = [v for f in frames if column in f.columns for v in f[column].dropna().astype(str) if v.strip()]
+    nums = [parse_number(v) for v in values]
+    return bool(values) and sum(n is not None and 0 < n <= FACTOR_MAX for n in nums) >= FACTOR_SHARE * len(values)
 
 
 def _one_meaning_each(e: Example, example_id: str, picked: dict[str, str | None]) -> dict[str, str | None]:
