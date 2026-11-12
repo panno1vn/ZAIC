@@ -169,6 +169,11 @@ def test_a_named_column_with_no_value_is_dropped():
     ("SỔ BÁN HÀNG\nMa,Ten,Tien\nK1,Cafe,25000\n", ","),
     ("Ma|Ten|Tien\nK1|Cafe|25,000\n", "|"),
     ("Ma,Ten|Loai,Tien\nK1,Cafe,25000\n", ","),  # a '|' inside a name of a comma file is no delimiter
+    ("Sổ bán hàng, năm 2025\nMa;Ten;Tien\nK1;Cafe;25,000\n", ";"),  # a title with a comma: the header has none
+    ("Sổ bán hàng; quý 1\n\nMa,Ten,Tien\nK1,Cafe,25000\n", ","),
+    ("Ma,Ten,Tien\nTháng 1\nK1,Cafe,25000\nK2,Tra,20000\n", ","),  # a label row inside the data
+    ("Ma;Ten;Tien\n", ";"),  # the header alone
+    ("Ten, loai\nCafe\nTra\n", ","),  # one column whose name has a comma: as before
     ("Ten\nCafe\nTra\n", ","),  # one column
     ("", ","),
 ])

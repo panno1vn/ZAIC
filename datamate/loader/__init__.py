@@ -48,17 +48,19 @@ DELIMITER_SCAN = 10  # lines read for the delimiter: the header is looked for in
 
 
 def _delimiter(text: str) -> str:
-    """The delimiter of a csv: the most frequent of ',', ';' and tab on its first line. N195: a first line holding
-    none of them is a title above the header ("SỔ BÁN HÀNG") or blank, and the first of the next lines holding one
-    decides: read by its first line alone, such a file written with ';' or tabs was cut at its commas (a train ledger
-    rewritten so: 5 columns for 10, no mapping, every question of the shop blank). A line with none of the three and
-    a '|' is cut at '|'. A file with no delimiter in its first lines has one column: ','."""
-    for line in text.split("\n", DELIMITER_SCAN)[:DELIMITER_SCAN]:
+    """The delimiter of a csv: the most frequent of ',', ';' and tab on its first line, when the line after it holds
+    that delimiter too (a header and its rows do). N195: a first line that holds none of them, or one the next line
+    does not hold, is a title above the header ("SỔ BÁN HÀNG", "Sổ bán hàng, năm 2025") and the lines after it decide
+    the same way: read by its first line alone, such a file written with ';' or tabs was cut at its commas (a train
+    ledger rewritten so: 5 columns for 10, no mapping, every question of the shop blank). A line with none of the
+    three and a '|' is cut at '|'. Blank lines are passed over; no delimiter in the first lines: one column, ','."""
+    lines = [line for line in text.split("\n", DELIMITER_SCAN + 1)[:DELIMITER_SCAN + 1] if line.strip()]
+    for i, line in enumerate(lines[:DELIMITER_SCAN]):
         best = max([",", ";", "\t"], key=line.count)
-        if line.count(best):
+        if not line.count(best):
+            best = "|" if "|" in line else None
+        if best is not None and (i + 1 == len(lines) or best in lines[i + 1]):
             return best
-        if "|" in line:
-            return "|"
     return ","
 
 
