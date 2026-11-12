@@ -73,6 +73,33 @@ def _sane(result: ExecResult) -> bool:
     return True
 
 
+# H16 (12/11): figures that cannot be negative by their definition (counts, sales, purchases, debts, prices), rates and
+# shares that cannot leave 0–100 %. Left out: profits, stock (a shop's own stock file may hold a negative count),
+# purchases minus sales, changes between periods (compare), anything with several measures
+NOT_NEGATIVE = frozenset({
+    "revenue", "order_count", "cancel_count", "avg_order_value", "quantity", "customer_count", "new_customer_count",
+    "days_with_purchase", "work_days", "purchase_amount", "purchase_avg_cost", "receipt_count", "stock_value",
+    "expiring_value", "debt_total", "debtor_count", "debt_amount", "debt_added", "debt_paid", "cash_collected",
+    "amount_due_total", "overdue_installment_count", "overdue_amount", "unit_price", "delivery_count",
+    "voucher_discount", "points_discount", "shipping_fee_total", "ticket_count", "avg_ticket_value", "vehicle_count",
+    "warranty_count", "trade_in_amount", "commission", "avg_amount_due", "trade_in_order_count", "due_order_count"})
+RATES = frozenset({"cancel_rate", "warranty_rate"})
+
+
+def impossible(plan, value) -> str | None:
+    """Why a one-measure value cannot be right by the measure's definition, or None."""
+    if len(plan.measures) != 1 or plan.intent not in ("value", "share"):  # the plan contract keeps compare off these
+        return None
+    metric = plan.measures[0].metric
+    nums = [x for x in (value if isinstance(value, list) else [value])
+            if isinstance(x, (int, float)) and not isinstance(x, bool)]
+    if not nums:
+        return None
+    if plan.intent == "share" or metric in RATES:
+        return "tỉ lệ ngoài 0–100 %" if any(not 0 <= x <= 100 for x in nums) else None
+    return f"{metric} âm" if metric in NOT_NEGATIVE and any(x < 0 for x in nums) else None
+
+
 # N37: a time in the question ("tháng 12/2025", "hôm qua", "Tết"): an out-of-scope reading of it is an LLM misreading
 # of a figure, not a question the data cannot hold (train 05/11: 7 of 8 out-of-scope readings have no time, all
 # unanswerable; the eighth, "nhân viên bán giỏi nhất tháng 12/2025", is a ranking)
@@ -279,6 +306,9 @@ def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: Ca
     if p.compare is not None and p.compare.kind != "filter":
         s.compare_coverage = coverage(plan.compare_period, span)
     s.sane = _sane(result)
+    if s.sane and (why := impossible(p, result.value)):
+        s.sane = False  # H16
+        s.notes.append(f"kết quả vô lý theo định nghĩa: {why}")
     if p.intent == "trend" and question and asks_fall(question):
         s.sane = False  # N193: the trend function only answers a rise
         s.notes.append("trend chỉ trả lời chiều tăng; câu hỏi nói chiều giảm")

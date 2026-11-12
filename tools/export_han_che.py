@@ -38,7 +38,6 @@ REVIEW: dict[str, tuple[str, str, str]] = {
            ""),
     "H11": (ACCEPTED, "decide vẫn chỉ trả lời khi period_coverage = full; kỳ chỉ có một phần dữ liệu thì trống.",
             "Có thể mở 'partial' nếu đo train không thêm sai; chưa ưu tiên."),
-    "H10": (OPEN, "Chưa làm; review code vẫn là chốt chặn.", "Thấp."),
     "N1": (OBSOLETE, "Không cần ước lượng: eval chạy trên đủ 3000 câu train.", ""),
     "N3": (DONE_LATER, "Hai câu biz_122 nay trả đúng (không nằm trong 19 câu trống, 0 sai).", ""),
     "K1": (DONE_LATER, "Kho plan chỉ giữ plan ra đúng đáp án train (kho đã kiểm chứng, T4).", ""),
@@ -49,13 +48,10 @@ REVIEW: dict[str, tuple[str, str, str]] = {
     "H14": (DONE_LATER, "Image Docker chép assets/; Docker v1 qua Test Solution 11/11.", ""),
     "H15": (DONE_TRADE, "Thay bằng N170 (chữ nội dung, STOP / PHRASES); vẫn là danh sách chọn tay.",
             "Rulebook private viết lại một chữ nội dung thì dòng đó trống (đã ghi ở N170)."),
-    "H16": (OPEN, "verify._sane chỉ kiểm số hữu hạn / danh sách không rỗng; chưa chặn doanh thu âm, % vô lý.",
-            "Thấp: chưa thấy câu sai nào do lỗi này trên train / prod_train."),
     "N4": (ACCEPTED, "Đo trên RTX 5090 (VM): chạy hai lần giống nhau 1000/1000; so với máy nhà lệch 9/1000 câu.", ""),
     "H19": (ACCEPTED, "Phiên bản luật nhận tự động theo bản tham chiếu train / public; đổi nghĩa thì trống (N167, N170, "
             "N172).", ""),
     "H20": (OBSOLETE, "Đã có wifi; build / test Docker trên VM thuê.", ""),
-    "H21": (OPEN, "profile_business vẫn đoán kiểu và min / max trên 300 giá trị đầu.", "Thấp."),
     "N5": (DONE_LATER, "Plan dùng khi chạy lấy từ kho đã kiểm bằng đáp án train.", ""),
     "N6": (OBSOLETE, "Đo trực tiếp bằng eval train, không cần ước lượng từ registry.", ""),
     "N8": (OBSOLETE, "Chỉ ảnh hưởng công cụ gom cụm (dev).", ""),
@@ -69,7 +65,6 @@ REVIEW: dict[str, tuple[str, str, str]] = {
     "N18": (ACCEPTED, "Giá theo đơn vị lớn vẫn bỏ trống; train không có câu.", ""),
     "N19": (ACCEPTED, "Ngưỡng 0,5% đơn không rõ trạng thái giữ nguyên (bỏ trống, an toàn).", ""),
     "N20": (DONE_LATER, "14 / 14 shop public ghép được mapping.", ""),
-    "N21": (OPEN, "Rò 2 từ khách lẻ khi đo bỏ-một-shop; không đổi số đo.", "Thấp."),
     "N22": (DONE_LATER, "BTC cho xem dữ liệu public (06/11); luật chỉ dựa đáp án public đã gỡ (11/11).", ""),
     "N24": (ACCEPTED, "Đã đo: bản nộp tốt nhất public 0,948 (960 đúng / 12 sai / 28 trống); prod_train 0 sai.", ""),
     "N31": (ACCEPTED, "Đổi mapping làm thẻ dữ liệu đổi, LLM đọc lại vài câu khác (12/11: N171 làm 1 câu trống → đúng).",
@@ -154,6 +149,8 @@ def parse(doc: Path) -> list[dict]:
                     trade, nxt = nxt, ""
             elif wontfix:
                 status, rnote, nxt = WONTFIX, "", ""
+            elif box == "x" and "*Không còn áp dụng" in full:  # closed without a fix (H21, 12/11)
+                status, rnote, nxt = OBSOLETE, "", ""
             elif box == "x":
                 status, rnote, nxt = (DONE_TRADE if trade else DONE), "", ""
             else:

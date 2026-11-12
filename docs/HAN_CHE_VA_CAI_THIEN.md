@@ -69,7 +69,8 @@ Mức độ: **Cao** = phải sửa trước khi khóa hợp đồng (tối T5 0
 
 - [ ] **H11. Kỳ hỏi chỉ một phần nằm trong dữ liệu đang bị bỏ trống.** Luật §7 nói phải tính trên phần có dữ liệu, nhưng [E] hiện chỉ trả lời khi kỳ nằm trọn trong dữ liệu (`period_coverage = full`), để an toàn khi chưa đo. Cách sửa: khi thư viện hàm đã đúng trên train, cho phép `partial` và đo xem có bị sai thêm không.
 
-- [ ] **H10. Test chặn logic theo id chỉ dò chuỗi `biz_`, `dev_`, `q_` cố định**, không bắt được id ghép động. Review code vẫn là chốt chặn chính; ghi rõ trong checklist review.
+- [x] **H10. Test chặn logic theo id chỉ dò chuỗi `biz_`, `dev_`, `q_` cố định**, không bắt được id ghép động. Review code vẫn là chốt chặn chính; ghi rõ trong checklist review.
+  - *Đã làm 12/11:* `tests/test_no_id_logic.py` thêm lượt dò cây cú pháp (AST) trên mọi file `.py` của `datamate/` (trừ `datamate/eval`). Lượt này bắt chuỗi tiền tố id (`"dev_"`, `startswith("biz_")`), f-string ghép id (`f"biz_{n:03}"`) và phép so `business_id` / `root.name` / `["id"]` với hằng hay tập hằng. Test tự kiểm cũng có ca mẫu: 4 kiểu bắt được, `q["id"]` dùng làm khoá không bị bắt. Code hiện tại không có chỗ nào vi phạm. Chỉ đổi test, không đổi code chạy. Review vẫn là chốt chặn cho kiểu ghép khác, ví dụ id đọc từ file cấu hình.
 
 ## B. Hạn chế của phần nghiên cứu
 
@@ -129,7 +130,12 @@ Mức độ: **Cao** = phải sửa trước khi khóa hợp đồng (tối T5 0
   - *Review lần 2:* [D2] chỉ chạy khi [D1] trả `None`, nên lúc đó không có kết quả [D1] để so. Phương án 1 thực chất là tắt [D2]; nó chỉ còn dùng được như bước kiểm tra chéo nếu cho [D2] chạy cả khi [D1] đã có kết quả.
 - [ ] **H14 (TB). Docker phải chép cả thư mục `assets/`** (luật tham chiếu, ví dụ mẫu). Đường dẫn hiện tính theo vị trí repo; thiếu thư mục này thì [R] coi mọi luật là "đã đổi" và mọi câu bỏ trống.
 - [ ] **H15 (TB). Danh sách từ mang nghĩa của [R] là chọn tay**, có thể đánh dấu "đã đổi" quá tay. Ví dụ luật chỉ thêm chữ "chưa giao" cũng bị coi là đổi. Hiện an toàn vì bỏ trống, nhưng mất điểm. Cần chỉnh khi có thêm các phiên bản rulebook.
-- [ ] **H16 (Thấp). Kiểm tra "kết quả hợp lý" còn nông**: chưa chặn doanh thu âm, phần trăm vô lý, list có phần tử trùng. Bổ sung khi có thư viện hàm.
+- [x] **H16 (Thấp). Kiểm tra "kết quả hợp lý" còn nông**: chưa chặn doanh thu âm, phần trăm vô lý, list có phần tử trùng. Bổ sung khi có thư viện hàm.
+  - *Đã làm 12/11:* `verify.impossible()` được gọi trong `collect_signals` sau `_sane`. Nó chỉ xét câu một độ đo, intent `value` / `share`. Hai trường hợp bị đánh "không hợp lý" (bỏ trống):
+    - Đếm hay tiền mà định nghĩa không cho âm (`NOT_NEGATIVE`: doanh thu, số đơn, số lượng, nợ, tiền thu…) lại ra số âm.
+    - Tỉ lệ hủy / bảo hành hay câu `share` ra ngoài 0–100 %.
+
+    Lợi nhuận, tồn kho, chênh lệch hai kỳ và câu nhiều độ đo được để nguyên, vì những số này âm được. **Không làm** "list có phần tử trùng": hai sản phẩm trùng tên khác mã, hay hai dòng bằng nhau trong xếp hạng, là đáp án đúng. Đo: train 2981 / 0 / 19 và replay public 1000 / 1000 không đổi câu nào (luật chưa bắn lần nào: chỉ là lưới an toàn cho dữ liệu private bẩn), synth 7 / 1 / 72, prod_train 1494 / 0 / 6 giống từng câu. Test: `tests/test_h16_impossible_values.py`.
 
 ## E. Review lần 2 (sau bộ khung, trước khi khóa hợp đồng)
 
@@ -217,7 +223,8 @@ Rà lại toàn bộ code ngày 1–4. Mỗi lỗi nghi ngờ đều được x�
   - lớn nhất là **upload image Docker 10–20 GB lên Google Drive trước 16/11**.
 
   Thêm nữa, quyền chạy file `.exe` tải về đang bị chặn trên máy. Cách xử lý đề xuất: làm mọi việc nặng trên **máy GPU thuê** (tải model, chạy K3, so 8B / 14B, build Docker, upload thẳng từ máy thuê lên Google Drive bằng `rclone`); laptop chỉ viết code. Cần leader quyết định ngày thuê.
-- [ ] **H21 (Thấp, 04/11).** `profile_business` chỉ tính min / max trên 300 giá trị đầu, nên khoảng ngày trong profile có thể sai (biz_103: "01/04–09/04"). Cần sửa trước khi đưa profile cho LLM viết mapping (G2 phần 3).
+- [x] **H21 (Thấp, 04/11).** `profile_business` chỉ tính min / max trên 300 giá trị đầu, nên khoảng ngày trong profile có thể sai (biz_103: "01/04–09/04"). Cần sửa trước khi đưa profile cho LLM viết mapping (G2 phần 3).
+  - *Không còn áp dụng (12/11):* hướng "LLM viết mapping từ profile" (G2 phần 3) không làm. Mapping hiện chuyển từ mapping mẫu cộng LLM chọn cột. Profile chỉ được tính trong `pipeline.prepare_business` rồi truyền vào `map_business`, nơi nó bị bỏ qua. Không prompt nào, không tín hiệu verify nào đọc khoảng ngày của profile. Tính đủ mọi giá trị chỉ làm chậm thêm (đo hiện tại 0,2–1,1 giây mỗi shop) mà không đổi đáp án nào. Không sửa code. Nếu sau này đưa profile vào prompt thì phải sửa trước.
 
 ## F. T1: gom cụm mẫu câu (phiên 3)
 
@@ -376,7 +383,8 @@ Soát toàn bộ phần T1–T5 và v2. 317 test qua. Sau hai chỗ sửa, `eval
 **Luật thi:**
 - Code chạy thật không đọc `answers.jsonl` hay `outputs/`, không ghi vào thư mục dữ liệu, không có id cửa hàng hay câu hỏi (`test_no_id_logic`). LLM giải mã tham lam (temperature 0, top_k 1, seed 0), nên BTC chạy lại cho cùng kết quả. Cache LLM chỉ dùng khi phát triển.
 - Mapping tay chỉ có ở 10 cửa hàng train. Không từ khoá trạng thái nào chỉ xuất hiện ở public (đếm 04/11).
-- [ ] **N21 (Thấp). Đo leave-one-out còn rò từ điển giá trị**: `vocabulary()` gộp cả mapping tay của cửa hàng đang bị bỏ ra. Đo 04/11: chỉ khác 2 từ khách lẻ ('kl', 'lẻ'), mà `blank_walk_ins` đằng nào cũng xử lý; trạng thái đơn không khác từ nào. Số đo vẫn đúng; sửa khi động vào phần này.
+- [x] **N21 (Thấp). Đo leave-one-out còn rò từ điển giá trị**: `vocabulary()` gộp cả mapping tay của cửa hàng đang bị bỏ ra. Đo 04/11: chỉ khác 2 từ khách lẻ ('kl', 'lẻ'), mà `blank_walk_ins` đằng nào cũng xử lý; trạng thái đơn không khác từ nào. Số đo vẫn đúng; sửa khi động vào phần này.
+  - *Đo lại 12/11, đóng:* chạy `eval_cached` với `vocabulary()` dựng từ mapping tay **trừ** shop đang bị bỏ ra (vá tạm trong lượt đo, không đổi code). Kết quả 2981 / 0 / 19, từng shop giống hệt lượt thường, CACHE MISSES 0 (`outputs/p17/eval_cached_n21.log`). Vậy số đo train không nhờ chỗ rò này. Lúc chạy thật trên private, shop lạ không có trong từ điển nên không có rò. Không đổi code.
 - [ ] **N22 (TB, cần trưởng nhóm quyết). Vùng xám: thiết kế dựa trên dữ liệu public.** N19 (ngưỡng 0,5% đơn không rõ trạng thái) sinh ra từ một cửa hàng public. Đây không phải nhãn hay huấn luyện: quy tắc chung, và số liệu đơn đó có thể làm đổi thì bỏ trống. Đề xuất: giữ, ghi rõ trong tài liệu phương pháp. Từ nay không dò lỗi từng cửa hàng public nữa (N20 đổi cách dò).
   - **Trưởng nhóm quyết 04/11: hỏi BTC; trong lúc chờ chỉ cải thiện bằng dữ liệu train.** Câu hỏi đã soạn sẵn gửi BTC.
 - `R_MAIN_SUPPLIER` đọc một dòng chỉ có trong rulebook public. Rulebook là đầu vào đi kèm mỗi split, và [R] chặn khi dòng đó vắng, nên hợp lệ.
