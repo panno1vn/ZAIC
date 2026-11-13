@@ -473,11 +473,25 @@ def unfilled_extras(db) -> list[str]:
     return sorted(out)
 
 
+# N199 (13/11). Examples tried on the last path (tables paired by role), in the order of by_role. Measured on train,
+# every shop mapped by that path alone with its own hand mapping left out (the shape of a shop no example shares):
+#   tried  shops mapped   right  wrong
+#     1       21 / 30      2129     0
+#     2       26 / 30      2428     0      (what the run did: `by_meaning`)
+#     3       29 / 30      2762     0
+#     4       29 / 30      2762     0
+# Three shops had their first two examples fail (no orders or lines table found, a required column left empty) and
+# the third pass every check: 334 answers, none wrong. The checks decide as for every candidate; a shop whose first
+# or second example passes is mapped exactly as before.
+BY_ROLE_TRIES = 3
+
+
 def map_by_transfer(raw: RawBusiness, pool: list[Example] | None = None, llm: LLMClient | None = None,
-                    by_meaning: int = 2) -> tuple[Mapping | None, list[str]]:
+                    by_meaning: int = 2, by_role_tries: int = BY_ROLE_TRIES) -> tuple[Mapping | None, list[str]]:
     """The first candidate whose canonical tables pass every check, and what each candidate tried did: examples
     matched by column names first; then, with an LLM, the `by_meaning` examples whose files the shop shares most,
-    their columns matched by meaning."""
+    their columns matched by meaning; then the README's own mapping; then the `by_role_tries` examples whose tables
+    the LLM pairs best with the shop's by role."""
     tried = []
     for m in candidates(raw, pool):
         if (ok := _passes(m, raw, tried)) is not None:
@@ -502,7 +516,7 @@ def map_by_transfer(raw: RawBusiness, pool: list[Example] | None = None, llm: LL
     ranked, failed = by_role(raw, pool, llm) if llm is not None else ([], [])
     if failed:
         tried.append(f"ghép bảng theo vai trò: LLM không trả lời cho {len(failed)} mapping mẫu")
-    for e, pairs in ranked[:by_meaning]:
+    for e, pairs in ranked[:by_role_tries]:
         try:
             m = transfer_by_meaning(e, raw, llm, pairs)
         except LLMUnavailable as ex:

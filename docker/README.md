@@ -47,7 +47,7 @@ docker run --rm --network none --entrypoint "" zaic2026_datamate_<team>:final fi
 mkdir -p /tmp/r1 /tmp/r2
 time docker run --rm --gpus '"device=0,1"' --network none --shm-size=16g --entrypoint bash     -v "$PWD/data/public_test:/data:ro" -v /tmp/r1:/result zaic2026_datamate_<team>:final /code/predict.sh
 python3 -m datamate.eval.validate --pred /tmp/r1/submission.jsonl --split public_test
-python3 tools/compare_runs.py /tmp/r1 outputs/replay/run11_s71/submission.jsonl   # lệch ~1% là bình thường, "LỖI" = 0
+python3 tools/compare_runs.py /tmp/r1 outputs/replay/p17_h16/submission.jsonl   # lệch ~1% là bình thường, "LỖI" = 0
 head -c 600 /tmp/r1/logs/questions.jsonl   # mỗi dòng có id, answer, elapsed_ms, thinking, code, inputs, output
 #    lần 2 (guideline §6: hai lượt phải ra cùng đáp án, hoặc PA train lệch ≤ 0,03)
 docker run --rm --gpus '"device=0,1"' --network none --shm-size=16g --entrypoint bash     -v "$PWD/data/public_test:/data:ro" -v /tmp/r2:/result zaic2026_datamate_<team>:final /code/predict.sh

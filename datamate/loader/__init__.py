@@ -44,10 +44,29 @@ def _decode(data: bytes) -> tuple[str, str | None]:
     return data.decode("utf-8", errors="replace"), "lỗi bảng mã, ký tự hỏng đã thay bằng �"
 
 
+DELIMITER_SCAN = 10  # lines read for the delimiter: the header is looked for in the first rows too (grid.HEADER_SCAN)
+
+
+def _delimiter(text: str) -> str:
+    """The delimiter of a csv: the most frequent of ',', ';' and tab on its first line, when the line after it holds
+    that delimiter too (a header and its rows do). N195: a first line that holds none of them, or one the next line
+    does not hold, is a title above the header ("SỔ BÁN HÀNG", "Sổ bán hàng, năm 2025") and the lines after it decide
+    the same way: read by its first line alone, such a file written with ';' or tabs was cut at its commas (a train
+    ledger rewritten so: 5 columns for 10, no mapping, every question of the shop blank). A line with none of the
+    three and a '|' is cut at '|'. Blank lines are passed over; no delimiter in the first lines: one column, ','."""
+    lines = [line for line in text.split("\n", DELIMITER_SCAN + 1)[:DELIMITER_SCAN + 1] if line.strip()]
+    for i, line in enumerate(lines[:DELIMITER_SCAN]):
+        best = max([",", ";", "\t"], key=line.count)
+        if not line.count(best):
+            best = "|" if "|" in line else None
+        if best is not None and (i + 1 == len(lines) or best in lines[i + 1]):
+            return best
+    return ","
+
+
 def _read_csv(f: Path) -> list[RawTable]:
     text, note = _decode(f.read_bytes())
-    first = text.split("\n", 1)[0]
-    delim = max([",", ";", "\t"], key=first.count)
+    delim = _delimiter(text)
     t = to_table(list(csv.reader(io.StringIO(text), delimiter=delim)))
     notes = t.notes + ([note] if note else []) + ([f"dấu phân cách {delim!r}"] if delim != "," else [])
     return [RawTable(table_id=f.name, file=f.name, sheet=None, frame=t.frame, header_rows=t.header_rows,
@@ -65,7 +84,19 @@ def _read_xlsx(f: Path) -> list[RawTable]:
 
 
 def _read_sqlite(f: Path) -> list[RawTable]:
-    con = sqlite3.connect(f"file:{f}?mode=ro", uri=True)
+    try:
+        return _sqlite_tables(f, "mode=ro")
+    except sqlite3.OperationalError:
+        # N196: a database left in WAL mode needs a file beside it even to be read; the test data is mounted read-only
+        # (docker -v …:/data:ro), nothing can be created there, and every read fails with "attempt to write a readonly
+        # database": the shop had no table and all its questions were blank (seen only on Linux, never on a laptop's
+        # writable folder). immutable=1: the file cannot change, so no lock and no file beside it are needed. Only
+        # after the plain read-only open failed, so every database read before is read the same way.
+        return _sqlite_tables(f, "mode=ro&immutable=1")
+
+
+def _sqlite_tables(f: Path, how: str) -> list[RawTable]:
+    con = sqlite3.connect(f"file:{f}?{how}", uri=True)
     try:
         names = [r[0] for r in con.execute("select name from sqlite_master where type='table'")]
         out = []

@@ -20,6 +20,16 @@ def test_cell_text(value, text):
     assert cell_text(value) == text
 
 
+@pytest.mark.parametrize("value", [1.125, 0.375, -0.125, 12.345, 999.999, 2.5, 0.25, 1234.567, 1001.0, 3.14159])
+def test_a_number_cell_is_read_back_as_its_value(value):
+    """N198: 1.125 written "1.125" was read as 1125 (the shape of a text amount with a thousands dot)."""
+    assert parse_number(cell_text(value)) == value and parse_money(cell_text(value)) == value
+
+
+def test_a_text_amount_with_a_thousands_dot_is_still_grouped():
+    assert cell_text("1.125") == "1.125" and parse_money("1.125") == 1125 and parse_number("25.000") == 25000
+
+
 def test_title_rows_above_the_header_are_skipped():
     t = to_table([["SỔ CHI TIẾT BÁN HÀNG"], ["Kỳ báo cáo: toàn bộ", "Kênh bán: Tất cả"], [], HEADER, ROW])
     assert list(t.frame.columns) == HEADER and t.frame.iloc[0].tolist() == ROW and t.header_rows == 3
@@ -111,6 +121,52 @@ def test_load_business_reads_xlsx_sheets_csv_and_skips_unknown_files(tmp_path):
     assert any("anh.png" in w for w in raw.warnings)
 
 
+def _pos(folder, wal: bool = False):
+    import sqlite3
+    con = sqlite3.connect(folder / "pos.sqlite")
+    if wal:
+        con.execute("pragma journal_mode=wal")
+    con.execute("create table don_hang (ma text, tien integer, ghi_chu text)")
+    con.executemany("insert into don_hang values (?, ?, ?)", [("D1", 10000, None), ("D2", 25000, "gấp")])
+    con.commit()
+    con.close()
+
+
+def test_sqlite_tables_are_read_as_text_null_blank(tmp_path):
+    _pos(tmp_path)
+    (t,) = load_business(tmp_path).tables
+    assert t.table_id == "pos.sqlite::don_hang" and list(t.frame.columns) == ["ma", "tien", "ghi_chu"]
+    assert t.frame.values.tolist() == [["D1", "10000", ""], ["D2", "25000", "gấp"]]
+
+
+def test_a_database_that_cannot_be_opened_read_only_is_read_as_immutable(tmp_path, monkeypatch):
+    """N196: a WAL database on a read-only mount (docker -v …:/data:ro) fails every read with mode=ro ("attempt to
+    write a readonly database", checked on Linux); the shop had no table. It is read again with immutable=1."""
+    import sqlite3
+
+    import datamate.loader as loader
+    _pos(tmp_path, wal=True)
+    real, opened = sqlite3.connect, []
+
+    class ReadOnlyMount:  # stands for the mount: the plain read-only open connects, then cannot read
+        def execute(self, *a, **k):
+            raise sqlite3.OperationalError("attempt to write a readonly database")
+
+        def close(self):
+            pass
+
+    def connect(database, **kw):
+        opened.append(database.split("?", 1)[1])
+        return real(database, **kw) if "immutable=1" in database else ReadOnlyMount()
+    monkeypatch.setattr(loader.sqlite3, "connect", connect)
+    raw = load_business(tmp_path)
+    assert opened == ["mode=ro", "mode=ro&immutable=1"] and not raw.warnings
+    assert raw.tables[0].frame.values.tolist() == [["D1", "10000", ""], ["D2", "25000", "gấp"]]
+    monkeypatch.setattr(loader.sqlite3, "connect", lambda database, **kw: ReadOnlyMount())  # unreadable either way
+    raw = load_business(tmp_path)
+    assert not raw.tables and any("pos.sqlite: lỗi đọc OperationalError" in w for w in raw.warnings)
+
+
 def test_reading_stops_at_the_time_budget(tmp_path):
     (tmp_path / "a.csv").write_text("x,y\n1,2\n", encoding="utf-8")
     raw = load_business(tmp_path, budget_s=-1)
@@ -158,3 +214,35 @@ def test_a_named_column_with_no_value_is_dropped():
     assert any("bỏ cột không có giá trị" in n for n in t.notes)
     only_header = to_table([["Mã", "Tiền"]])
     assert list(only_header.frame.columns) == ["Mã", "Tiền"] and len(only_header.frame) == 0
+
+
+@pytest.mark.parametrize("text, delim", [
+    ('Ma,Ten,Tien\nK1,Cafe,"25,000"\n', ","),
+    ("Ma;Ten;Tien\nK1;Cafe;25,000\n", ";"),  # the first line decides, as before
+    ("Ma\tTen\tTien\nK1\tCafe\t25,000\n", "\t"),
+    ("SỔ BÁN HÀNG\nMa;Ten;Tien\nK1;Cafe;25,000\n", ";"),  # N195: a title above the header holds no delimiter
+    ("\nSỔ BÁN HÀNG\n\nMa\tTen\tTien\nK1\tCafe\t25,000\n", "\t"),
+    ("SỔ BÁN HÀNG\nMa,Ten,Tien\nK1,Cafe,25000\n", ","),
+    ("Ma|Ten|Tien\nK1|Cafe|25,000\n", "|"),
+    ("Ma,Ten|Loai,Tien\nK1,Cafe,25000\n", ","),  # a '|' inside a name of a comma file is no delimiter
+    ("Sổ bán hàng, năm 2025\nMa;Ten;Tien\nK1;Cafe;25,000\n", ";"),  # a title with a comma: the header has none
+    ("Sổ bán hàng; quý 1\n\nMa,Ten,Tien\nK1,Cafe,25000\n", ","),
+    ("Ma,Ten,Tien\nTháng 1\nK1,Cafe,25000\nK2,Tra,20000\n", ","),  # a label row inside the data
+    ("Ma;Ten;Tien\n", ";"),  # the header alone
+    ("Ten, loai\nCafe\nTra\n", ","),  # one column whose name has a comma: as before
+    ("Ten\nCafe\nTra\n", ","),  # one column
+    ("", ","),
+])
+def test_csv_delimiter(text, delim):
+    from datamate.loader import _delimiter
+    assert _delimiter(text) == delim
+
+
+def test_a_csv_under_a_title_line_is_read_by_its_own_delimiter(tmp_path):
+    """N195: read by its first line alone, a ';' file under a title was cut at the commas of its amounts."""
+    rows = "Mã đơn;Ngày;Tên hàng;SL;Thành tiền\nD1;01/06/2026;Cà phê sữa;2;50,000\nD2;02/06/2026;Bạc xỉu;1;29,000\n"
+    (tmp_path / "a.csv").write_text(rows, encoding="utf-8")
+    (tmp_path / "b.csv").write_text("SỔ BÁN HÀNG\n" + rows, encoding="utf-8")
+    a, b = load_business(tmp_path).tables
+    assert list(b.frame.columns) == ["Mã đơn", "Ngày", "Tên hàng", "SL", "Thành tiền"] and b.frame.equals(a.frame)
+    assert b.frame["Thành tiền"].tolist() == ["50,000", "29,000"] and b.header_rows == 2

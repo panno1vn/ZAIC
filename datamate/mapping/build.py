@@ -17,7 +17,7 @@ import pandas as pd
 
 from datamate.contracts import (ORDER_STATUSES, TABLES, CanonicalDB, CheckResult, ColumnMap, DataCard, Mapping,
                                 RawBusiness, TableMap, check_frame)
-from datamate.loader.parse import parse_bool, parse_date, parse_datetime, parse_money, parse_number
+from datamate.loader.parse import parse_bool, parse_date, parse_datetime, parse_money, parse_number, text_memo
 
 # the column that dates each table, for CanonicalDB.date_ranges
 DATE_COLUMNS = {"orders": "order_time", "purchases": "receipt_time", "payments": "paid_time", "inventory": "as_of",
@@ -44,6 +44,7 @@ _DATED = {"date": parse_date, "datetime": parse_datetime}
 _QTY_UNIT = re.compile(r"^\s*(-?\d[\d.,]*)\s*(.*?)\s*$")
 
 
+@text_memo
 def _fold(s: str) -> str:
     t = unicodedata.normalize("NFD", s.lower()).replace("đ", "d")
     return " ".join("".join(c for c in t if not unicodedata.combining(c)).split())
@@ -209,11 +210,13 @@ def _status_from_lines(statuses: pd.Series) -> str | None:
 def _minute(v):
     """N169: a time of day, whatever way it is written, to the minute: the copy of a row that lost its seconds
     ('6:46 AM' next to '2025-02-01 06:46:58') is still that row."""
-    if isinstance(v, str) and ":" in v:
-        d = parse_datetime(v)
-        if d is not None:
-            return d.strftime("%Y-%m-%d %H:%M")
-    return v
+    return _minute_text(v) if isinstance(v, str) and ":" in v else v
+
+
+@text_memo
+def _minute_text(v: str) -> str:
+    d = parse_datetime(v)
+    return d.strftime("%Y-%m-%d %H:%M") if d is not None else v
 
 
 def _drop_export_duplicates(frame: pd.DataFrame) -> pd.DataFrame:
