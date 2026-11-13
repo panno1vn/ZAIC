@@ -33,7 +33,7 @@ GENERATED = {  # outputs/ file -> what it is
     "outputs/llm_cache_mapping.jsonl": "column-matching answers of the local LLM for the train shops (mapping by transfer)",
     "outputs/llm_cache_prod_train.jsonl": "LLM answers of the production-like train run (tools/prod_train.py)",
 }
-LOGS = ["outputs/eval_cached_n199.log", "outputs/prod_train_n199.log", "outputs/build_bank_v3.log"]
+LOGS = ["outputs/eval_cached_n200.log", "outputs/prod_train_n200.log", "outputs/build_bank_v3.log"]
 CODE = ["tools", "datamate/eval"]
 
 
