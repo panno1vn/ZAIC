@@ -18,8 +18,10 @@ Order status words (flat layout):
 Measured 14/11, right / wrong / blank of 30 questions a shop:
                    syn_031..035      syn_041      syn_042      syn_043
     before N201    29 / 0 / 1 each   0 / 0 / 30   0 / 0 / 30   0 / 0 / 30   (the word of the completed order is not
-    with N201      (no unread word)  29 / 0 / 1   28 / 0 / 2   28 / 0 / 2    read: every candidate fails the status
+    with N201      29 / 0 / 1 each   29 / 0 / 1   29 / 0 / 1   28 / 0 / 2    read: every candidate fails the status
                                                                              checks)
+The second blank of syn_043 is the price of an item on a day: the LLM did not pick "Đơn giá" for lines.unit_price
+(an optional column). Run alone with syn_041 and syn_043, syn_042 lost the same pick and gave 28 / 0 / 2.
 
 Like tools/synth_shops2.py, §6 follows the organizers' style (the business type adds its own measures and leaves the
 general revenue of §1 alone); the questions are its train templates, without the two of the business type.
