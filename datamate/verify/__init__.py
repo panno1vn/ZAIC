@@ -191,7 +191,7 @@ def not_recorded(plan, question: str, db: CanonicalDB) -> str | None:
     q = " ".join(_fold(question).split())
     if _REASON_ASKED.search(q) and not _NOT_REASON.search(q) and not re.search(r"\bly do\b|\bnguyen nhan\b", text) \
             and not _has(db, ("returns",), "reason"):
-        return "lý do trả / huỷ đơn"
+        return REASON_NOT_RECORDED
     if plan is None:
         return None
     fields = _filter_fields(plan.model_dump(mode="json", exclude_none=True))
@@ -267,11 +267,29 @@ _CUSTOMER_METRICS = frozenset({"customer_count", "new_customer_count", "debtor_c
 _DEBT_METRICS = frozenset({"debt_total", "debt_amount", "debt_paid", "debt_added", "debtor_count", "overdue_amount"})
 
 
+REASON_NOT_RECORDED = "lý do trả / huỷ đơn"  # read from the question's own words, whatever the plan
+
+
+def plan_taken(plan: ResolvedPlan) -> bool:
+    """N197. The plan is a question the library has a function for: one is registered for its intent, metric and
+    entity, and it takes every filter field the plan carries (metrics.execute's own test, before any data is read).
+    A plan no function takes is a misreading, not a question about something: synth 12/11, a spa shop, "khách X còn
+    mấy buổi của gói Y" read as the debt of customer X with a product filter (debts take no product), in a shop that
+    keeps no debts, was answered "unanswerable: không ghi công nợ" where the answer is 3 sessions."""
+    from datamate import metrics  # late import: metrics imports nlu, which imports this module
+    name, entity = metrics.metric_name(plan), metrics.metric_entity(plan)
+    spec = metrics.lookup(plan.plan.intent, name, entity) if name else None
+    return spec is not None and not (metrics.plan_filter_fields(plan) - set(spec.filters))
+
+
 def collect_signals(plan: ResolvedPlan | None, result: ExecResult | None, db: CanonicalDB, mapping: Mapping,
                     rules: dict[str, bool], question: str = "") -> Signals:
     s = Signals(mapping_ok=mapping.ok)
     if mapping.ok and question and all(rules.get(r, False) for r in R_OUTSIDE) \
-            and (missing := not_recorded(plan.plan if plan is not None else None, question, db)) is not None:
+            and (missing := not_recorded(plan.plan if plan is not None else None, question, db)) is not None \
+            and (plan is None or missing == REASON_NOT_RECORDED or plan_taken(plan)):
+        # N197: "the shop does not record X" is said of a question read as a function reads it; a plan with a filter
+        # its metric has no use for goes on below and abstains (no function gives it a figure)
         s.intent_known = s.out_of_scope = s.subjective = True  # decide: unanswerable (§7)
         s.notes.append(f"cửa hàng không ghi {missing} (§7)")
         return s
