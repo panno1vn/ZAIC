@@ -17,7 +17,7 @@ mã, dữ liệu, đầu ra LLM và log để dựng lại và kiểm tra.)*
 | `data/generated/llm_cache_prod_train.jsonl` | the local LLM's answers on the production-like train run |
 | `data_generation/tools/`, `data_generation/datamate/eval/` | the build and evaluation scripts |
 | `configs/` | run settings (time budget, twin threshold) |
-| `logs/` | evaluation of the final code on train (`eval_cached_n200.log`, `prod_train_n200.log`), building of the plan bank (`build_bank_v3.log`) |
+| `logs/` | evaluation of the final code on train (`eval_cached_n201.log`, `prod_train_n201.log`), building of the plan bank (`build_bank_v3.log`) |
 | `requirements.txt` | pinned dependencies (the same as inference, installed in the image) |
 | `data_manifest.json` | every file with its size and SHA-256, dataset counts, base model source |
 
@@ -40,9 +40,9 @@ data`). Steps that call the LLM need `llama-server` on port 8091 (`/code/llama/l
 | `assets/rules/reference_rules.json` | reference rule texts | `python -m datamate.rules build data/train/rulebook.md <public rulebook>` |
 
 Verification on train with the final code: `python tools/eval_cached.py` (no server; reads
-`data/generated/llm_cache_mapping.jsonl` and `llm_plans.jsonl`): 3000 questions, 2981 right, 0 wrong, 19 blank (`eval_cached_n200.log`).
+`data/generated/llm_cache_mapping.jsonl` and `llm_plans.jsonl`): 3000 questions, 2981 right, 0 wrong, 19 blank (`eval_cached_n201.log`).
 `python tools/prod_train.py 2 out.jsonl` (server; as the run reads a shop it never saw): 1500 questions, 1494 right,
-0 wrong, 6 blank (`prod_train_n200.log`, code of 13/11).
+0 wrong, 6 blank (`prod_train_n201.log`, code of 14/11).
 
 ## Hardware, runtime, nondeterminism
 
