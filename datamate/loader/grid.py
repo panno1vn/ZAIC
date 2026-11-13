@@ -52,6 +52,13 @@ def _summary_cell(c: str) -> bool:
     return all(w in _TOTAL_WORDS for w in re.findall(r"[a-z]+", f))
 
 
+# N198: a number cell (xlsx, sqlite REAL) of three decimals below 1000 is written by repr as "1.125", the very shape of
+# a text amount with a thousands dot ("1.125" = 1125 đồng, as the sheets write money): parse_number / parse_money read
+# the cell 1000 times too large (0.375 kg as 375). A number cell is never grouped by thousands: one more zero
+# ("1.1250") keeps its value and takes it out of that shape. No file of train, public or synth has such a cell.
+_GROUPED_SHAPE = re.compile(r"^-?\d{1,3}\.\d{3}$")
+
+
 def cell_text(v) -> str:
     """One cell as text, the way the parsers expect it: '' for empty, integral floats without '.0', ISO dates."""
     if v is None or (isinstance(v, float) and math.isnan(v)):
@@ -59,7 +66,10 @@ def cell_text(v) -> str:
     if isinstance(v, bool):
         return "True" if v else "False"
     if isinstance(v, float):
-        return str(int(v)) if v.is_integer() else repr(v)
+        if v.is_integer():
+            return str(int(v))
+        text = repr(v)
+        return text + "0" if _GROUPED_SHAPE.match(text) else text
     if isinstance(v, datetime):
         return v.strftime("%Y-%m-%d") if v.time() == time(0) else v.strftime("%Y-%m-%d %H:%M:%S")
     if isinstance(v, (date, time)):
