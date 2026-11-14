@@ -282,7 +282,8 @@ def failed(tried: list[str]) -> Mapping:
 
 def _passes(m: Mapping, raw: RawBusiness, tried: list[str]) -> Mapping | None:
     from .from_readme import enrich  # N29: the attributes the README names that the example's shop did not record
-    m = expand_abbreviations(status_in_note(_settle_constants(enrich(m, raw), raw), raw), raw)
+    m = status_by_elimination(status_in_note(_settle_constants(enrich(m, raw), raw), raw), raw)
+    m = expand_abbreviations(m, raw)
     db = build_canonical(raw, m)
     if broken := unfilled_extras(db):  # N27: a side table matched wrongly is left out, not the shop
         m = m.model_copy(update={"tables": [tm for tm in m.tables if tm.target not in broken], "notes": list(
@@ -369,6 +370,44 @@ def status_in_note(m: Mapping, raw: RawBusiness) -> Mapping:
                 changed = True
         out.append(tm)
     return m.model_copy(update={"tables": out}) if changed else m
+
+
+# N201 (14/11). §8: every order has exactly one of the four statuses. A shop writing its completed orders with a word
+# no hand mapping and no key word reads ("Đã bán", "Hoàn tất", "Đã thanh toán") had every such order without a status:
+# the status checks failed on each candidate and the whole shop abstained. Measured on one self-made dev shop written
+# with three such words (tools/synth_shops3.py): 0 answers of 30 with each, 29 right and none wrong with "Hoàn thành".
+# By elimination: the status column's words are all read but one, none of them as completed, and that one word is in
+# at least half of the status cells (the status check's own share of orders sold): it is the completed order. Two
+# unread words, a completed word already read, an unread word on few orders, or a column where no word reads as a
+# status are left as they are: nothing says which word is which. No shop of train or public has such a column (their
+# status words are all read), so none of their mappings changes.
+SOLE_UNREAD_SHARE = 0.5  # = build.SOLD_SHARE_MIN
+
+
+def status_by_elimination(m: Mapping, raw: RawBusiness) -> Mapping:
+    """The one status word left unread, written on most orders of a shop with no word read as completed, is read as
+    completed (N201, §8)."""
+    out, changed = [], False
+    for tm in m.tables:
+        st = next((c for c in tm.columns if c.target == "status"), None) if tm.target == "orders" else None
+        vm = tm.value_maps.get("status")
+        if st is not None and st.source is not None and st.transform is None and vm is not None:
+            ids = source_ids(tm, [t.table_id for t in raw.tables])
+            frames = [t.frame for t in raw.tables if t.table_id in ids and st.source in t.frame.columns]
+            cells = pd.concat([f[st.source] for f in frames], ignore_index=True) if frames else pd.Series(dtype=str)
+            words = cells.dropna().map(lambda v: str(v).strip())
+            counts = words[words != ""].value_counts()
+            unread = [w for w in counts.index if w not in vm]
+            read = {vm[w] for w in counts.index if w in vm}
+            if (len(unread) == 1 and read and "completed" not in read
+                    and counts[unread[0]] >= SOLE_UNREAD_SHARE * counts.sum()):
+                tm = tm.model_copy(update={"value_maps": {**tm.value_maps, "status": {**vm, unread[0]: "completed"}}})
+                changed = True
+        out.append(tm)
+    if not changed:
+        return m
+    return m.model_copy(update={"tables": out, "notes": list(m.notes) + [
+        "chữ trạng thái duy nhất chưa đọc được, ghi ở đa số đơn: hiểu là đơn hoàn thành (§8)"]})
 
 
 ABBREV_COVER = 0.8  # share of the lines' distinct product values written by abbreviation or by name
