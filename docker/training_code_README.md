@@ -22,8 +22,12 @@ mã, dữ liệu, đầu ra LLM và log để dựng lại và kiểm tra.)*
 | `data_manifest.json` | every file with its size and SHA-256, dataset counts, base model source |
 
 No validation split was held out: development measured the pipeline on train (rules are checked against the train
-answers). Public and private test data were never used to build anything; the public rulebook's text is read only as
-the reference rule texts (`assets/rules/reference_rules.json`), never any test answer.
+answers) and on self-made shops (`tools/synth_shops*.py`). Every data file here is built from train alone, except the
+reference rule texts (`assets/rules/reference_rules.json`), which also hold the public rulebook's text. During
+development the pipeline was also run on the public test set and its inputs (files, READMEs, rulebook, question
+wording) were read to find where files, columns or questions were misread; code written after such a finding says
+"public" in its comment. Nothing in this image was built or tuned with answers to public questions; the only public
+score known is the leaderboard total. The private test set has not been seen.
 
 ## Assets and how to rebuild them
 

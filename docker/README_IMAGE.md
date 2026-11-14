@@ -94,8 +94,9 @@ Không tinh chỉnh; dùng nguyên bản phát hành. Tổng tham số mọi mod
 
 ## Dữ liệu
 
-- Chỉ dùng dữ liệu train BTC phát hành (30 cửa hàng, 3000 câu có đáp án) và model công khai ở trên. Không dùng dữ liệu public / private test để dựng gì (chỉ đọc lời văn rulebook public làm bản luật tham chiếu, không đáp án nào).
-- Không có tập validation tách riêng: các hàm và luật được kiểm trên chính train (`training_code/README.md`): mã cuối đúng 2752, sai 0, bỏ trống 248 trên 3000 câu.
+- Dữ liệu dựng sẵn trong image (kho plan, mapping tay, mẫu câu, từ đồng nghĩa) chỉ dựng từ dữ liệu train BTC phát hành (30 cửa hàng, 3000 câu có đáp án); riêng bản luật tham chiếu dựng từ lời văn rulebook train và rulebook public. Model công khai ở trên, dùng nguyên bản.
+- Public test: trong lúc phát triển có chạy hệ thống trên public test và đọc **đầu vào** của nó (file, README, rulebook, lời câu hỏi) để tìm chỗ hệ thống đọc file, ghép cột hay đọc câu hỏi sai; đoạn code viết sau một phát hiện như vậy ghi chữ "public" trong chú thích. Không thứ gì trong image được dựng hay chỉnh bằng đáp án của câu hỏi public; điểm public duy nhất được biết là điểm tổng trên bảng xếp hạng. Private test chưa từng được xem.
+- Không có tập validation tách riêng: các hàm và luật được kiểm trên chính train (`training_code/README.md`): mã cuối đúng 2981, sai 0, bỏ trống 19 trên 3000 câu; thêm các shop tự dựng (`tools/synth_shops*.py`) để đo ngành và cách ghi file chưa có ở train.
 - Chi tiết, lệnh dựng lại và checksum: `/code/training_code/README.md`, `/code/training_code/data_manifest.json`.
 
 Không gọi dịch vụ ngoài nào. Container chạy được với `--network none`.
