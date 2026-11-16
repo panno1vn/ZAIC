@@ -213,3 +213,14 @@ def test_an_export_copy_that_lost_its_seconds_is_still_a_duplicate():
     f = pd.DataFrame({"Ma": ["A", "A", "B"], "Gio": ["2025-02-01 06:46:58", "01/02/2025 6:46 AM", "01/02/2025 6:46 AM"],
                       "Tien": ["10k", "10k", "10k"]})
     assert list(_drop_export_duplicates(f)["Ma"]) == ["A", "B"]
+
+
+def test_raw_values_computed_once_per_shop():
+    """N175: every candidate mapping builds the shop again; what depends on the files only is computed once."""
+    r = raw(("So.xlsx::T06", JUNE, 2025), ("So.xlsx::T07", JULY, 2025), ("QuyDoi.xlsx::Sheet1", CONV, None))
+    a = build_canonical(r, sales_mapping())
+    b = build_canonical(r, sales_mapping())
+    assert a.values is b.values and a.values == b.values and r._raw_values[1] is a.values
+    r.tables.append(RawTable(table_id="Them.xlsx::S", file="Them.xlsx", sheet=None,
+                             frame=pd.DataFrame({"Loai": ["sữa", "gạo"]})))
+    assert build_canonical(r, sales_mapping()).values != a.values  # a table added after: not the old answer

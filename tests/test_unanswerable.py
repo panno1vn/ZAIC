@@ -118,3 +118,14 @@ def test_purchases_a_shop_does_not_record_are_unanswerable():
     assert kind(("gia von",), purchases=True) == "abstain"  # a purchase table was mapped
     assert kind(None) == "abstain"  # the README writes no conventions
     assert kind(("gia von",), rule_status={}) == "abstain"  # §7 changed
+
+
+# ---- N176: a README without a "## Quy ước" section proves no absence
+def test_thin_readme_never_says_not_recorded():
+    from datamate.contracts import CanonicalDB
+    from datamate.nlu.grounding import customer_trait_not_recorded
+    from datamate.verify import not_recorded
+    q = "Công nợ của khách Lan tính đến hết hôm nay là bao nhiêu?"
+    assert not_recorded(None, q, CanonicalDB(readme="# Cửa hàng ABC", conventions=None)) is None
+    assert customer_trait_not_recorded("khách nữ chiếm bao nhiêu % doanh thu", "# Cửa hàng ABC") is False
+    assert customer_trait_not_recorded("khách nữ chiếm bao nhiêu % doanh thu", "# Cửa hàng ABC\n## Quy ước\n") is True

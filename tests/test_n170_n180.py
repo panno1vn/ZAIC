@@ -60,7 +60,7 @@ def test_a_debt_written_only_as_a_term_of_credit():
     readme = ("# Dữ liệu\n## Cột trong `SoHanNo.xlsx`\n- **So hoa don**: mã đơn\n"
               "- **Hạn nợ (ngày)**: số ngày được nợ\n- **Han tra**: hạn thanh toán\n"
               "## Quy ước\n- **Hạn thanh toán**: chỉ đơn bán nợ có hạn.\n")
-    db = CanonicalDB(tables={"orders": pd.DataFrame({"order_key": ["d1"], "customer_key": ["k"]})}, readme=readme)
+    db = CanonicalDB(tables={"orders": pd.DataFrame({"order_key": ["d1"], "customer_key": ["k"]})}, readme=readme, conventions=())
     p = plan(intent="rank", rank={"entity": "customer", "by": "debt_amount", "k": 3, "with_values": True},
              answer_type="table")
     assert not_recorded(p, "cho bảng 3 khách còn nợ nhìu nhất", db) == "công nợ"

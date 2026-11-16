@@ -117,3 +117,19 @@ def test_a_candidate_with_such_a_word_passes_the_checks():
     ok = transfer._passes(_mapping(raw), raw, tried)
     assert ok is not None, tried
     assert _status_map(ok)["Đã bán"] == "completed" and any("§8" in n for n in ok.notes)
+
+
+def test_t018_the_same_rule_when_the_status_is_read_from_the_lines():
+    """A flat sheet (the order's cells on every line) maps its status with order_status_from_lines: the unread word
+    is read as completed there too, counted once per order."""
+    lines_status = {"target": "status", "source": "Trạng thái", "transform": "order_status_from_lines"}
+    for word in ("Đã bán", "Hoàn tất", "Đã thanh toán"):
+        raw = _shop([word] * 54 + ["Huỷ"] * 3 + ["Trả hàng"] * 3)
+        m = _mapping(raw, status=lines_status)
+        assert word not in _status_map(m)
+        fixed = status_by_elimination(m, raw)
+        assert _status_map(fixed)[word] == "completed"
+        assert all(_checks(raw, fixed)[n] for n in STATUS_CHECKS)
+    raw = _shop(["Đã bán"] * 20 + ["Huỷ"] * 20 + ["Trả hàng"] * 20)  # the unread word on a third of the orders
+    m = _mapping(raw, status=lines_status)
+    assert status_by_elimination(m, raw) is m

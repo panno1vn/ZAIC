@@ -171,7 +171,7 @@ def test_generic_words_are_no_filter():
 
 def test_gender_or_street_a_shop_does_not_record():
     """N89, train: the 10 such questions are all unanswerable, in shops whose README names neither column."""
-    plain = "## Cột trong `don.csv`\n- **Khách**: tên khách\n"
+    plain = "## Quy ước\n## Cột trong `don.csv`\n- **Khách**: tên khách\n"  # N176: a README with the section
     assert grounding.customer_trait_not_recorded("Tháng 11/2025 khách nam mua tổng cộng bao nhiêu tiền?", plain)
     assert grounding.customer_trait_not_recorded("có bnhiu khách hàng ở đường hậu giang", plain)
     assert not grounding.customer_trait_not_recorded("Khách năm 2025 mua bao nhiêu tiền?", plain)  # a year

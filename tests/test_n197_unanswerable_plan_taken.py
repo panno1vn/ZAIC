@@ -19,7 +19,7 @@ MAPPING = Mapping(tables=[TableMap(target="orders", sources=["ban.csv"], columns
 
 def _db() -> CanonicalDB:
     orders = pd.DataFrame({"order_id": ["D1"], "customer_key": ["Trịnh Văn Trang"], "goods_amount": [1.0]})
-    return CanonicalDB(tables={"orders": orders}, readme=README)
+    return CanonicalDB(tables={"orders": orders}, readme=README, conventions=())
 
 
 def _plan(measure: dict, linked: dict | None = None) -> ResolvedPlan:

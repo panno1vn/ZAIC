@@ -83,6 +83,7 @@ def examples(leave_out: str | None = None) -> list[Example]:
     return [e for e in _all_examples() if e.name != leave_out]
 
 
+@lru_cache(maxsize=500_000)  # N175: see build._fold
 def _fold(s: str) -> str:
     s = unicodedata.normalize("NFD", str(s).strip().lower()).replace("đ", "d")
     return " ".join("".join(c for c in s if not unicodedata.combining(c)).split())
@@ -391,9 +392,15 @@ def status_by_elimination(m: Mapping, raw: RawBusiness) -> Mapping:
     for tm in m.tables:
         st = next((c for c in tm.columns if c.target == "status"), None) if tm.target == "orders" else None
         vm = tm.value_maps.get("status")
-        if st is not None and st.source is not None and st.transform is None and vm is not None:
+        # T018: a status read from the lines (a flat sheet: the order's cells on every line) is the same column of
+        # words; counted once per order, as the transform reads it
+        if (st is not None and st.source is not None and vm is not None
+                and st.transform in (None, "order_status_from_lines")):
             ids = source_ids(tm, [t.table_id for t in raw.tables])
             frames = [t.frame for t in raw.tables if t.table_id in ids and st.source in t.frame.columns]
+            oid = next((c.source for c in tm.columns if c.target == "order_id" and c.source), None)
+            if st.transform == "order_status_from_lines" and oid is not None:
+                frames = [f[[st.source, oid]].drop_duplicates() for f in frames if oid in f.columns]
             cells = pd.concat([f[st.source] for f in frames], ignore_index=True) if frames else pd.Series(dtype=str)
             words = cells.dropna().map(lambda v: str(v).strip())
             counts = words[words != ""].value_counts()
